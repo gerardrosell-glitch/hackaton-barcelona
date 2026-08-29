@@ -10,6 +10,10 @@
 - [x] Preserve the device profile while resetting the daily plan and training choice.
 - [x] Add a date-aware daily check with completed-meal status and streak points.
 - [x] Add weekly plan and basket print-to-PDF plus mail-app sharing.
+- [x] Make the Coach responsive without auto-scrolling the conversation title out of view.
+- [x] Remove the desktop header and make the Coach canvas full-width.
+- [x] Replace the ambiguous daily-proposal control with clear meal actions in a full-screen scroll deck.
+- [x] Add a server-only OpenAI-backed live Coach conversation with general-wellbeing guardrails.
 
 ## Review
 

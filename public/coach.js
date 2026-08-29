@@ -7,19 +7,22 @@
   let capturedMealImage;
   let language = localStorage.getItem("quota-vita-coach-language") || "en";
   const chatStyle = document.createElement("style");
-  chatStyle.textContent = ".coach-workspace{position:relative;isolation:isolate;min-height:760px;overflow:hidden;border-radius:26px;padding:clamp(24px,4vw,48px) clamp(18px,7vw,96px);background:#1d6254;color:#fff}.coach-workspace::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(9,46,39,.9),rgba(20,91,77,.72) 48%,rgba(255,106,70,.58))}.coach-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.coach-workspace .stepper{margin:0 auto 20px;max-width:760px}.coach-workspace .eyebrow,.coach-workspace .lead{color:#fff}.coach-workspace h2{max-width:760px;margin:0 auto 5px;color:#fff;font-size:clamp(2rem,4vw,3.5rem);line-height:1.02;text-align:left}.coach-workspace>.eyebrow,.coach-workspace>.lead{max-width:760px;margin-left:auto;margin-right:auto;text-align:left}.coach-workspace>.lead{margin-top:0;margin-bottom:22px;font-size:1rem}.chat{max-width:760px;min-height:440px;margin:0 auto;padding:18px;border:1px solid rgba(255,255,255,.35);border-radius:24px;background:rgba(8,43,36,.44);display:grid;align-content:start;gap:13px;backdrop-filter:blur(10px)}.bubble{max-width:78%;padding:14px 17px;border-radius:19px;line-height:1.45;box-shadow:0 10px 24px rgba(4,37,31,.14)}.bubble.coach{justify-self:start;background:rgba(255,255,255,.97);color:#173e36;border-bottom-left-radius:5px}.bubble.user{justify-self:end;background:#123e35;color:#fff;border:1px solid rgba(255,255,255,.35);border-bottom-right-radius:5px}.bubble .meta{display:block;margin-top:6px;color:#55736d;font-size:.9em}.coach-intro{font-size:1.04rem}.composer{width:100%;box-sizing:border-box;margin:8px 0 0;padding:11px;border:1px solid rgba(255,255,255,.8);border-radius:22px;background:rgba(255,255,255,.98);box-shadow:0 18px 42px rgba(4,37,31,.2)}.composer-label{display:block;padding:2px 7px 9px;color:#41675f;font-weight:700;font-size:.88rem}.quick-replies{display:flex;flex-wrap:wrap;gap:8px}.quick-replies button{border:1px solid #8fb9ab;border-radius:999px;background:#f6fbf8;color:#173e36;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}.quick-replies button:hover{background:#dceee6}.chat-input{display:flex;gap:8px}.chat-input input{min-width:0;flex:1;border:0;background:transparent;padding:12px 10px;color:#173e36;font:inherit;font-size:1rem;outline:none}.chat-input .button{border-radius:15px}.chat-cancel{display:block;margin:16px auto 0;background:transparent!important;border-color:rgba(255,255,255,.8)!important;color:#fff!important}.coach-workspace .privacy{margin:16px auto 0;color:#fff;text-align:center}.coach-workspace .actions{justify-content:center}@media(max-width:600px){.coach-workspace{min-height:680px;border-radius:0;padding:28px 16px}.coach-workspace h2{font-size:2.25rem}.chat{min-height:455px;padding:13px}.bubble{max-width:92%}.chat-input .button{padding:11px 14px}}";
+  chatStyle.textContent = ".coach-workspace{position:relative;isolation:isolate;min-height:100dvh;overflow:hidden;border-radius:0;padding:clamp(28px,5vw,64px) clamp(18px,8vw,128px);background:#1d6254;color:#fff}.coach-workspace::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(9,46,39,.9),rgba(20,91,77,.72) 48%,rgba(255,106,70,.58))}.coach-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.coach-workspace .stepper{margin:0 auto 20px;max-width:760px}.coach-workspace .eyebrow,.coach-workspace .lead{color:#fff}.coach-workspace h2{max-width:760px;margin:0 auto 5px;color:#fff;font-size:clamp(2rem,4vw,3.5rem);line-height:1.02;text-align:left}.coach-workspace>.eyebrow,.coach-workspace>.lead{max-width:760px;margin-left:auto;margin-right:auto;text-align:left}.coach-workspace>.lead{margin-top:0;margin-bottom:22px;font-size:1rem}.chat{max-width:760px;min-height:440px;margin:0 auto;padding:18px;border:1px solid rgba(255,255,255,.35);border-radius:24px;background:rgba(8,43,36,.44);display:grid;align-content:start;gap:13px;backdrop-filter:blur(10px)}.bubble{max-width:78%;padding:14px 17px;border-radius:19px;line-height:1.45;box-shadow:0 10px 24px rgba(4,37,31,.14)}.bubble.coach{justify-self:start;background:rgba(255,255,255,.97);color:#173e36;border-bottom-left-radius:5px}.bubble.user{justify-self:end;background:#123e35;color:#fff;border:1px solid rgba(255,255,255,.35);border-bottom-right-radius:5px}.bubble .meta{display:block;margin-top:6px;color:#55736d;font-size:.9em}.coach-intro{font-size:1.04rem}.composer{width:100%;box-sizing:border-box;margin:8px 0 0;padding:11px;border:1px solid rgba(255,255,255,.8);border-radius:22px;background:rgba(255,255,255,.98);box-shadow:0 18px 42px rgba(4,37,31,.2)}.composer-label{display:block;padding:2px 7px 9px;color:#41675f;font-weight:700;font-size:.88rem}.quick-replies{display:flex;flex-wrap:wrap;gap:8px}.quick-replies button{border:1px solid #8fb9ab;border-radius:999px;background:#f6fbf8;color:#173e36;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}.quick-replies button:hover{background:#dceee6}.chat-input{display:flex;gap:8px}.chat-input input{min-width:0;flex:1;border:0;background:transparent;padding:12px 10px;color:#173e36;font:inherit;font-size:1rem;outline:none}.chat-input .button{border-radius:15px}.chat-cancel{display:block;margin:16px auto 0;background:transparent!important;border-color:rgba(255,255,255,.8)!important;color:#fff!important}.coach-workspace .privacy{margin:16px auto 0;color:#fff;text-align:center}.coach-workspace .actions{justify-content:center}@media(max-width:600px){.coach-workspace{min-height:100dvh;padding:26px 16px}.coach-workspace h2{font-size:2.25rem}.chat{min-height:0;padding:13px}.bubble{max-width:92%}.chat-input .button{padding:11px 14px}}";
   document.head.append(chatStyle);
   const conversationOverflowStyle = document.createElement("style");
-  conversationOverflowStyle.textContent = ".coach-workspace{width:100vw;margin-left:calc(50% - 50vw);border-radius:0;overflow:visible!important;background:url('/assets/coach-palette.png') center/cover!important;color:#163b32}.coach-workspace::after{background:rgba(255,244,222,.38)!important}.coach-video{display:none}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#163b32}.chat{background:rgba(255,247,230,.76);border-color:rgba(107,103,53,.32);backdrop-filter:blur(14px)}.bubble.coach{background:rgba(255,252,243,.95);color:#163b32}.bubble.user{background:#456451;color:#fff;border-color:#456451}.composer{background:rgba(255,252,243,.96);border-color:#d99b60}.quick-replies button{background:#fff6df;border-color:#b5a96b;color:#274a3e}.quick-replies button:hover{background:#f4d39b}.quick-replies button:focus-visible,.restart-control:focus-visible{outline:3px solid #e67553;outline-offset:3px}.shortcut-key{display:inline-grid;place-items:center;min-width:1.55em;height:1.55em;margin-right:7px;border:1px solid currentColor;border-radius:50%;font-size:.76em;line-height:1;font-family:ui-monospace,SFMono-Regular,monospace}.keyboard-hint{margin:0 7px 9px;color:#55736d;font-size:.82rem}.restart-control{margin-left:auto;border:1px solid #7e8254;background:rgba(255,252,243,.9);color:#274a3e;padding:8px 11px;font:inherit;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.chat-input input{color:#274a3e}.chat-input .button,.coach-workspace .button:not(.quiet){background:#3f6653;border-color:#3f6653}.chat-cancel{color:#274a3e!important;border-color:#7e8254!important;background:rgba(255,247,230,.55)!important}.chat-page{max-width:760px;margin:0 auto}.chat-page .bubble{max-width:100%;box-sizing:border-box}.chat-page .day{display:grid;gap:16px}.chat-page .meal-list{display:grid;gap:14px}.meal-image{width:100%;height:190px;object-fit:cover;border-radius:12px;margin:0 0 12px}.weekly-grid{display:grid;gap:12px}.week-day{padding:14px;border:1px solid #d9b47a;border-radius:12px;background:rgba(255,252,243,.88)}.week-day h3{margin:0 0 6px}.chat-page .privacy{color:#55736d;text-align:left}@media(max-width:600px){.masthead{gap:8px}.masthead .brand{max-width:150px}.restart-control{padding:7px 8px;font-size:.65rem}}";
+  conversationOverflowStyle.textContent = ".shell{max-width:none!important;margin:0!important;padding:0!important}.masthead{display:none!important}main{padding:0!important}.coach-workspace{width:100vw;margin-left:calc(50% - 50vw);border-radius:0;overflow:visible!important;background:url('/assets/coach-palette.png') center/cover!important;color:#163b32}.coach-workspace::after{background:rgba(255,244,222,.38)!important}.coach-video{display:none}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#163b32}.chat{background:rgba(255,247,230,.76);border-color:rgba(107,103,53,.32);backdrop-filter:blur(14px)}.bubble.coach{background:rgba(255,252,243,.95);color:#163b32}.bubble.user{background:#456451;color:#fff;border-color:#456451}.composer{background:rgba(255,252,243,.96);border-color:#d99b60}.quick-replies button{background:#fff6df;border-color:#b5a96b;color:#274a3e}.quick-replies button:hover{background:#f4d39b}.quick-replies button:focus-visible,.restart-control:focus-visible{outline:3px solid #e67553;outline-offset:3px}.shortcut-key{display:inline-grid;place-items:center;min-width:1.55em;height:1.55em;margin-right:7px;border:1px solid currentColor;border-radius:50%;font-size:.76em;line-height:1;font-family:ui-monospace,SFMono-Regular,monospace}.keyboard-hint{margin:0 7px 9px;color:#55736d;font-size:.82rem}.restart-control{margin-left:auto;border:1px solid #7e8254;background:rgba(255,252,243,.9);color:#274a3e;padding:8px 11px;font:inherit;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.chat-input input{color:#274a3e}.chat-input .button,.coach-workspace .button:not(.quiet){background:#3f6653;border-color:#3f6653}.chat-cancel{color:#274a3e!important;border-color:#7e8254!important;background:rgba(255,247,230,.55)!important}.chat-page{max-width:760px;margin:0 auto}.chat-page .bubble{max-width:100%;box-sizing:border-box}.chat-page .day{display:grid;gap:16px}.chat-page .meal-list{display:grid;gap:14px}.meal-image{width:100%;height:190px;object-fit:cover;border-radius:12px;margin:0 0 12px}.weekly-grid{display:grid;gap:12px}.week-day{padding:14px;border:1px solid #d9b47a;border-radius:12px;background:rgba(255,252,243,.88)}.week-day h3{margin:0 0 6px}.chat-page .privacy{color:#55736d;text-align:left}";
   document.head.append(conversationOverflowStyle);
   const paletteContrastStyle = document.createElement("style");
   paletteContrastStyle.textContent = ".coach-workspace{color:#392d23}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#392d23}.coach-workspace .eyebrow{color:#9e4e35}.coach-workspace .lead{color:#584538}.chat{background:rgba(255,249,237,.84);border-color:rgba(112,78,48,.32)}.bubble.coach{background:rgba(255,253,247,.97);color:#392d23}.bubble.user{background:#614633;border-color:#614633;color:#fffdf8}.bubble .meta,.chat-page .privacy,.keyboard-hint{color:#6d5948}.composer{background:rgba(255,253,247,.98);border-color:#c88152}.quick-replies button{background:#fff7e8;border-color:#bf885d;color:#392d23}.quick-replies button:hover{background:#f1d0aa}.quick-replies button:focus-visible,.restart-control:focus-visible{outline-color:#a14e34}.chat-input input{color:#392d23}.chat-input .button,.coach-workspace .button:not(.quiet){background:#614633;border-color:#614633;color:#fffdf8}.chat-cancel{color:#392d23!important;border-color:#9a6544!important;background:rgba(255,249,237,.7)!important}.restart-control{background:#fff9ed;border-color:#a66b48;color:#392d23}.shortcut-key{border-color:#a66b48;color:#7a4730}.week-day{background:rgba(255,253,247,.92);border-color:#d1a171}.meal-header,.meal p,.ledger,.method{color:#392d23}.meta,.ledger span{color:#6d5948}.meal-image-placeholder{display:grid;place-items:center;align-content:center;gap:12px;background:linear-gradient(135deg,#fff7e8,#efd6ab);color:#584538;font-weight:800;text-align:center}.meal-image-placeholder .button{margin:0}";
   document.head.append(paletteContrastStyle);
+  const mealDeckStyle = document.createElement("style");
+  mealDeckStyle.textContent = ".meal-feed{display:grid;gap:18px;margin:18px 0}.meal-feed .meal{min-height:min(72dvh,680px);scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;border-left-width:7px}.meal-feed .meal .actions{justify-content:flex-start}.meal-feed .meal .button{min-width:132px}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.meal-feed .meal-image{height:clamp(210px,34vw,320px);object-fit:cover}@media(min-width:720px){.meal-feed{scroll-snap-type:y proximity}.chat-page{max-width:980px}.meal-feed .meal{padding:28px}}";
+  document.head.append(mealDeckStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
   const readState = () => { try { return JSON.parse(localStorage.getItem(storageKey)); } catch { return null; } };
-  state = { mealImages: {}, ...(readState() || { profile: null, activity: "rest", meals: {} }) };
+  state = { mealImages: {}, chat: [], ...(readState() || { profile: null, activity: "rest", meals: {} }) };
   const todayKey = (date = new Date()) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
   if (state.profile && state.planDate !== todayKey()) {
     state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
@@ -107,6 +110,18 @@
     ,"Restaurant meal logged": "Àpat de restaurant registrat"
     ,"Logged": "Registrat"
     ,"Daily proposal": "Proposta diària"
+    ,"Scroll through your meals, then choose what actually happened.": "Desplaça't pels àpats i tria què ha passat realment."
+    ,"I’ll eat this": "Menjaré això"
+    ,"Skip for now": "Ho ometré ara"
+    ,"Review this meal": "Revisa aquest àpat"
+    ,"Planned": "Planificat"
+    ,"Talk to your Coach": "Parla amb el teu Coach"
+    ,"Ask me anything about today’s meals, a healthy swap, training fuel, a restaurant choice or your shopping basket.": "Pregunta'm el que vulguis sobre els àpats d'avui, una alternativa saludable, l'alimentació per a l'entrenament, una opció de restaurant o la teva cistella de compra."
+    ,"This is a live OpenAI conversation. It gives general wellbeing guidance, not medical advice.": "Aquesta és una conversa en directe amb OpenAI. Dona orientació general de benestar, no assessorament mèdic."
+    ,"Ask your Coach…": "Pregunta al teu Coach…"
+    ,"Ask": "Pregunta"
+    ,"Thinking…": "Pensant…"
+    ,"Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.": "Els missatges s'envien a OpenAI per generar una resposta. Quota Vita només conserva aquesta conversa en aquest dispositiu."
     ,"Monday": "Dilluns", "Tuesday": "Dimarts", "Wednesday": "Dimecres", "Thursday": "Dijous", "Friday": "Divendres", "Saturday": "Dissabte", "Sunday": "Diumenge"
     ,"Rest day": "Dia de descans", "Strength": "Força", "Run": "Córrer", "Walk": "Caminar"
   };
@@ -219,10 +234,7 @@
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
       const form = root.querySelector("#chat-form");
       if (form) form.onsubmit = (event) => { event.preventDefault(); advance(root.querySelector("#chat-answer").value); };
-      requestAnimationFrame(() => {
-        root.querySelector(".composer")?.scrollIntoView({ behavior: "smooth", block: "center" });
-        root.querySelector("#chat-answer")?.focus({ preventScroll: true });
-      });
+      requestAnimationFrame(() => root.querySelector("#chat-answer")?.focus({ preventScroll: true }));
     };
     const advance = (value) => {
       const question = questions[index];
@@ -281,11 +293,48 @@
     setTimeout(() => popup.print(), 250);
   }
 
+  function liveCoachMarkup() {
+    const messages = Array.isArray(state.chat) ? state.chat.slice(-8) : [];
+    const thread = messages.length
+      ? messages.map((message) => '<div class="bubble ' + (message.role === "user" ? "user" : "coach") + '">' + esc(message.text) + "</div>").join("")
+      : '<div class="bubble coach">Ask me anything about today’s meals, a healthy swap, training fuel, a restaurant choice or your shopping basket.<span class="meta">This is a live OpenAI conversation. It gives general wellbeing guidance, not medical advice.</span></div>';
+    return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" id="live-coach-thread" aria-live="polite">' + thread + '</div><form class="composer chat-input" id="live-coach-form"><input id="live-coach-input" maxlength="1400" placeholder="Ask your Coach…" aria-label="Ask your Coach" required><button class="button" type="submit">Ask</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
+  }
+
+  async function askLiveCoach(message) {
+    const chat = Array.isArray(state.chat) ? state.chat : [];
+    state.chat = [...chat, { role: "user", text: message }].slice(-12);
+    save();
+    dashboard();
+    const input = root.querySelector("#live-coach-input");
+    const submit = root.querySelector("#live-coach-form button");
+    if (input) input.disabled = true;
+    if (submit) { submit.disabled = true; submit.textContent = "Thinking…"; }
+    try {
+      const response = await fetch("/api/coach-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language, messages: state.chat })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The live Coach is unavailable.");
+      state.chat = [...state.chat, { role: "assistant", text: data.reply }].slice(-12);
+      save();
+      dashboard();
+      root.querySelector("#live-coach-thread")?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (error) {
+      if (input) input.disabled = false;
+      if (submit) { submit.disabled = false; submit.textContent = "Ask"; }
+      const thread = root.querySelector("#live-coach-thread");
+      if (thread) thread.insertAdjacentHTML("beforeend", '<p class="status error">' + esc(error.message || "The live Coach is unavailable.") + "</p>");
+    }
+  }
+
   function dashboard() {
     const plan = currentPlan();
     const eaten = totals(plan);
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
-    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
+    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", "Scroll through your meals, then choose what actually happened.", '<div class="bubble coach full-card"><div class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></div><section class="meal-feed">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section>' + liveCoachMarkup() + '<div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
     root.querySelector("#daily-check").onclick = dailyCheck;
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
@@ -293,7 +342,11 @@
     root.querySelector("#change-training").onclick = training;
     root.querySelector("#start-over").onclick = resetCoach;
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
+    root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { state.meals[button.dataset.confirmMeal] = { status: "eaten" }; save(); dashboard(); });
+    root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { state.meals[button.dataset.skipMeal] = { status: "skipped" }; save(); dashboard(); });
+    root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal); });
     root.querySelectorAll("[data-generate-meal]").forEach((button) => button.onclick = () => generateMealImage(button.dataset.generateMeal));
+    root.querySelector("#live-coach-form").onsubmit = (event) => { event.preventDefault(); const input = root.querySelector("#live-coach-input"); const message = input.value.trim(); if (message) askLiveCoach(message); };
   }
 
   function dailyCheck() {
@@ -326,12 +379,15 @@
   function mealCard(meal) {
     const saved = state.meals[meal.id];
     const status = saved?.status;
-    const label = status === "restaurant" ? "Restaurant meal logged" : status === "eaten" ? "Logged" : "Daily proposal";
+    const label = status === "restaurant" ? "Restaurant meal logged" : status === "eaten" ? "Logged" : status === "skipped" ? "Skipped" : "Planned";
     const imageUrl = state.mealImages?.[meal.id];
     const image = imageUrl
       ? '<img class="meal-image" src="' + esc(imageUrl) + '" alt="' + esc(meal.title) + '">'
       : '<div class="meal-image meal-image-placeholder"><span>Visual for this meal</span><button class="button quiet" data-generate-meal="' + esc(meal.id) + '">Generate meal image</button></div>';
-    return '<article class="meal ' + (status || "") + '">' + image + '<div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p><div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">' + label + "</button></div></article>";
+    const actions = status
+      ? '<div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">Review this meal</button></div>'
+      : '<div class="actions"><button class="button" data-confirm-meal="' + esc(meal.id) + '">I’ll eat this</button><button class="button quiet" data-restaurant-meal="' + esc(meal.id) + '">Restaurant meal</button><button class="button quiet" data-skip-meal="' + esc(meal.id) + '">Skip for now</button></div>';
+    return '<article class="meal ' + (status || "") + '">' + image + '<span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + actions + "</article>";
   }
 
   async function generateMealImage(mealId) {
