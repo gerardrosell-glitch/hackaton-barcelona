@@ -4,7 +4,7 @@
 - [x] Add visible numeric keyboard shortcuts to quick-reply choices.
 - [x] Ensure numeric shortcuts work for profile and training choices without intercepting typed numeric answers.
 - [x] Verify the production build locally before deployment.
-- [ ] Verify the production deployment.
+- [x] Verify the production deployment and custom-domain alias.
 
 ## Review
 
