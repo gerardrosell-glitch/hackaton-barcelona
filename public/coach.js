@@ -18,6 +18,9 @@
   const mealDeckStyle = document.createElement("style");
   mealDeckStyle.textContent = ".meal-feed{display:grid;gap:18px;margin:18px 0}.meal-feed .meal{min-height:min(72dvh,680px);scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;border-left-width:7px}.meal-feed .meal .actions{justify-content:flex-start}.meal-feed .meal .button{min-width:132px}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.meal-feed .meal-image{height:clamp(210px,34vw,320px);object-fit:cover}@media(min-width:720px){.meal-feed{scroll-snap-type:y proximity}.chat-page{max-width:980px}.meal-feed .meal{padding:28px}}";
   document.head.append(mealDeckStyle);
+  const mealInteractionStyle = document.createElement("style");
+  mealInteractionStyle.textContent = ".meal-feed .meal[data-meal-card]{touch-action:pan-y;transition:transform .18s ease,opacity .18s ease}.restaurant-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(57,45,35,.54);overflow:auto}.restaurant-overlay .restaurant-dialog{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border-radius:22px;background:#fff9ed;color:#392d23;box-shadow:0 20px 60px rgba(57,45,35,.35)}.restaurant-overlay .actions{justify-content:flex-start}.restaurant-overlay video{width:100%;max-width:620px;border-radius:14px;background:#392d23}.swipe-hint{margin:0 0 14px;color:#6d5948;font-size:.86rem}@media(max-width:600px){.restaurant-overlay{align-items:end;padding:0}.restaurant-overlay .restaurant-dialog{max-height:92dvh;border-radius:22px 22px 0 0}.swipe-hint{font-size:.8rem}}";
+  document.head.append(mealInteractionStyle);
   const coachControlsStyle = document.createElement("style");
   coachControlsStyle.textContent = ".coach-controls{display:flex;justify-content:flex-end;align-items:center;gap:12px;max-width:980px;margin:0 auto 24px;color:#392d23;font-size:.78rem;font-weight:800;letter-spacing:.05em}.coach-controls [data-language]{border:0;background:transparent;color:inherit;padding:5px;cursor:pointer;font:inherit}.coach-controls [data-language]:hover{text-decoration:underline}.coach-controls .restart-control{margin:0}@media(max-width:600px){.coach-controls{margin-bottom:18px;gap:7px;font-size:.7rem}.coach-controls .restart-control{font-size:.63rem}}";
   document.head.append(coachControlsStyle);
@@ -218,14 +221,13 @@
       { key: "goal", label: "What would you like to work toward?", hint: "Lose fat = a gentle calorie reduction. Gain muscle = a small calorie increase and more protein. Maintain = steady energy and weight. These are general-wellbeing estimates, not clinical advice.", choices: [["Lose fat", "lose"], ["Gain muscle", "gain"], ["Maintain", "maintain"]] }
     ];
     let index = 0;
-    const history = () => questions.slice(Math.max(0, index - 2), index).map((question) => '<div class="bubble coach">' + esc(question.label) + '<span class="meta">' + esc(question.hint) + '</span></div><div class="bubble user">' + esc(question.choices ? question.choices.find((item) => item[1] === answers[question.key])?.[0] || "Prefer not to say" : answers[question.key]) + "</div>").join("");
     const render = () => {
       const question = questions[index];
       const input = question.choices
         ? '<div class="composer"><span class="composer-label">Choose one reply</span><p class="keyboard-hint">Press 1, 2 or 3 on your keyboard to choose.</p><div class="quick-replies">' + choiceButtons(question.choices, "data-answer") + "</div></div>"
         : '<form class="composer chat-input" id="chat-form"><input id="chat-answer" aria-label="' + esc(question.label) + '" placeholder="' + (language === "ca" ? "Escriu la resposta…" : "Type your answer…") + '" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" type="submit">Send</button></form>';
       const intro = index === 0 ? '<div class="bubble coach coach-intro">Hi, I’m your Quota Vita Coach. I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.<span class="meta">I’ll tailor it to your body, usual activity, goal and today’s training—not give you a generic diet.</span></div>' : "";
-      root.innerHTML = '<section class="coach-workspace">' + coachControls() + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
+      root.innerHTML = '<section class="coach-workspace">' + coachControls() + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
       root.querySelector("#cancel").onclick = welcome;
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
       const form = root.querySelector("#chat-form");
@@ -340,9 +342,28 @@
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
     root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { state.meals[button.dataset.confirmMeal] = { status: "eaten" }; save(); dashboard(); });
     root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { state.meals[button.dataset.skipMeal] = { status: "skipped" }; save(); dashboard(); });
-    root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal); });
+    root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal, true); });
     root.querySelectorAll("[data-generate-meal]").forEach((button) => button.onclick = () => generateMealImage(button.dataset.generateMeal));
     root.querySelector("#live-coach-form").onsubmit = (event) => { event.preventDefault(); const input = root.querySelector("#live-coach-input"); const message = input.value.trim(); if (message) askLiveCoach(message); };
+    enableMealSwipe(plan);
+  }
+
+  function enableMealSwipe(plan) {
+    root.querySelectorAll("[data-meal-card]").forEach((card) => {
+      let startX = null;
+      card.addEventListener("pointerdown", (event) => { if (!event.target.closest("button, input, label")) startX = event.clientX; });
+      card.addEventListener("pointermove", (event) => { if (startX === null) return; const offset = Math.max(-100, Math.min(100, event.clientX - startX)); card.style.transform = "translateX(" + offset + "px) rotate(" + (offset / 24) + "deg)"; });
+      card.addEventListener("pointerup", (event) => {
+        if (startX === null) return;
+        const offset = event.clientX - startX;
+        const id = card.dataset.mealCard;
+        startX = null;
+        card.style.transform = "";
+        if (offset > 80) { state.meals[id] = { status: "eaten" }; save(); dashboard(); }
+        if (offset < -80) restaurant(id, plan.meals.find((meal) => meal.id === id), true);
+      });
+      card.addEventListener("pointercancel", () => { startX = null; card.style.transform = ""; });
+    });
   }
 
   function dailyCheck() {
@@ -383,7 +404,7 @@
     const actions = status
       ? '<div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">Review this meal</button></div>'
       : '<div class="actions"><button class="button" data-confirm-meal="' + esc(meal.id) + '">I’ll eat this</button><button class="button quiet" data-restaurant-meal="' + esc(meal.id) + '">Restaurant meal</button><button class="button quiet" data-skip-meal="' + esc(meal.id) + '">Skip for now</button></div>';
-    return '<article class="meal ' + (status || "") + '">' + image + '<span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + actions + "</article>";
+    return '<article class="meal ' + (status || "") + '" data-meal-card="' + esc(meal.id) + '">' + image + '<span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + actions + "</article>";
   }
 
   async function generateMealImage(mealId) {
@@ -498,7 +519,8 @@
     root.querySelector("#restaurant").onclick = () => restaurant(id, meal);
   }
 
-  function restaurant(id, meal) {
+  function restaurant(id, meal, inline = false) {
+    if (inline) return restaurantOverlay(id, meal);
     capturedMealImage = null;
     root.innerHTML = coachShell("Restaurant meal", "Scan the meal, then adapt the rest of today’s plan.", '<div class="bubble coach">Take a clear photo of the plate. On a phone, Take photo opens the rear camera; on desktop, it opens your camera if available.</div><div class="actions"><button class="button" id="open-camera">Take photo</button><label class="button quiet" for="photo">Choose photo</label><input id="photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="camera-area"></div><label class="field"><input id="logmeal-consent" type="checkbox"> I authorise Quota Vita to send this one meal photo to LogMeal for automated analysis. Quota Vita does not store the image.</label><div class="actions"><button class="button" id="scan">Scan meal</button><button class="button quiet" id="manual">Mark as restaurant meal without scanning</button></div><div id="feedback"></div><button class="button quiet" id="back">Back</button>');
     const stopCamera = () => { cameraStream?.getTracks().forEach((track) => track.stop()); cameraStream = null; };
@@ -538,6 +560,46 @@
         state.meals[id] = { status: "restaurant", analysis: "scanned" }; save(); stopCamera();
         feedback.innerHTML = note("Meal estimate received. Your remaining plan has been adjusted.");
         setTimeout(dashboard, 900);
+      } catch (error) { feedback.innerHTML = note(error.message || "Photo analysis is unavailable.", true); }
+    };
+  }
+
+  function restaurantOverlay(id, meal) {
+    capturedMealImage = null;
+    const overlay = document.createElement("section");
+    overlay.className = "restaurant-overlay";
+    overlay.innerHTML = '<div class="restaurant-dialog" role="dialog" aria-modal="true" aria-label="Restaurant meal"><p class="eyebrow">Restaurant meal</p><h2>' + esc(meal.slot) + '</h2><p class="swipe-hint">You are still in today’s meal plan. Add a photo only if you want an estimate; you can also log the restaurant meal without scanning.</p><div class="actions"><button class="button" id="inline-open-camera">Take photo</button><label class="button quiet" for="inline-photo">Choose photo</label><input id="inline-photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="inline-camera-area"></div><label class="field"><input id="inline-logmeal-consent" type="checkbox"> I authorise Quota Vita to send this one meal photo to LogMeal for automated analysis. Quota Vita does not store the image.</label><div class="actions"><button class="button" id="inline-scan">Scan meal</button><button class="button quiet" id="inline-manual">Log restaurant meal without scanning</button><button class="button quiet" id="inline-close">Back to my meal</button></div><div id="inline-feedback"></div></div>';
+    document.body.append(overlay);
+    const stopCamera = () => { cameraStream?.getTracks().forEach((track) => track.stop()); cameraStream = null; };
+    const close = () => { stopCamera(); overlay.remove(); };
+    overlay.querySelector("#inline-close").onclick = close;
+    overlay.querySelector("#inline-manual").onclick = () => { state.meals[id] = { status: "restaurant" }; save(); close(); dashboard(); };
+    overlay.querySelector("#inline-open-camera").onclick = async () => {
+      const area = overlay.querySelector("#inline-camera-area");
+      try {
+        stopCamera();
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        area.innerHTML = '<video id="inline-camera-preview" autoplay playsinline></video><div class="actions"><button class="button" id="inline-capture">Use this photo</button></div>';
+        const video = overlay.querySelector("#inline-camera-preview"); video.srcObject = cameraStream;
+        overlay.querySelector("#inline-capture").onclick = () => {
+          const canvas = document.createElement("canvas"); const scale = Math.min(1, 1280 / video.videoWidth);
+          canvas.width = Math.round(video.videoWidth * scale); canvas.height = Math.round(video.videoHeight * scale);
+          canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+          capturedMealImage = canvas.toDataURL("image/jpeg", 0.84); stopCamera(); area.innerHTML = '<p class="status">Photo ready. Press “Scan meal” to upload it.</p>';
+        };
+      } catch { area.innerHTML = note("Camera access is unavailable. Choose a photo instead.", true); }
+    };
+    overlay.querySelector("#inline-scan").onclick = async () => {
+      const file = overlay.querySelector("#inline-photo").files[0]; const feedback = overlay.querySelector("#inline-feedback");
+      if (!file && !capturedMealImage) return feedback.innerHTML = note("Take or choose a JPEG, PNG, or WebP photo first.", true);
+      if (!overlay.querySelector("#inline-logmeal-consent").checked) return feedback.innerHTML = note("Confirm the LogMeal photo-analysis authorisation before scanning.", true);
+      if (file && file.size > 8 * 1024 * 1024) return feedback.innerHTML = note("Choose a photo smaller than 8 MB.", true);
+      feedback.innerHTML = note("Checking photo-analysis availability…");
+      try {
+        const imageBase64 = capturedMealImage || await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+        const response = await fetch("/api/meal-photo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64, logmealConsent: true }) });
+        const data = await response.json(); if (!response.ok) throw new Error(data.error);
+        state.meals[id] = { status: "restaurant", analysis: "scanned" }; save(); close(); dashboard();
       } catch (error) { feedback.innerHTML = note(error.message || "Photo analysis is unavailable.", true); }
     };
   }

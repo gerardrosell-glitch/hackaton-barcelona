@@ -15,6 +15,8 @@
 - [x] Replace the ambiguous daily-proposal control with clear meal actions in a full-screen scroll deck.
 - [x] Add a server-only OpenAI-backed live Coach conversation with general-wellbeing guardrails.
 - [x] Limit onboarding to the current question plus two prior answers so the chat stays centred.
+- [x] Keep restaurant logging inside the daily meal deck and add left/right swipe meal actions.
+- [x] Keep the active onboarding question at the top of the chat; retain prior answers without displaying them.
 
 ## Review
 

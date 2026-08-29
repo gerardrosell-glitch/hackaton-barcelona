@@ -10,3 +10,5 @@
 - Keep user-provided health details local by default; a live AI Coach needs a clear disclosure and server-side credentials, with a general-wellbeing safety boundary.
 - When removing a layout container, first remove or relocate every script dependency on that container; otherwise one null DOM lookup can blank the entire application.
 - In a guided chat, bound visible history to the screen’s intended rhythm; preserving all answers can break the composition even when the data is saved.
+- Keep a user in the same primary flow for a contextual action such as restaurant logging; use an overlay rather than replacing the whole screen.
+- In a focused guided flow, the active prompt must lead the screen. Saved history is useful data, but it should not compete with the next action.
