@@ -1,0 +1,4 @@
+export default function handler(_request, response) {
+  response.setHeader("Content-Type", "text/html; charset=utf-8");
+  response.status(200).send(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quota Vita Nutrition Coach</title><style>body{margin:0;background:#fffaf0;color:#153c36;font:16px system-ui,sans-serif}.card{max-width:42rem;margin:14vh auto;padding:2.5rem}h1{font:500 clamp(2.5rem,7vw,4.5rem)/.95 Georgia,serif;margin:0 0 1rem}p{line-height:1.55;color:#496760}.tag{color:#dd6048;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:.75rem}</style></head><body><main class="card"><p class="tag">Quota Vita</p><h1>Nutrition Coach is ready.</h1><p>Add the Nutrition Coach app block to a page in your Quota Vita theme to open your personal daily food coach.</p><p>This service provides general-wellbeing estimates, not medical advice.</p></main></body></html>`);
+}
