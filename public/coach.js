@@ -22,6 +22,9 @@
   const mealDeckStyle = document.createElement("style");
   mealDeckStyle.textContent = ".daily-meal-deck{width:100%;padding:clamp(26px,4vw,56px) clamp(18px,6vw,96px);box-sizing:border-box;background:transparent;color:#392d23}.daily-meal-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;max-width:1440px;margin:0 auto}.daily-meal-overview{max-width:1440px;margin:0 auto 20px}.daily-meal-card{min-width:0}.daily-meal-content{height:100%}.daily-meal-card .meal{box-sizing:border-box;height:100%;min-height:0;margin:0;padding:24px;display:flex;flex-direction:column;border-left-width:7px;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-card .meal .actions{justify-content:flex-start;margin-top:auto}.daily-meal-card .meal .button{min-width:0}.daily-meal-card .meal-image{height:190px;object-fit:cover}.meal-deck-controls{display:flex;justify-content:flex-end;max-width:1440px;margin:0 auto 18px}.meal-deck-controls .coach-controls{margin:0}.meal-deck-position,.meal-deck-help{display:none}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.daily-plan-follow-up{width:min(980px,100%);margin:0 auto;padding:26px 18px 64px}.daily-plan-follow-up .bubble{max-width:100%}@media(max-width:719px){.daily-meal-deck{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:0;background:#392d23;color:#392d23;touch-action:pan-y}.daily-meal-track{display:flex;width:100%;max-width:none;height:100%;margin:0;gap:0;will-change:transform;transition:transform .28s cubic-bezier(.22,.8,.25,1)}.daily-meal-overview{display:none}.daily-meal-card{box-sizing:border-box;flex:0 0 100%;width:100%;min-height:100%;padding:76px 14px 54px;display:flex;align-items:center;overflow-y:auto}.daily-meal-content{width:100%}.daily-meal-card .meal{min-height:calc(100dvh - 170px);padding:20px;box-shadow:0 18px 45px rgba(16,10,7,.33)}.daily-meal-card .meal-image{height:min(25dvh,220px)}.meal-deck-controls{position:absolute;inset:12px 12px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;margin:0;color:#fffdf8;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.meal-deck-controls>*{pointer-events:auto}.meal-deck-controls .coach-controls{margin:0;color:inherit}.meal-deck-position{display:block;margin:0;text-shadow:0 1px 8px rgba(0,0,0,.35)}.meal-deck-help{display:block;position:absolute;z-index:2;inset:auto 18px 14px;margin:0;color:#fffdf8;text-align:center;font-size:.76rem;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}}@media(prefers-reduced-motion:reduce){.daily-meal-track{transition:none}}";
   document.head.append(mealDeckStyle);
+  const liveCoachPanelStyle = document.createElement("style");
+  liveCoachPanelStyle.textContent = ".daily-meal-overview{display:grid;grid-template-columns:minmax(250px,.42fr) minmax(0,1fr);align-items:stretch;border-top:6px solid #e6bf67;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-overview .ledger{position:static;margin:0;padding:18px;border-top:0;border-right:1px solid #dfcba8;background:transparent}.daily-meal-overview .live-coach{min-width:0;padding:15px 20px}.daily-meal-overview .live-coach .eyebrow{margin:0 0 7px}.daily-meal-overview .live-coach-thread{display:grid;gap:6px;max-height:86px;overflow:auto}.daily-meal-overview .live-coach .bubble{max-width:100%;padding:9px 12px;border-radius:12px;box-shadow:none}.daily-meal-overview .live-coach .composer{margin:10px 0 0;padding:6px 10px;border-radius:14px;box-shadow:none}.daily-meal-overview .live-coach .chat-input input{padding:8px 7px}.daily-meal-overview .live-coach .chat-input .button{padding:9px 14px}.daily-meal-overview .live-coach>.meta{display:none}.daily-plan-follow-up .live-coach{display:none}@media(max-width:719px){.daily-plan-follow-up .live-coach{display:block}}";
+  document.head.append(liveCoachPanelStyle);
   const mealInteractionStyle = document.createElement("style");
   mealInteractionStyle.textContent = ".restaurant-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(57,45,35,.54);overflow:auto}.restaurant-overlay .restaurant-dialog{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border-radius:22px;background:#fff9ed;color:#392d23;box-shadow:0 20px 60px rgba(57,45,35,.35)}.restaurant-overlay .actions{justify-content:flex-start}.restaurant-overlay video{width:100%;max-width:620px;border-radius:14px;background:#392d23}.swipe-hint{margin:0 0 14px;color:#6d5948;font-size:.86rem}@media(max-width:600px){.restaurant-overlay{align-items:end;padding:0}.restaurant-overlay .restaurant-dialog{max-height:92dvh;border-radius:22px 22px 0 0}.swipe-hint{font-size:.8rem}}";
   document.head.append(mealInteractionStyle);
@@ -311,21 +314,22 @@
     setTimeout(() => popup.print(), 250);
   }
 
-  function liveCoachMarkup() {
+  function liveCoachMarkup(placement) {
     const messages = Array.isArray(state.chat) ? state.chat.slice(-8) : [];
     const thread = messages.length
       ? messages.map((message) => '<div class="bubble ' + (message.role === "user" ? "user" : "coach") + '">' + esc(message.text) + "</div>").join("")
       : '<div class="bubble coach">Ask me anything about today’s meals, a healthy swap, training fuel, a restaurant choice or your shopping basket.<span class="meta">This is a live OpenAI conversation. It gives general wellbeing guidance, not medical advice.</span></div>';
-    return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" id="live-coach-thread" aria-live="polite">' + thread + '</div><form class="composer chat-input" id="live-coach-form"><input id="live-coach-input" maxlength="1400" placeholder="Ask your Coach…" aria-label="Ask your Coach" required><button class="button" type="submit">Ask</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
+    return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" data-live-coach-thread="' + placement + '" aria-live="polite">' + thread + '</div><form class="composer chat-input" data-live-coach-form="' + placement + '"><input maxlength="1400" placeholder="Ask your Coach…" aria-label="Ask your Coach" required><button class="button" type="submit">Ask</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
   }
 
-  async function askLiveCoach(message) {
+  async function askLiveCoach(message, placement) {
     const chat = Array.isArray(state.chat) ? state.chat : [];
     state.chat = [...chat, { role: "user", text: message }].slice(-12);
     save();
     dashboard();
-    const input = root.querySelector("#live-coach-input");
-    const submit = root.querySelector("#live-coach-form button");
+    const form = root.querySelector('[data-live-coach-form="' + placement + '"]');
+    const input = form?.querySelector("input");
+    const submit = form?.querySelector("button");
     if (input) input.disabled = true;
     if (submit) { submit.disabled = true; submit.textContent = "Thinking…"; }
     try {
@@ -339,11 +343,11 @@
       state.chat = [...state.chat, { role: "assistant", text: data.reply }].slice(-12);
       save();
       dashboard();
-      root.querySelector("#live-coach-thread")?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      root.querySelector('[data-live-coach-thread="' + placement + '"]')?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (error) {
       if (input) input.disabled = false;
       if (submit) { submit.disabled = false; submit.textContent = "Ask"; }
-      const thread = root.querySelector("#live-coach-thread");
+      const thread = root.querySelector('[data-live-coach-thread="' + placement + '"]');
       if (thread) thread.insertAdjacentHTML("beforeend", '<p class="status error">' + esc(error.message || "The live Coach is unavailable.") + "</p>");
     }
   }
@@ -354,7 +358,7 @@
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
     mealDeckIndex = Math.min(mealDeckIndex, plan.meals.length - 1);
     const remaining = '<div class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></div>';
-    root.innerHTML = '<section class="coach-workspace daily-plan-workspace"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls() + '</div><div class="daily-meal-overview">' + remaining + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up">' + liveCoachMarkup() + '<div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
+    root.innerHTML = '<section class="coach-workspace daily-plan-workspace"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls() + '</div><div class="daily-meal-overview">' + remaining + liveCoachMarkup("desktop") + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up">' + liveCoachMarkup("mobile") + '<div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
     root.querySelector("#daily-check").onclick = dailyCheck;
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
@@ -365,7 +369,7 @@
     root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.confirmMeal, "eaten"); dashboard(); });
     root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.skipMeal, "skipped"); dashboard(); });
     root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal, true); });
-    root.querySelector("#live-coach-form").onsubmit = (event) => { event.preventDefault(); const input = root.querySelector("#live-coach-input"); const message = input.value.trim(); if (message) askLiveCoach(message); };
+    root.querySelectorAll("[data-live-coach-form]").forEach((form) => form.onsubmit = (event) => { event.preventDefault(); const input = form.querySelector("input"); const message = input.value.trim(); if (message) askLiveCoach(message, form.dataset.liveCoachForm); });
     enableMealSwipe(plan);
     loadMealImages(plan);
   }
