@@ -186,7 +186,8 @@
   }
 
   function training() {
-    root.innerHTML = coachShell("Are you going to train today?", "Your meals and quantities will adapt to today’s movement.", '<div class="bubble coach">Choose what best describes today. We will adjust the meal plan, carbohydrate guidance and food quantities.</div>' + buttons([["Rest or recovery day", "rest"], ["Walk", "walk"], ["Pilates", "pilates"], ["Strength training", "strength"], ["Run", "run"]]) + '<button class="button quiet" id="back">Back</button>');
+    const choices = [["Rest or recovery day", "rest"], ["Walk", "walk"], ["Pilates", "pilates"], ["Strength training", "strength"], ["Run", "run"]];
+    root.innerHTML = coachShell("Are you going to train today?", "Your meals and quantities will adapt to today’s movement.", '<div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">Choose one reply</span><div class="quick-replies">' + choices.map(([label, value]) => '<button data-choice="' + value + '">' + label + '</button>').join("") + '</div></div><button class="button quiet" id="back">Back</button>');
     root.querySelector("#back").onclick = profile;
     root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { state.activity = button.dataset.choice; state.meals = {}; save(); dashboard(); });
   }
