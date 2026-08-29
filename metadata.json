@@ -1,0 +1,20 @@
+{
+  "cli_version": "0.10.3",
+  "checkpoint_id": "01M17SJGJ5T5YCNEG1R7P7DYKA",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "public/coach.css",
+    "public/coach.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
