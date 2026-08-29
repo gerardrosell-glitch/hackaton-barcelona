@@ -19,21 +19,21 @@
   --brand-soft: #d9a494;
   --brand-tint: #f9ece7;
 
-  --canvas: #fdfaf3;
-  --canvas-tint: #f6eedf;
+  --canvas: #eeebe4;
+  --canvas-tint: #e6e2d9;
   --surface: #ffffff;
-  --surface-sunk: #f4ead9;
+  --surface-sunk: #f3f0e9;
 
-  --ink: #2b2320;
-  --ink-soft: #6e5f55;
-  --ink-faint: #9b8b80;
+  --ink: #191614;
+  --ink-soft: #6b625b;
+  --ink-faint: #9a9189;
 
   --amber: #e8a33d;
   --sage: #2f6b4f;
   --plum: #6e2440;
 
-  --line: rgba(43, 35, 32, 0.12);
-  --line-strong: rgba(43, 35, 32, 0.26);
+  --line: rgba(25, 22, 20, 0.13);
+  --line-strong: rgba(25, 22, 20, 0.26);
 
   /* Text that sits on a brand-filled surface. Hard-coded #fff worked only
      because the palette was light-only; the dark theme brightens the terracotta
@@ -41,14 +41,17 @@
      below contrast. This token is the one place that decision is made. */
   --on-brand: #ffffff;
   --wash: rgba(43, 35, 32, 0.08);
-  --topbar-bg: rgba(253, 250, 243, 0.92);
+  --topbar-bg: rgba(238, 235, 228, 0.88);
   --sheet-bg: rgba(255, 255, 255, 0.96);
   --scrim: rgba(43, 35, 32, 0.55);
 
-  --radius-xs: 4px;
-  --radius-sm: 10px;
-  --radius-md: 18px;
-  --radius-lg: 26px;
+  /* Tighter than before. Big soft corners read as a component library; the
+     sites this was measured against sit between 6 and 14px and let the type
+     and the spacing do the work. Pills stay pills — they are controls. */
+  --radius-xs: 3px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-pill: 999px;
 
   /* Structure comes from a hairline first and a shadow second. The previous
@@ -221,7 +224,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .eyebrow {
   margin: 0 0 var(--s2);
-  color: var(--brand);
+  color: var(--ink-faint);
   font-family: var(--body);
   font-size: 0.72rem;
   font-weight: 800;
@@ -539,11 +542,11 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-2);
+  box-shadow: none;
 }
 
 .card h2, .card h3 { color: var(--ink); }
-.card .eyebrow { color: var(--brand-strong); }
+.card .eyebrow { color: var(--ink-faint); }
 
 .chip {
   display: inline-flex;
@@ -631,7 +634,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-2);
+  box-shadow: none;
 }
 
 .bubble {
@@ -832,7 +835,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-2);
+  box-shadow: none;
   transition: padding 0.2s ease, gap 0.2s ease, border-radius 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -854,8 +857,15 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 .target.is-stuck .target-label,
 .target.is-stuck .target-foot,
 .target.is-stuck .chip { display: none; }
-.target.is-stuck .macro-row-label { display: none; }
-.target.is-stuck .macro-target { display: none; }
+/* Collapsed, the row was showing a bare "0" with no label and no target: three
+   naked zeroes that read as a rendering fault. One initial and the target keep
+   it a sentence — P 0/122g — in the same width. */
+.target.is-stuck .macro-row-label {
+  overflow: hidden;
+  max-width: 1.1ch;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
 .target.is-stuck .bar { height: 4px; }
 
 .target.is-stuck .target-macros {
@@ -864,10 +874,12 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 }
 
 .target.is-stuck .macro-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--s2);
+  grid-template-columns: 1.4ch minmax(0, 1fr) auto;
+  gap: 5px;
   font-size: var(--text-xs);
 }
+
+.target.is-stuck .macro-target { color: var(--ink-faint); }
 
 @media (min-width: 900px) {
   .target.is-stuck { grid-template-columns: minmax(120px, auto) minmax(0, 1fr); }
@@ -892,9 +904,11 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 
 .target-figure b {
   font-family: var(--display);
-  font-size: clamp(2.1rem, 7vw, 2.9rem);
+  font-size: clamp(3.1rem, 12vw, 4.4rem);
   font-weight: 500;
-  line-height: 1;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
 }
 
 .target-figure span {
@@ -904,7 +918,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 }
 
 .target-label {
-  color: var(--brand-strong);
+  color: var(--ink-faint);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -1037,7 +1051,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-2);
+  box-shadow: none;
   scroll-margin-top: calc(var(--topbar-h) + 140px);
 }
 
@@ -1053,7 +1067,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 
 .meal-image {
   width: 100%;
-  height: clamp(180px, 42vw, 260px);
+  height: clamp(210px, 56vw, 330px);
   object-fit: cover;
 }
 
@@ -1083,7 +1097,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   align-items: center;
   gap: var(--s2);
   margin: 0;
-  color: var(--brand-strong);
+  color: var(--ink-faint);
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -1209,7 +1223,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
 }
 
 .live-coach-thread {
@@ -1272,7 +1286,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
 }
 
 .week-day > *:not(.weekly-card-visual) { padding-inline: var(--s4); }
@@ -1848,7 +1862,7 @@ body.modal-open { overflow: hidden; }
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
 }
 
 .notice > div { flex: 1 1 260px; display: grid; gap: 3px; }
@@ -1878,7 +1892,7 @@ body.modal-open { overflow: hidden; }
 }
 
 .quest-strip-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); }
-.quest-strip-head .label { color: var(--brand-strong); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.quest-strip-head .label { color: var(--ink-faint); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .quest-strip-count { font-size: 0.8rem; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .quest-strip ul { display: grid; gap: 6px; margin-top: var(--s2); }
 
@@ -1934,7 +1948,7 @@ body.modal-open { overflow: hidden; }
 .day-done-stats span { color: var(--ink-soft); font-size: 0.78rem; }
 
 .tomorrow { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
-.tomorrow .label { display: block; margin-bottom: var(--s2); color: var(--ink-soft); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.tomorrow .label { display: block; margin-bottom: var(--s2); color: var(--ink-faint); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .tomorrow-choices { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s2); }
 
 .tomorrow-choice {
@@ -2335,7 +2349,7 @@ body.modal-open { overflow: hidden; }
 }
 
 .search-hit:hover, .search-hit:focus-visible { background: var(--brand-tint); }
-.search-hit-group { color: var(--brand-strong); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.search-hit-group { color: var(--ink-faint); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .search-hit-label { color: var(--ink); font-size: 0.98rem; font-weight: 600; }
 .search-hit-detail { color: var(--ink-soft); font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -2366,11 +2380,11 @@ body.modal-open { overflow: hidden; }
   text-align: center;
 }
 
-.basket-total .label { color: var(--brand-strong); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.basket-total .label { color: var(--ink-faint); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .basket-total b { font-size: clamp(2.1rem, 7vw, 2.8rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 
 .basket-list { display: grid; gap: var(--s5); }
-.basket-section h3 { margin: 0 0 var(--s2); color: var(--brand-strong); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.basket-section h3 { margin: 0 0 var(--s2); color: var(--ink-faint); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .basket-section ul { display: grid; gap: 0; }
 
 .basket-section li {
@@ -2409,3 +2423,48 @@ body.modal-open { overflow: hidden; }
 
 .day-done-badge { display: inline-flex; }
 .day-done-badge svg { width: 30px; height: 30px; }
+
+/* ------------------------------------------------ the expensive pass, 2026
+
+   Read against the current Awwwards winners (Miu Miu "A House that we shaped",
+   LIKOVA, Oimachi) the Coach was doing four things that read as cheap:
+   the page and the cards were two per cent apart so nothing looked placed on
+   anything; the accent was on every label, so it emphasised nothing; the one
+   number people open the app for was smaller than the headline above it; and
+   the food photography — the best asset in the product — was cropped small.
+   What those sites share is commitment: one ground, one voice, one accent used
+   once, and an image given room. None of them decorate.                     */
+
+/* Photography runs to the edge of its card. */
+.meal-card { overflow: hidden; }
+.meal-media { background: var(--surface-sunk); }
+
+/* Rhythm: the page breathes between blocks rather than stacking flush cards. */
+.target { margin-bottom: var(--s5); }
+.quest-strip { margin-bottom: var(--s5); }
+.meal-list { gap: var(--s5); }
+.today-main > .privacy { margin-top: var(--s6); }
+
+/* Section labels are set small, wide and quiet — the size and spacing carry
+   them, not colour. */
+.eyebrow,
+.label,
+.target-label,
+.quest-strip-head .label,
+.basket-section h3,
+.search-hit-group {
+  letter-spacing: 0.16em;
+}
+
+/* The headline and the figure are the two voices on the screen. Everything
+   else steps back. */
+.view-head h1 { letter-spacing: -0.035em; }
+.view-lead { max-width: 46ch; }
+
+/* One accent, and it lands on the thing you press. */
+.button { letter-spacing: -0.005em; }
+
+/* Hairlines define the cards now, so the borders have to be visible. */
+.target, .quest-strip, .meal-card, .week-day, .live-coach, .card {
+  border-color: var(--line);
+}
