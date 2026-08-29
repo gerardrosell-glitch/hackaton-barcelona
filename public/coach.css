@@ -1096,8 +1096,31 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 .live-coach .bubble { max-width: 100%; font-size: 0.92rem; }
 .live-coach .composer { margin: 0; }
 
-.view--coach .live-coach { min-height: min(70vh, 620px); }
-.view--coach .live-coach-thread { flex: 1; max-height: none; }
+/* The Coach page is a conversation, not a document: it fills the space between
+   the header and the tab bar, the thread scrolls inside itself, and the box you
+   type into never leaves the screen. */
+.view--coach {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--topbar-h) - var(--tabbar-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px);
+  min-height: 340px;
+}
+
+.view--coach .view-head { flex: 0 0 auto; margin-bottom: var(--s3); }
+.view--coach .live-coach { flex: 1 1 auto; min-height: 0; }
+.view--coach .live-coach-thread { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
+.view--coach .live-coach .composer { flex: 0 0 auto; }
+.view--coach .live-coach > .meta { flex: 0 0 auto; }
+
+@media (max-width: 619px) {
+  .view--coach .view-lead { display: none; }
+  .view--coach .live-coach > .meta { display: none; }
+  .view--coach .view-head h1 { font-size: 1.7rem; }
+}
+
+@media (min-width: 900px) {
+  .view--coach { height: calc(100dvh - var(--topbar-h) - 104px); max-height: 820px; }
+}
 
 /* ------------------------------------------------------------ week + basket */
 
@@ -1714,18 +1737,33 @@ body.modal-open { overflow: hidden; }
 .quest-strip-count { font-size: 0.8rem; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .quest-strip ul { display: grid; gap: 6px; margin-top: var(--s2); }
 
-.quest-strip li {
+.quest-strip li > button,
+.quest-strip li > span {
   display: flex;
   align-items: center;
   gap: var(--s2);
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
   font-size: 0.88rem;
   color: var(--ink);
+  text-align: left;
 }
 
+.quest-strip li > button { cursor: pointer; }
+.quest-strip li > button:hover { border-color: var(--brand); background: var(--brand-tint); }
+.quest-strip li > button::after { content: "›"; margin-left: 2px; color: var(--brand-strong); font-weight: 700; }
 .quest-strip li b { margin-left: auto; color: var(--brand-strong); font-size: 0.78rem; }
-.quest-strip li .quest-check { width: 18px; height: 18px; border-width: 1.5px; font-size: 0.66rem; }
-.quest-strip li.is-done { color: var(--ink-soft); text-decoration: line-through; }
+.quest-strip li .quest-check { flex: 0 0 auto; width: 20px; height: 20px; border-width: 1.5px; font-size: 0.66rem; }
+.quest-strip li.is-done { color: var(--ink-soft); }
+.quest-strip li.is-done > span > span:nth-child(2) { text-decoration: line-through; }
 .quest-strip li.is-done .quest-check { background: var(--sage); border-color: var(--sage); }
+
+.meal-card.is-flagged { outline: 3px solid var(--brand); outline-offset: 3px; }
 
 /* ------------------------------------------------------------- day close */
 

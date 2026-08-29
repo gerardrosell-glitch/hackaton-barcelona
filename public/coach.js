@@ -195,6 +195,106 @@
     if (saved?.meal) track("account_synced", { kind: "meal" });
   }
 
+  // ── Progress sync ───────────────────────────────────────────────────────
+  // The streak, the XP and the badges are the whole retention argument, and
+  // until now they lived only in localStorage: a cache clear erased them and
+  // they did not follow anyone from phone to laptop. A streak that either can
+  // happen to is not worth asking someone to care about, so it syncs.
+  //
+  // The merge is deliberately the same shape on both sides — larger wins, badges
+  // union, days merged per key — so it does not matter which side runs it, and
+  // two devices used on the same day cannot cost each other a day's work.
+
+  const progressToServer = () => {
+    const g = game();
+    return {
+      xp: g.xp || 0,
+      streak: g.streak || 0,
+      bestStreak: g.bestStreak || g.streak || 0,
+      freezes: g.freezes || 0,
+      proteinDays: g.proteinDays || 0,
+      lastGoalDay: g.lastGoalDay || null,
+      badges: Array.isArray(g.badges) ? g.badges : [],
+      days: g.days || {},
+    };
+  };
+
+  /** Folds the account's record into this device's. Nothing is ever lowered. */
+  function applyServerProgress(remote) {
+    if (!remote) return false;
+    const g = game();
+    const before = JSON.stringify(progressToServer());
+
+    const days = { ...(g.days || {}) };
+    for (const [key, value] of Object.entries(remote.days || {})) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !value || typeof value !== "object") continue;
+      const mine = days[key] || { xp: 0, quests: {}, goal: false };
+      days[key] = {
+        xp: Math.max(Number(mine.xp) || 0, Number(value.xp) || 0),
+        quests: { ...(mine.quests || {}), ...(value.quests || {}) },
+        goal: Boolean(mine.goal || value.goal),
+      };
+    }
+
+    g.days = days;
+    g.xp = Math.max(g.xp || 0, Number(remote.xp) || 0);
+    g.streak = Math.max(g.streak || 0, Number(remote.streak) || 0);
+    g.bestStreak = Math.max(g.bestStreak || 0, Number(remote.bestStreak) || 0, g.streak);
+    g.freezes = Math.min(2, Math.max(g.freezes || 0, Number(remote.freezes) || 0));
+    g.proteinDays = Math.max(g.proteinDays || 0, Number(remote.proteinDays) || 0);
+    g.badges = [...new Set([...(g.badges || []), ...(Array.isArray(remote.badges) ? remote.badges : [])])];
+    if (remote.lastGoalDay && (!g.lastGoalDay || remote.lastGoalDay > g.lastGoalDay)) g.lastGoalDay = remote.lastGoalDay;
+
+    save();
+    return JSON.stringify(progressToServer()) !== before;
+  }
+
+  let progressPushTimer = null;
+  let progressPushPending = false;
+
+  async function pushProgress() {
+    progressPushPending = false;
+    if (!signedIn()) return;
+    const saved = await accountFetch("/api/account", {
+      method: "POST",
+      body: JSON.stringify({ kind: "progress", progress: progressToServer() }),
+    });
+    // The server merges and returns the authoritative record, so a second device
+    // that earned XP earlier in the day is folded back in on the way out.
+    if (saved?.progress && applyServerProgress(saved.progress)) renderChrome();
+    if (saved?.progress) track("account_synced", { kind: "progress" });
+  }
+
+  /**
+   * XP is awarded in bursts — a meal log can pay a quest, a level and a badge in
+   * the same tick — so the write is coalesced rather than sent three times.
+   */
+  function schedulePushProgress() {
+    if (!signedIn()) return;
+    progressPushPending = true;
+    clearTimeout(progressPushTimer);
+    progressPushTimer = setTimeout(() => { void pushProgress(); }, 1200);
+  }
+
+  // A tab closed before the timer fires must not lose the award.
+  addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "hidden" || !progressPushPending || !signedIn()) return;
+    clearTimeout(progressPushTimer);
+    progressPushPending = false;
+    try {
+      // sendBeacon cannot carry an Authorization header, so this last-gasp write
+      // goes through fetch with keepalive instead.
+      void fetch("/api/account", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + accountToken() },
+        body: JSON.stringify({ kind: "progress", progress: progressToServer() }),
+      });
+    } catch {
+      // A lost final write costs at most the last few seconds of XP.
+    }
+  });
+
   /**
    * On load, reconcile the device with the account. A saved profile on the
    * server wins when this device has none — that is the whole point of an
@@ -204,6 +304,15 @@
     if (!signedIn()) return;
     const data = await accountFetch("/api/account");
     if (!data?.signedIn) return;
+
+    // Progress first, and regardless of the profile: someone who signs in on a
+    // new phone should see their streak before anything else loads.
+    const changed = applyServerProgress(data.progress);
+    if (data.progress) syncStreak();
+    if (changed) renderChrome();
+    // Push straight back so the account holds the union, not just the newer side.
+    void pushProgress();
+
     if (data.profile && !state.profile) {
       state = { ...state, profile: profileFromServer(data.profile), planDate: todayKey(), needsTraining: true, activity: "rest", meals: {} };
       save();
@@ -1150,7 +1259,14 @@
     const quests = todayQuests();
     const done = quests.filter((quest) => day.quests[quest.id]).length;
     return '<section class="quest-strip"><div class="quest-strip-head"><span class="label">' + esc(T("Today’s quests", "Missions d’avui")) + '</span><span class="quest-strip-count">' + done + " / " + quests.length + "</span></div><ul>"
-      + quests.map((quest) => '<li class="' + (day.quests[quest.id] ? "is-done" : "") + '"><span class="quest-check" aria-hidden="true">' + (day.quests[quest.id] ? "✓" : "") + "</span>" + esc(language === "ca" ? quest.ca : quest.en) + '<b>+' + quest.xp + "</b></li>").join("")
+      + quests.map((quest) => {
+        const complete = Boolean(day.quests[quest.id]);
+        const label = esc(language === "ca" ? quest.ca : quest.en);
+        const inner = '<span class="quest-check" aria-hidden="true">' + (complete ? "✓" : "") + "</span><span>" + label + "</span><b>+" + quest.xp + "</b>";
+        return '<li class="' + (complete ? "is-done" : "") + '">' + (complete
+          ? "<span>" + inner + "</span>"
+          : '<button type="button" data-quest-go="' + esc(quest.go) + '" aria-label="' + label + '">' + inner + "</button>") + "</li>";
+      }).join("")
       + "</ul></section>";
   }
 
@@ -1172,7 +1288,6 @@
     const g = game();
     const day = todayGame();
     const ate = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status)).length;
-    const checked = state.dailyCheckAwardedDate === todayKey();
     const nextBadge = BADGES.find((badge) => !g.badges.includes(badge.id));
     const tomorrow = state.tomorrowActivity;
     const choices = [["rest", T("Rest", "Descans")], ["walk", T("Walk", "Caminar")], ["pilates", T("Pilates", "Pilates")], ["strength", T("Strength", "Força")], ["run", T("Run", "Córrer")]];
@@ -1185,10 +1300,34 @@
       + '<div class="day-done-stats"><div><b>' + (g.streak || 0) + '</b><span>' + esc((g.streak === 1 ? T("day streak", "dia de ratxa") : T("day streak", "dies de ratxa"))) + '</span></div><div><b>' + day.xp + '</b><span>XP ' + esc(T("today", "avui")) + '</span></div>'
       + (nextBadge ? '<div><b aria-hidden="true">' + nextBadge.icon + '</b><span>' + esc(language === "ca" ? nextBadge.hint.ca : nextBadge.hint.en) + "</span></div>" : "")
       + "</div>"
-      + (checked ? "" : '<div class="actions"><button class="button" type="button" data-menu-action="daily-check">' + esc(T("Finish your daily check", "Acaba la revisió del dia")) + "</button></div>")
       + '<div class="tomorrow"><span class="label">' + esc(T("Tomorrow’s movement", "El moviment de demà")) + '</span><div class="tomorrow-choices">'
       + choices.map(([value, label]) => '<button type="button" class="tomorrow-choice' + (tomorrow === value ? " is-active" : "") + '" data-tomorrow="' + value + '">' + esc(label) + "</button>").join("")
       + '</div><p class="meta">' + esc(tomorrow ? T("Set. Tomorrow’s plan will be ready when you open the Coach.", "Fet. El pla de demà estarà a punt quan obris el Coach.") : T("Pick one and tomorrow’s plan is ready before you wake up.", "Tria’n una i el pla de demà estarà a punt abans que et llevis.")) + "</p></div></section>";
+  }
+
+  /**
+   * Where this plan lives, and what to do about it.
+   *
+   * The old line — "This plan is stored only in this browser" — was true and
+   * was a dead end: it told someone their streak was disposable and offered no
+   * way to make it otherwise. Signed in, it says the opposite and means it.
+   */
+  function storageNoticeMarkup() {
+    if (signedIn()) {
+      return '<p class="privacy privacy--synced">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-13.6 5.7M4 12a8 8 0 0 1 13.6-5.7"/><path d="M17 3v4h-4M7 21v-4h4"/></svg>'
+        + esc(T("Saved to your Quota Vita account. Your streak follows you to any device.",
+                "Desat al teu compte de Quota Vita. La teva ratxa et segueix a qualsevol dispositiu."))
+        + "</p>";
+    }
+    if (!accountsEnabled) {
+      return '<p class="privacy">' + esc(T("This plan is stored only in this browser.", "Aquest pla només es desa en aquest navegador.")) + "</p>";
+    }
+    return '<p class="privacy privacy--offer">'
+      + esc(T("This plan is stored only in this browser — clearing it loses your streak.",
+              "Aquest pla només es desa en aquest navegador: si l’esborres, perds la ratxa."))
+      + ' <a class="privacy-action" href="' + esc(accountLinkUrl()) + '" data-track="account_link_started">'
+      + esc(T("Keep it on every device", "Conserva’l a tots els dispositius")) + "</a></p>";
   }
 
   function dashboard() {
@@ -1203,7 +1342,7 @@
         + questStripMarkup()
         + dayCompleteMarkup(plan)
         + '<ul class="meal-list" id="meal-list">' + mealListMarkup(plan) + "</ul>"
-        + '<p class="privacy">This plan is stored only in this browser.</p>' + methodology() + "</div>"
+        + storageNoticeMarkup() + methodology() + "</div>"
         + '<aside class="today-aside">' + liveCoachMarkup("desktop") + "</aside></div>",
       "view--today"
     ));
@@ -1248,6 +1387,19 @@
   }
 
   function bindTodayHandlers(plan) {
+    root.querySelectorAll("[data-quest-go]").forEach((button) => button.onclick = () => {
+      const destination = button.dataset.questGo;
+      if (destination === "check") return dailyCheck();
+      if (destination === "coach") return coachPage();
+      if (destination === "week") return weeklyPlan();
+      if (destination === "basket") return basket();
+      // "meals": take them to the first meal still waiting for an answer.
+      const next = [...root.querySelectorAll("[data-meal-card]")].find((card) => card.dataset.status === "planned");
+      if (!next) return;
+      next.scrollIntoView({ behavior: "smooth", block: "center" });
+      next.classList.add("is-flagged");
+      setTimeout(() => next.classList.remove("is-flagged"), 1400);
+    });
     root.querySelectorAll("[data-tomorrow]").forEach((button) => button.onclick = () => {
       state.tomorrowActivity = button.dataset.tomorrow;
       save();
@@ -1327,7 +1479,8 @@
     mount("coach", viewShell(
       T("Talk to your Coach", "Parla amb el teu Coach"),
       T("Ask about a meal, a healthy swap or today’s training.", "Pregunta per un àpat, un canvi saludable o l’entrenament d’avui."),
-      '<div class="view--coach">' + liveCoachMarkup("page") + "</div>"
+      liveCoachMarkup("page"),
+      "view--coach"
     ));
     bindLiveCoach();
     root.querySelector("[data-live-coach-form] input")?.focus({ preventScroll: true });
@@ -1356,12 +1509,12 @@
   ];
 
   const QUEST_POOL = [
-    { id: "log-all", xp: 15, en: "Log all three meals", ca: "Registra els tres àpats" },
-    { id: "protein", xp: 20, en: "Hit your protein target", ca: "Assoleix el teu objectiu de proteïna" },
-    { id: "check", xp: 15, en: "Complete your daily check", ca: "Completa la revisió del dia" },
-    { id: "ask", xp: 10, en: "Ask your Coach a question", ca: "Fes una pregunta al teu Coach" },
-    { id: "week", xp: 10, en: "Review your seven-day plan", ca: "Revisa el pla de set dies" },
-    { id: "basket", xp: 10, en: "Open your shopping basket", ca: "Obre la teva cistella" }
+    { id: "log-all", xp: 15, go: "meals", en: "Log all three meals", ca: "Registra els tres àpats" },
+    { id: "protein", xp: 20, go: "meals", en: "Hit your protein target", ca: "Assoleix el teu objectiu de proteïna" },
+    { id: "check", xp: 15, go: "check", en: "Complete your daily check", ca: "Completa la revisió del dia" },
+    { id: "ask", xp: 10, go: "coach", en: "Ask your Coach a question", ca: "Fes una pregunta al teu Coach" },
+    { id: "week", xp: 10, go: "week", en: "Review your seven-day plan", ca: "Revisa el pla de set dies" },
+    { id: "basket", xp: 10, go: "basket", en: "Open your shopping basket", ca: "Obre la teva cistella" }
   ];
 
   const BADGES = [
@@ -1475,6 +1628,7 @@
       if (g.lastGoalDay !== today) {
         g.streak = g.lastGoalDay === dayOffsetKey(1) ? (g.streak || 0) + 1 : 1;
         g.lastGoalDay = today;
+        g.bestStreak = Math.max(g.bestStreak || 0, g.streak);
         // Seven days in a row earns a freeze back, up to two in hand.
         if (g.streak % 7 === 0 && (g.freezes || 0) < 2) {
           g.freezes = (g.freezes || 0) + 1;
@@ -1487,6 +1641,7 @@
     if (afterLevel > beforeLevel) celebrate("🎉", T("Level up", "Nivell superat"), levelFor(g.xp).name);
     refreshBadges();
     save();
+    schedulePushProgress();
     renderChrome();
   }
 
@@ -1545,10 +1700,21 @@
   function checkMealQuests() {
     const plan = currentPlan();
     const logged = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
-    todayGame().logged = logged.length;
+    const day = todayGame();
+    day.logged = logged.length;
     if (logged.length) awardBadge("first-plate");
     if (logged.length >= plan.meals.length) completeQuest("log-all");
     checkProteinQuest();
+    // Every meal answered closes the day. Say so, once.
+    const decided = plan.meals.every((meal) => state.meals[meal.id]?.status);
+    if (decided && !day.closeShown) {
+      day.closeShown = true;
+      const summary = logged.length === plan.meals.length
+        ? T("All " + plan.meals.length + " meals logged · " + day.xp + " XP", "Els " + plan.meals.length + " àpats registrats · " + day.xp + " XP")
+        : T(logged.length + " of " + plan.meals.length + " meals eaten · " + day.xp + " XP", logged.length + " de " + plan.meals.length + " àpats menjats · " + day.xp + " XP");
+      // A beat behind any goal or level popup, so they do not land on top of each other.
+      setTimeout(() => celebrate("🎉", T("Day complete", "Dia complet"), summary), 260);
+    }
     save();
   }
 
