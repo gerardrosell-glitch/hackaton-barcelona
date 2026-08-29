@@ -9,7 +9,8 @@ function imageFromBase64(imageBase64) {
   return { content, type: match[1] };
 }
 
-export async function analyseMealPhoto(imageBase64) {
+export async function analyseMealPhoto(imageBase64, logmealConsent) {
+  if (logmealConsent !== true) throw new Error("Explicit LogMeal photo-analysis authorisation is required.");
   if (process.env.LOGMEAL_DPA_APPROVED !== "true") {
     throw new Error("Restaurant photo analysis is not enabled in this production version.");
   }
