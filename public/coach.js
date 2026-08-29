@@ -71,6 +71,27 @@
     "Restaurant meal": "Àpat de restaurant", "Scan the meal, then adapt the day.": "Escaneja l'àpat i adapta la resta del dia.",
     "Take photo": "Fes una foto", "Choose photo": "Tria una foto", "Scan meal": "Escaneja l'àpat", "Mark as restaurant meal without scanning": "Marca com a àpat de restaurant sense escanejar",
     "How this plan is calculated": "Com es calcula aquest pla"
+    ,"Are you going to train today?": "Entrenaràs avui?"
+    ,"Your meals and quantities will adapt to today’s movement.": "Els àpats i les quantitats s’adaptaran al moviment d’avui."
+    ,"What does today’s movement look like?": "Com serà el moviment d’avui?"
+    ,"Choose one reply. I will adapt your calories, carbohydrates and meal quantities.": "Tria una resposta. Adaptaré les calories, els hidrats de carboni i les quantitats dels àpats."
+    ,"Choose one reply": "Tria una resposta"
+    ,"Your varied seven-day meal plan": "El teu pla d’àpats variat de set dies"
+    ,"Approve weekly plan and create basket": "Aprova el pla setmanal i crea la cistella"
+    ,"Back to daily plan": "Torna al pla diari"
+    ,"Back to weekly plan": "Torna al pla setmanal"
+    ,"Your approved weekly shopping basket": "La teva cistella setmanal aprovada"
+    ,"A varied basket matching the seven specific daily menus and your first-chat training pattern.": "Una cistella variada que correspon als set menús diaris concrets i al patró d’entrenament de la primera conversa."
+    ,"Your one-day shopping basket": "La teva cistella de compra d’un dia"
+    ,"Daily shopping basket": "Cistella de compra diària"
+    ,"Create weekly plan": "Crea el pla setmanal"
+    ,"Download daily plan PDF": "Descarrega el PDF del pla diari"
+    ,"This plan is stored only in this browser.": "Aquest pla només es desa en aquest navegador."
+    ,"Restaurant meal logged": "Àpat de restaurant registrat"
+    ,"Logged": "Registrat"
+    ,"Daily proposal": "Proposta diària"
+    ,"Monday": "Dilluns", "Tuesday": "Dimarts", "Wednesday": "Dimecres", "Thursday": "Dijous", "Friday": "Divendres", "Saturday": "Dissabte", "Sunday": "Diumenge"
+    ,"Rest day": "Dia de descans", "Strength": "Força", "Run": "Córrer", "Walk": "Caminar"
   };
   const translate = () => {
     if (language !== "ca") return;
