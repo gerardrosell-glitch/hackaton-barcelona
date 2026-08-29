@@ -142,6 +142,7 @@
     ,"Checking the latest price estimate…": "Comprovant l’estimació de preu més recent…"
     ,"Cala-informed estimate": "Estimació basada en Cala"
     ,"Spain market reference estimate": "Estimació de referència del mercat espanyol"
+    ,"Spain market reference": "Referència del mercat espanyol"
     ,"Some prices use Cala; the rest use Spain market references.": "Alguns preus fan servir Cala; la resta fan servir referències del mercat espanyol."
     ,"Estimated total": "Total estimat"
     ,"Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.": "Les estimacions de preu cobreixen les quantitats indicades, no són un pressupost de compra. Les promocions, la botiga, la marca, les mides dels envasos i el lliurament poden canviar l’import final."
@@ -587,7 +588,7 @@
 
   function basketAmountLabel(item) {
     if (item.unit === "g") return item.amount + "g";
-    if (item.unit === "slice") return item.amount + " slices";
+    if (item.unit === "slice") return String(item.amount);
     return String(item.amount);
   }
 
