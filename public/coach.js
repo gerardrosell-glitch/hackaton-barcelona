@@ -13,13 +13,18 @@
   conversationOverflowStyle.textContent = ".coach-workspace{width:100vw;margin-left:calc(50% - 50vw);border-radius:0;overflow:visible!important;background:url('/assets/coach-palette.png') center/cover!important;color:#163b32}.coach-workspace::after{background:rgba(255,244,222,.38)!important}.coach-video{display:none}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#163b32}.chat{background:rgba(255,247,230,.76);border-color:rgba(107,103,53,.32);backdrop-filter:blur(14px)}.bubble.coach{background:rgba(255,252,243,.95);color:#163b32}.bubble.user{background:#456451;color:#fff;border-color:#456451}.composer{background:rgba(255,252,243,.96);border-color:#d99b60}.quick-replies button{background:#fff6df;border-color:#b5a96b;color:#274a3e}.quick-replies button:hover{background:#f4d39b}.quick-replies button:focus-visible,.restart-control:focus-visible{outline:3px solid #e67553;outline-offset:3px}.shortcut-key{display:inline-grid;place-items:center;min-width:1.55em;height:1.55em;margin-right:7px;border:1px solid currentColor;border-radius:50%;font-size:.76em;line-height:1;font-family:ui-monospace,SFMono-Regular,monospace}.keyboard-hint{margin:0 7px 9px;color:#55736d;font-size:.82rem}.restart-control{margin-left:auto;border:1px solid #7e8254;background:rgba(255,252,243,.9);color:#274a3e;padding:8px 11px;font:inherit;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.chat-input input{color:#274a3e}.chat-input .button,.coach-workspace .button:not(.quiet){background:#3f6653;border-color:#3f6653}.chat-cancel{color:#274a3e!important;border-color:#7e8254!important;background:rgba(255,247,230,.55)!important}.chat-page{max-width:760px;margin:0 auto}.chat-page .bubble{max-width:100%;box-sizing:border-box}.chat-page .day{display:grid;gap:16px}.chat-page .meal-list{display:grid;gap:14px}.meal-image{width:100%;height:190px;object-fit:cover;border-radius:12px;margin:0 0 12px}.weekly-grid{display:grid;gap:12px}.week-day{padding:14px;border:1px solid #d9b47a;border-radius:12px;background:rgba(255,252,243,.88)}.week-day h3{margin:0 0 6px}.chat-page .privacy{color:#55736d;text-align:left}@media(max-width:600px){.masthead{gap:8px}.masthead .brand{max-width:150px}.restart-control{padding:7px 8px;font-size:.65rem}}";
   document.head.append(conversationOverflowStyle);
   const paletteContrastStyle = document.createElement("style");
-  paletteContrastStyle.textContent = ".coach-workspace{color:#392d23}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#392d23}.coach-workspace .eyebrow{color:#9e4e35}.coach-workspace .lead{color:#584538}.chat{background:rgba(255,249,237,.84);border-color:rgba(112,78,48,.32)}.bubble.coach{background:rgba(255,253,247,.97);color:#392d23}.bubble.user{background:#614633;border-color:#614633;color:#fffdf8}.bubble .meta,.chat-page .privacy,.keyboard-hint{color:#6d5948}.composer{background:rgba(255,253,247,.98);border-color:#c88152}.quick-replies button{background:#fff7e8;border-color:#bf885d;color:#392d23}.quick-replies button:hover{background:#f1d0aa}.quick-replies button:focus-visible,.restart-control:focus-visible{outline-color:#a14e34}.chat-input input{color:#392d23}.chat-input .button,.coach-workspace .button:not(.quiet){background:#614633;border-color:#614633;color:#fffdf8}.chat-cancel{color:#392d23!important;border-color:#9a6544!important;background:rgba(255,249,237,.7)!important}.restart-control{background:#fff9ed;border-color:#a66b48;color:#392d23}.shortcut-key{border-color:#a66b48;color:#7a4730}.week-day{background:rgba(255,253,247,.92);border-color:#d1a171}.meal-header,.meal p,.ledger,.method{color:#392d23}.meta,.ledger span{color:#6d5948}";
+  paletteContrastStyle.textContent = ".coach-workspace{color:#392d23}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#392d23}.coach-workspace .eyebrow{color:#9e4e35}.coach-workspace .lead{color:#584538}.chat{background:rgba(255,249,237,.84);border-color:rgba(112,78,48,.32)}.bubble.coach{background:rgba(255,253,247,.97);color:#392d23}.bubble.user{background:#614633;border-color:#614633;color:#fffdf8}.bubble .meta,.chat-page .privacy,.keyboard-hint{color:#6d5948}.composer{background:rgba(255,253,247,.98);border-color:#c88152}.quick-replies button{background:#fff7e8;border-color:#bf885d;color:#392d23}.quick-replies button:hover{background:#f1d0aa}.quick-replies button:focus-visible,.restart-control:focus-visible{outline-color:#a14e34}.chat-input input{color:#392d23}.chat-input .button,.coach-workspace .button:not(.quiet){background:#614633;border-color:#614633;color:#fffdf8}.chat-cancel{color:#392d23!important;border-color:#9a6544!important;background:rgba(255,249,237,.7)!important}.restart-control{background:#fff9ed;border-color:#a66b48;color:#392d23}.shortcut-key{border-color:#a66b48;color:#7a4730}.week-day{background:rgba(255,253,247,.92);border-color:#d1a171}.meal-header,.meal p,.ledger,.method{color:#392d23}.meta,.ledger span{color:#6d5948}.meal-image-placeholder{display:grid;place-items:center;align-content:center;gap:12px;background:linear-gradient(135deg,#fff7e8,#efd6ab);color:#584538;font-weight:800;text-align:center}.meal-image-placeholder .button{margin:0}";
   document.head.append(paletteContrastStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
   const readState = () => { try { return JSON.parse(localStorage.getItem(storageKey)); } catch { return null; } };
-  state = readState() || { profile: null, activity: "rest", meals: {} };
+  state = { mealImages: {}, ...(readState() || { profile: null, activity: "rest", meals: {} }) };
+  const todayKey = (date = new Date()) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+  if (state.profile && state.planDate !== todayKey()) {
+    state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
+    save();
+  }
   const choiceButtons = (items, attribute) => items.map(([label, value], index) => '<button ' + attribute + '="' + esc(value) + '" aria-keyshortcuts="' + (index + 1) + '"><kbd class="shortcut-key">' + (index + 1) + '</kbd>' + esc(label) + '</button>').join("");
   const stepper = (step) => '<div class="stepper" aria-label="Setup progress">' + [1, 2, 3].map((number) => '<i class="' + (number <= step ? "active" : "") + '"></i>').join("") + "</div>";
   const note = (text, isError = false) => '<p class="status' + (isError ? " error" : "") + '">' + esc(text) + "</p>";
@@ -59,6 +64,15 @@
     "This applies only a gentle starting calorie adjustment. It is not a clinical prescription.": "Això només aplica un ajust calòric inicial moderat. No és una prescripció clínica.",
     "Lose fat": "Perdre greix", "Gain muscle": "Guanyar múscul", "Maintain": "Mantenir",
     "Send": "Envia", "Cancel": "Cancel·la", "Choose one reply": "Tria una resposta", "Type your answer…": "Escriu la resposta…", "Cancel and restart": "Cancel·la i torna a començar",
+    "Press 1, 2 or 3 on your keyboard to choose.": "Prem 1, 2 o 3 al teclat per triar.",
+    "Press 1, 2, 3, 4 or 5 on your keyboard to choose.": "Prem 1, 2, 3, 4 o 5 al teclat per triar.",
+    "Visual for this meal": "Imatge d’aquest àpat", "Generate meal image": "Genera la imatge de l’àpat", "Generating image…": "S’està generant la imatge…",
+    "Daily check": "Revisió diària", "Review what you have eaten today and adapt the remaining meals.": "Revisa què has menjat avui i adapta els àpats pendents.",
+    "Review the meals still pending": "Revisa els àpats pendents", "meals logged today.": "àpats registrats avui.", "day streak": "dies seguits",
+    "Your daily check is complete. Your meals and plan are saved on this device for today.": "La revisió diària està completa. Els àpats i el pla d’avui es desen en aquest dispositiu.",
+    "Complete today’s check (+10)": "Completa la revisió d’avui (+10)", "Back to daily plan": "Torna al pla diari",
+    "Download weekly plan PDF": "Descarrega el PDF del pla setmanal", "Download weekly basket PDF": "Descarrega el PDF de la cistella setmanal",
+    "Email via my mail app": "Envia per la meva app de correu", "Email address": "Adreça electrònica",
     "I have what I need. Would you like to keep this plan on this device?": "Ja tinc el que necessito. Vols conservar aquest pla en aquest dispositiu?",
     "It stays in this browser and can be deleted with Start over. Nothing is saved to an account.": "Es queda en aquest navegador i es pot eliminar amb «Comença de nou». No es desa en cap compte.",
     "Create and save my plan": "Crea i desa el meu pla", "Create a one-time plan": "Crea un pla puntual",
@@ -115,9 +129,19 @@
   restartControl.className = "restart-control";
   restartControl.type = "button";
   restartControl.textContent = language === "ca" ? "Comença de nou" : "Start over";
-  restartControl.setAttribute("aria-label", language === "ca" ? "Elimina aquest pla i comença de nou" : "Delete this plan and start over");
+  restartControl.setAttribute("aria-label", language === "ca" ? "Comença un nou dia amb el perfil desat" : "Start a new day with the saved profile");
+  restartControl.title = language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement";
   document.querySelector(".masthead").append(restartControl);
-  const resetCoach = () => { localStorage.removeItem(storageKey); state = { profile: null, activity: "rest", meals: {} }; welcome(); };
+  const resetCoach = () => {
+    if (state.profile) {
+      state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
+      save();
+      return training();
+    }
+    localStorage.removeItem(storageKey);
+    state = { profile: null, activity: "rest", meals: {}, mealImages: {} };
+    welcome();
+  };
   restartControl.onclick = resetCoach;
   document.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey || event.target.matches("input, textarea, select, [contenteditable='true']")) return;
@@ -206,7 +230,7 @@
       answers[question.key] = question.choices ? value : Number(value);
       index += 1;
       if (index < questions.length) return render();
-      state = { profile: answers, activity: "rest", meals: {} };
+      state = { profile: answers, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
       save();
       training();
     };
@@ -219,9 +243,12 @@
 
   function training() {
     const choices = [["Rest or recovery day", "rest"], ["Walk", "walk"], ["Pilates", "pilates"], ["Strength training", "strength"], ["Run", "run"]];
-    root.innerHTML = coachShell("Are you going to train today?", "Your meals and quantities will adapt to today’s movement.", '<div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">Choose one reply</span><p class="keyboard-hint">Press 1, 2, 3, 4 or 5 on your keyboard to choose.</p><div class="quick-replies">' + choiceButtons(choices, "data-choice") + '</div></div><button class="button quiet" id="back">Back</button>');
+    const savedProfileLead = language === "ca"
+      ? "El teu perfil està desat en aquest dispositiu. Els àpats i les quantitats s’adaptaran al moviment d’avui."
+      : "Your profile is saved on this device. Your meals and quantities will adapt to today’s movement.";
+    root.innerHTML = coachShell("Are you going to train today?", savedProfileLead, '<div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">Choose one reply</span><p class="keyboard-hint">Press 1, 2, 3, 4 or 5 on your keyboard to choose.</p><div class="quick-replies">' + choiceButtons(choices, "data-choice") + '</div></div><button class="button quiet" id="back">Back</button>');
     root.querySelector("#back").onclick = profile;
-    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { state.activity = button.dataset.choice; state.meals = {}; save(); dashboard(); });
+    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { state.activity = button.dataset.choice; state.needsTraining = false; state.meals = {}; save(); dashboard(); });
   }
 
   function totals(plan) {
@@ -258,21 +285,72 @@
     const plan = currentPlan();
     const eaten = totals(plan);
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
-    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
+    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
+    root.querySelector("#daily-check").onclick = dailyCheck;
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
     root.querySelector("#week-plan").onclick = weeklyPlan;
     root.querySelector("#change-training").onclick = training;
     root.querySelector("#start-over").onclick = resetCoach;
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
+    root.querySelectorAll("[data-generate-meal]").forEach((button) => button.onclick = () => generateMealImage(button.dataset.generateMeal));
+  }
+
+  function dailyCheck() {
+    const plan = currentPlan();
+    const completed = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
+    const pending = plan.meals.filter((meal) => !["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
+    const date = new Intl.DateTimeFormat(language === "ca" ? "ca-ES" : "en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+    const points = completed.length * 10 + (state.dailyCheckDate === todayKey() ? 10 : 0);
+    const content = '<div class="bubble coach"><strong>' + esc(date) + '</strong><span class="meta">' + completed.length + ' of ' + plan.meals.length + ' meals logged today · ' + points + ' points · ' + (state.streak || 0) + ' day streak</span></div>'
+      + (pending.length ? '<div class="composer"><span class="composer-label">Review the meals still pending</span><div class="quick-replies">' + pending.map((meal) => '<button data-daily-check="' + meal.id + '">' + esc(meal.slot) + ': ' + esc(meal.title) + '</button>').join("") + '</div></div>' : '<div class="bubble coach">Your daily check is complete. Your meals and plan are saved on this device for today.</div>')
+      + '<div class="actions">' + (pending.length ? "" : '<button class="button" id="complete-check">Complete today’s check (+10)</button>') + '<button class="button quiet" id="back">Back to daily plan</button></div>';
+    root.innerHTML = coachShell("Daily check", "Review what you have eaten today and adapt the remaining meals.", content);
+    root.querySelector("#back").onclick = dashboard;
+    root.querySelector("#complete-check")?.addEventListener("click", completeDailyCheck);
+    root.querySelectorAll("[data-daily-check]").forEach((button) => button.onclick = () => checkIn(button.dataset.dailyCheck));
+  }
+
+  function completeDailyCheck() {
+    const today = todayKey();
+    if (state.dailyCheckDate !== today) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      state.streak = state.dailyCheckDate === todayKey(yesterday) ? (state.streak || 0) + 1 : 1;
+      state.dailyCheckDate = today;
+      save();
+    }
+    dailyCheck();
   }
 
   function mealCard(meal) {
     const saved = state.meals[meal.id];
     const status = saved?.status;
     const label = status === "restaurant" ? "Restaurant meal logged" : status === "eaten" ? "Logged" : "Daily proposal";
-    const images = { breakfast: "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1000&q=80", lunch: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1000&q=80", dinner: "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1000&q=80" };
-    return '<article class="meal ' + (status || "") + '"><img class="meal-image" src="' + images[meal.id] + '" alt="' + esc(meal.title) + '"><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p><div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">' + label + "</button></div></article>";
+    const imageUrl = state.mealImages?.[meal.id];
+    const image = imageUrl
+      ? '<img class="meal-image" src="' + esc(imageUrl) + '" alt="' + esc(meal.title) + '">'
+      : '<div class="meal-image meal-image-placeholder"><span>Visual for this meal</span><button class="button quiet" data-generate-meal="' + esc(meal.id) + '">Generate meal image</button></div>';
+    return '<article class="meal ' + (status || "") + '">' + image + '<div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p><div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">' + label + "</button></div></article>";
+  }
+
+  async function generateMealImage(mealId) {
+    const meal = currentPlan().meals.find((item) => item.id === mealId);
+    const button = root.querySelector('[data-generate-meal="' + mealId + '"]');
+    if (!meal || !button) return;
+    button.disabled = true;
+    button.textContent = "Generating image…";
+    try {
+      const response = await fetch("/api/meal-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: meal.title }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Meal-image generation is unavailable.");
+      state.mealImages = { ...(state.mealImages || {}), [mealId]: data.imageUrl };
+      save();
+      dashboard();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = error.message || "Try generating the image again";
+    }
   }
 
   function weeklySetup() {
@@ -317,16 +395,46 @@
   function weeklyPlan() {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(); const activityExplanation = { sedentary: "mostly sitting, with gentle movement built in", light: "light activity (1–2 activity days/week)", moderate: "regular training (3–4 training days/week)", high: "frequent training (5+ training days/week)" }[state.profile.activity];
     const images = ["https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80"];
-    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
-    root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#back").onclick = dashboard;
+    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="weekly-pdf">Download weekly plan PDF</button><button class="button quiet" id="weekly-email">Email via my mail app</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#weekly-pdf").onclick = () => printWeekly("plan"); root.querySelector("#weekly-email").onclick = () => emailWeekly("plan"); root.querySelector("#back").onclick = dashboard;
+  }
+
+  function weeklyBasketItems() {
+    const activities = weeklyActivities(); const scale = dailyTarget(state.profile, activities[0]).calories / 2000;
+    const baseItems = [[1200, "Greek yogurt"], [360, "oats"], [4, "bananas"], [3, "apples or pears"], [300, "berries"], [12, "eggs"], [700, "chicken breast"], [450, "turkey"], [280, "salmon"], [160, "cod"], [180, "tofu"], [2, "tuna cans"], [660, "cooked lentils"], [500, "cooked chickpeas or beans"], [240, "dry rice or quinoa"], [250, "dry wholegrain pasta"], [1500, "potatoes or sweet potatoes"], [2200, "mixed vegetables and salad"], [140, "olive oil"], [12, "slices wholegrain bread"], [50, "nuts, seeds or peanut butter"]];
+    return baseItems.map(([amount, name]) => [name, amount < 20 ? amount : Math.round(amount * scale / 10) * 10]);
   }
 
   function weeklyBasket() {
-    const activities = weeklyActivities(); const scale = dailyTarget(state.profile, activities[0]).calories / 2000;
-    const baseItems = [[1200, "Greek yogurt"], [360, "oats"], [4, "bananas"], [3, "apples or pears"], [300, "berries"], [12, "eggs"], [700, "chicken breast"], [450, "turkey"], [280, "salmon"], [160, "cod"], [180, "tofu"], [2, "tuna cans"], [660, "cooked lentils"], [500, "cooked chickpeas or beans"], [240, "dry rice or quinoa"], [250, "dry wholegrain pasta"], [1500, "potatoes or sweet potatoes"], [2200, "mixed vegetables and salad"], [140, "olive oil"], [12, "slices wholegrain bread"], [50, "nuts, seeds or peanut butter"]];
-    const totals = baseItems.map(([amount, name]) => [name, amount < 20 ? amount : Math.round(amount * scale / 10) * 10]);
-    root.innerHTML = coachShell("Your approved weekly shopping basket", "A varied basket matching the seven specific daily menus and your first-chat training pattern.", '<div class="bubble coach full-card"><ul class="basket">' + totals.map(([name, amount]) => '<li><strong>' + (amount < 20 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
-    root.querySelector("#back").onclick = weeklyPlan;
+    const totals = weeklyBasketItems();
+    root.innerHTML = coachShell("Your approved weekly shopping basket", "A varied basket matching the seven specific daily menus and your first-chat training pattern.", '<div class="bubble coach full-card"><ul class="basket">' + totals.map(([name, amount]) => '<li><strong>' + (amount < 20 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button" id="weekly-basket-pdf">Download weekly basket PDF</button><button class="button quiet" id="weekly-basket-email">Email via my mail app</button><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
+    root.querySelector("#weekly-basket-pdf").onclick = () => printWeekly("basket"); root.querySelector("#weekly-basket-email").onclick = () => emailWeekly("basket"); root.querySelector("#back").onclick = weeklyPlan;
+  }
+
+  function weeklyText(kind) {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    if (kind === "basket") return weeklyBasketItems().map(([name, amount]) => "- " + amount + (amount < 20 ? "" : "g") + " " + name).join("\n");
+    return days.map((day, index) => {
+      const target = dailyTarget(state.profile, weeklyActivities()[index]);
+      return day + " - " + activityLabels[weeklyActivities()[index]] + "\n" + variedMeals(target, weeklyActivities()[index], index).map((meal) => meal.slot + ": " + meal.title + " (" + meal.portions + ")").join("\n");
+    }).join("\n\n");
+  }
+
+  function printWeekly(kind) {
+    const title = kind === "basket" ? "Weekly shopping basket" : "Seven-day meal plan";
+    const popup = window.open("", "_blank");
+    if (!popup) return alert("Allow pop-ups to download your PDF.");
+    const text = weeklyText(kind).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+    popup.document.write("<!doctype html><title>" + title + "</title><style>body{max-width:760px;margin:48px auto;color:#392d23;font:16px/1.5 system-ui}h1{font:42px Georgia,serif}@page{margin:18mm}</style><h1>Quota Vita / " + title + "</h1><p>" + text + "</p><p>General wellbeing guidance only. Not medical advice.</p>");
+    popup.document.close(); setTimeout(() => popup.print(), 250);
+  }
+
+  function emailWeekly(kind) {
+    const address = window.prompt("Email address", state.email || "");
+    if (!address) return;
+    state.email = address.trim(); save();
+    const title = kind === "basket" ? "My Quota Vita weekly shopping basket" : "My Quota Vita seven-day meal plan";
+    window.location.href = "mailto:" + encodeURIComponent(state.email) + "?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(weeklyText(kind) + "\n\nGeneral wellbeing guidance only. Not medical advice.");
   }
 
   function checkIn(id, message = "") {
@@ -390,5 +498,5 @@
     root.querySelector("#clear").onclick = resetCoach;
   }
 
-  if (state.profile) dashboard(); else welcome();
+  if (state.profile) (state.needsTraining ? training() : dashboard()); else welcome();
 })();

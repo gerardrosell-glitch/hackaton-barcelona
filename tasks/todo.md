@@ -5,6 +5,11 @@
 - [x] Ensure numeric shortcuts work for profile and training choices without intercepting typed numeric answers.
 - [x] Verify the production build locally before deployment.
 - [x] Verify the production deployment and custom-domain alias.
+- [x] Add a server-only Fal route for on-demand meal imagery.
+- [ ] Verify Fal image generation in production.
+- [x] Preserve the device profile while resetting the daily plan and training choice.
+- [x] Add a date-aware daily check with completed-meal status and streak points.
+- [x] Add weekly plan and basket print-to-PDF plus mail-app sharing.
 
 ## Review
 
