@@ -1,5 +1,8 @@
 # Nutrition Coach interaction update
 
+- [ ] Replace the vertical daily-meal list with a viewport-sized horizontal swipe deck.
+- [ ] Keep meal actions usable without conflating a swipe with logging a meal.
+- [ ] Verify touch, pointer, keyboard, and existing automated flows.
 - [x] Add a persistent Start over control to the top navigation.
 - [x] Add visible numeric keyboard shortcuts to quick-reply choices.
 - [x] Ensure numeric shortcuts work for profile and training choices without intercepting typed numeric answers.
@@ -18,7 +21,7 @@
 - [x] Keep restaurant logging inside the daily meal deck and add left/right swipe meal actions.
 - [x] Keep the active onboarding question at the top of the chat; retain prior answers without displaying them.
 - [x] Persist and display daily plus total points, with one clear final-check reward.
-- [x] Replace mail-app handoff with a consented server-side Shopify Flow email request for weekly plans and baskets.
+- [ ] Connect weekly plan and basket email delivery directly to xat.quotavita.com's Resend/Shopify service and verify a live customer delivery.
 
 ## Review
 

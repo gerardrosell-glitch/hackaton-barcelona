@@ -14,3 +14,4 @@
 - In a focused guided flow, the active prompt must lead the screen. Saved history is useful data, but it should not compete with the next action.
 - A gamification action must persist an observable result: show the current reward, the all-time balance, and replace the action once it is complete.
 - When email delivery is part of a Shopify workflow, implement the actual server-side Flow handoff and consent record; do not leave a mail-app redirect in its place.
+- Do not substitute a generic Shopify Flow workaround when an existing Quota Vita xat workflow is available; identify and use its exact trigger contract first.
