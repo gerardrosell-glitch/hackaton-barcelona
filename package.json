@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "db:sql": "cat supabase/migrations/*.sql",
+    "dev": "node scripts/dev.mjs"
   }
 }

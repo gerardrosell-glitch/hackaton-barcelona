@@ -18,7 +18,7 @@ import { SITE, ORGANISATION } from "./site.js";
 import { renderMarkdown, escapeHtml } from "./markdown.js";
 import { negotiate, applyVary } from "./negotiate.js";
 
-export const ASSET_VERSION = "clear-eaten-1";
+export const ASSET_VERSION = "light-only-1";
 export const DOCS_URL = `${SITE.origin}/openapi.json`;
 
 /** What a caller should do about each failure. Empty means the message says it. */
@@ -161,7 +161,11 @@ export function head({ title, description, path, jsonLd, ogType = "website" }) {
   return `  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#fdfaf3">
-  <meta name="color-scheme" content="light dark">
+  <!-- The Coach is a light-ground product: cream paper, terracotta, and food
+       photography lit for it. "light" is declared rather than left open so a
+       device in dark mode cannot auto-invert form controls, scrollbars and the
+       canvas behind the page. -->
+  <meta name="color-scheme" content="light">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icon-180.png">
   <link rel="icon" href="/assets/icon-192.png" type="image/png" sizes="192x192">

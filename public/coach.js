@@ -66,10 +66,17 @@
   // it maps to and builds the attributed cart link; the client only asks.
   const shopOfferRequests = new Map();
 
-  function shopOffer(millilitres) {
-    const key = millilitres + ":" + language;
+  // `surface` names the placement. It travels to the server, comes back inside
+  // the cart link as `utm_content`, and is sent to /api/events on the same
+  // click — one word, both ledgers, so Shopify sessions and the internal funnel
+  // can be read against each other.
+  function shopOffer(millilitres, surface) {
+    const key = millilitres + ":" + language + ":" + (surface || "");
     if (!shopOfferRequests.has(key)) {
-      shopOfferRequests.set(key, fetch("/api/shop?millilitres=" + encodeURIComponent(millilitres) + "&language=" + encodeURIComponent(language))
+      const query = "/api/shop?millilitres=" + encodeURIComponent(millilitres)
+        + "&language=" + encodeURIComponent(language)
+        + (surface ? "&surface=" + encodeURIComponent(surface) : "");
+      shopOfferRequests.set(key, fetch(query)
         .then((response) => (response.ok ? response.json() : null))
         .then((body) => body?.offer || null)
         .catch(() => null));
@@ -77,14 +84,14 @@
     return shopOfferRequests.get(key);
   }
 
-  function shopOfferMarkup(offer) {
+  function shopOfferMarkup(offer, surface) {
     const coverage = language === "ca"
       ? offer.product.label + " · " + offer.coverageDays + " dies · " + formatEur(offer.product.priceEurHint)
       : offer.product.label + " · " + offer.coverageDays + " days · " + formatEur(offer.product.priceEurHint);
     const perDay = language === "ca"
       ? formatEur(offer.costPerDayEurHint) + " al dia"
       : formatEur(offer.costPerDayEurHint) + " a day";
-    return '<span class="shop-offer"><a class="button shop-buy" href="' + esc(offer.cartUrl) + '" target="_blank" rel="noopener" data-shop-buy="' + esc(offer.product.sku) + '">'
+    return '<span class="shop-offer"><a class="button shop-buy" href="' + esc(offer.cartUrl) + '" target="_blank" rel="noopener" data-shop-buy="' + esc(offer.product.sku) + '" data-shop-surface="' + esc(surface || "") + '">'
       + esc(T("Buy the protein", "Compra la proteïna")) + '</a><span class="shop-line">' + esc(coverage) + ' · ' + esc(perDay) + "</span></span>";
   }
 
@@ -93,17 +100,18 @@
       node.dataset.shopFilled = "1";
       const millilitres = Number(node.dataset.shopMl);
       if (!Number.isFinite(millilitres) || millilitres <= 0) return;
-      void shopOffer(millilitres).then((offer) => {
+      const surface = node.dataset.shopSurface || "";
+      void shopOffer(millilitres, surface).then((offer) => {
         if (!offer || !node.isConnected) return;
-        node.insertAdjacentHTML("beforeend", shopOfferMarkup(offer));
-        track("shop_offer_shown", { sku: offer.product.sku, millilitres });
+        node.insertAdjacentHTML("beforeend", shopOfferMarkup(offer, surface));
+        track("shop_offer_shown", { sku: offer.product.sku, millilitres, surface });
       });
     });
   }
 
   root.addEventListener("click", (event) => {
     const link = event.target.closest?.("[data-shop-buy]");
-    if (link) track("shop_checkout_opened", { sku: link.dataset.shopBuy });
+    if (link) track("shop_checkout_opened", { sku: link.dataset.shopBuy, surface: link.dataset.shopSurface || "" });
   });
 
   // ── The account ─────────────────────────────────────────────────────────
@@ -524,6 +532,9 @@
     }
     return node;
   };
+  const SHOP_URL = (window.COACH_CONFIG?.shopUrl || "https://www.quotavita.com")
+    + "?ref=coach&utm_source=coach&utm_medium=app&utm_campaign=shop_nav";
+
   const topbarHost = chromeHost("topbar", "header", "topbar");
   const tabbarHost = chromeHost("tabbar", "nav", "tabbar", { "aria-label": "Sections", hidden: "" });
   let currentView = "setup";
@@ -534,7 +545,8 @@
     week: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     basket: '<path d="M4 8h16l-1.4 11.1a2 2 0 0 1-2 1.75H7.4a2 2 0 0 1-2-1.75L4 8Z"/><path d="M9 8V6.2a3 3 0 0 1 6 0V8"/>',
     coach: '<path d="M21 11.5a8 8 0 0 1-8 8H8l-5 2.5V11.5a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/>',
-    progress: '<path d="M12 3.2 14.6 9l6.4.6-4.8 4.2 1.4 6.2-5.6-3.3-5.6 3.3 1.4-6.2L3 9.6 9.4 9 12 3.2Z"/>'
+    progress: '<path d="M12 3.2 14.6 9l6.4.6-4.8 4.2 1.4 6.2-5.6-3.3-5.6 3.3 1.4-6.2L3 9.6 9.4 9 12 3.2Z"/>',
+    shop: '<path d="M4.5 8h15l-1.2 11.2a2 2 0 0 1-2 1.8H7.7a2 2 0 0 1-2-1.8L4.5 8Z"/><path d="M9 8V6.3a3 3 0 0 1 6 0V8"/><path d="M9.5 11.5h5"/>'
   };
 
   const navItems = () => [
@@ -542,7 +554,9 @@
     { id: "week", label: T("Week", "Setmana") },
     { id: "basket", label: T("Basket", "Cistella") },
     { id: "coach", label: T("Coach", "Coach") },
-    { id: "progress", label: T("Progress", "Progrés") }
+    { id: "progress", label: T("Progress", "Progrés") },
+    // Not a view: the storefront, opened in its own tab so the plan is not lost.
+    { id: "shop", label: T("Shop", "Botiga"), href: SHOP_URL }
   ];
 
   const svgIcon = (name) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + navIcons[name] + "</svg>";
@@ -557,56 +571,195 @@
     ].map(([href, label]) => '<a href="' + href + '">' + esc(label) + "</a>").join(" · ");
   }
 
+  /* The menu holds actions and settings only — the five destinations live in the
+     tab bar. Groups run in the order you would reach for them: what you can do
+     with today, then with the week, then the settings, then your data, then the
+     company. Navigation that already has a button elsewhere is not repeated. */
   function menuMarkup() {
-    const compact = state.compactPlanView ? T("Full cards", "Vista completa") : T("Compact cards", "Vista compacta");
-    const group = (title, items) => "<h2>" + esc(title) + "</h2>" + items.map(([action, label, extra = ""]) => '<button class="menu-item' + extra + '" type="button" data-menu-action="' + action + '">' + esc(label) + "</button>").join("");
-    // Site and developer pages are server-rendered documents, not app views, so
-    // they are real links: the menu is the only place a person can reach them.
-    const linkGroup = (title, items) => "<h2>" + esc(title) + "</h2>" + items.map(([href, label]) => '<a class="menu-item" href="' + href + '">' + esc(label) + "</a>").join("");
-    const languageGroup = '<h2>' + esc(T("Language", "Idioma")) + '</h2><div class="menu-lang" data-language-control>'
-      + [["en", "English"], ["ca", "Català"]].map(([code, label]) => '<button class="menu-item' + (language === code ? " is-active" : "") + '" type="button" data-language="' + code + '">' + label + "</button>").join("")
-      + "</div>";
+    const item = ([action, label, extra = ""]) => '<button class="menu-item' + extra + '" type="button" data-menu-action="' + action + '">' + esc(label) + "</button>";
+    const group = (title, items) => (items.length ? "<h2>" + esc(title) + "</h2>" + items.map(item).join("") : "");
+    const linkGroup = (title, items) => "<h2>" + esc(title) + "</h2><div class=\"menu-links\">" + items.map(([href, label]) => '<a href="' + href + '">' + esc(label) + "</a>").join("") + "</div>";
+    const choiceRow = (label, options) => '<div class="menu-row"><span>' + esc(label) + '</span><div class="menu-choice">' + options + "</div></div>";
+
+    const languageRow = choiceRow(T("Language", "Idioma"),
+      '<span data-language-control>' + [["en", "EN"], ["ca", "CA"]]
+        .map(([code, short]) => '<button type="button" data-language="' + code + '" class="' + (language === code ? "is-active" : "") + '">' + short + "</button>").join("") + "</span>");
+    const densityRow = choiceRow(T("Cards", "Targetes"),
+      [[false, T("Full", "Completes")], [true, T("Compact", "Compactes")]]
+        .map(([compact, label]) => '<button type="button" data-density="' + compact + '" class="' + (Boolean(state.compactPlanView) === compact ? "is-active" : "") + '">' + esc(label) + "</button>").join(""));
+
     return '<div class="overflow-menu" id="overflow-menu" role="menu"' + (menuOpen ? "" : " hidden") + ">"
-      + languageGroup
       + group(T("Today", "Avui"), [
-        ["daily-check", T("Daily check", "Revisió del dia")],
-        ["daily-pdf", T("Download today's plan", "Baixa el pla d’avui")],
-        ["change-training", T("Change today's training", "Canvia l’entrenament d’avui")]
+        ["change-training", T("Change today’s training", "Canvia l’entrenament d’avui")],
+        ["daily-pdf", T("Download today’s plan", "Baixa el pla d’avui")]
       ])
-      + group(T("Week", "Setmana"), [
+      + group(T("This week", "Aquesta setmana"), [
         ["weekly-pdf", T("Download the week", "Baixa la setmana")],
-        ["weekly-email", T("Email my week", "Envia’m la setmana")]
+        ["weekly-email", T("Email me the week", "Envia’m la setmana")]
       ])
+      + "<h2>" + esc(T("Settings", "Configuració")) + "</h2>"
+      + item(["edit-profile", T("My details", "Les meves dades")])
+      + languageRow
+      + densityRow
+      + "<h2>" + esc(T("Your data", "Les teves dades")) + "</h2>"
       + (accountsEnabled || signedIn()
-        ? group(T("Account", "Compte"), [
-          ["account", signedIn() ? T("Your account", "El teu compte") : T("Save my plan to my account", "Desa el meu pla al meu compte")]
-        ])
+        ? item(["account", signedIn() ? T("Your account", "El teu compte") : T("Save my plan to my account", "Desa el meu pla al meu compte")])
         : "")
-      + group(T("You", "Tu"), [
-        ["edit-profile", T("My details", "Les meves dades")],
-        ["compact-view", compact],
-        ["restart-day", T("Start today again", "Torna a començar el dia")],
-        ["delete-data", T("Delete my data", "Esborra les meves dades"), " menu-item--danger"]
-      ])
+      + item(["restart-day", T("Start today again", "Torna a començar el dia")])
+      + item(["delete-data", T("Delete my data", "Esborra les meves dades"), " menu-item--danger"])
       + linkGroup(T("Quota Vita", "Quota Vita"), [
-        ["/about", T("About the Coach", "Sobre el Coach")],
+        ["/about", T("About", "Qui som")],
         ["/contact", T("Contact", "Contacte")],
         ["/privacy", T("Privacy", "Privacitat")],
-        ["/developers", T("Developers and API", "Desenvolupadors i API")]
+        ["/developers", T("Developers", "Desenvolupadors")]
       ])
       + "</div>";
+  }
+
+  /* Fast search. Everything the Coach already knows about today and the week is
+     searchable from one field: a meal, an ingredient, a day, a basket line, or
+     a place to go. Matching is accent-insensitive so "proteina" finds
+     "proteïna" and "escalivada" finds "Escalivada". */
+  const fold = (value) => String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  function searchIndex() {
+    const entries = [];
+    const add = (group, label, detail, run) => entries.push({ group, label, detail, run });
+
+    if (state.profile) {
+      const plan = currentPlan();
+      plan.meals.forEach((meal) => {
+        add(T("Today’s meals", "Àpats d’avui"), meal.slot + " · " + meal.title, meal.portions, () => {
+          dashboard();
+          requestAnimationFrame(() => {
+            const card = root.querySelector('[data-meal-card="' + meal.id + '"]');
+            if (!card) return;
+            card.scrollIntoView({ behavior: "smooth", block: "center" });
+            card.classList.add("is-flagged");
+            setTimeout(() => card.classList.remove("is-flagged"), 1400);
+          });
+        });
+      });
+
+      if (state.weekly) {
+        weeklyPlanEntries().forEach((entry) => {
+          entry.meals.forEach((meal) => {
+            add(entry.day, meal.slot + " · " + meal.title, meal.portions, () => weeklyPlan());
+          });
+        });
+      }
+
+      weeklyBasketItems().forEach(([name, amount]) => {
+        add(T("Basket", "Cistella"), localiseFood(name), amount + (amount < 20 ? "" : " g"), () => weeklyBasket());
+      });
+    }
+
+    navItems().forEach((nav) => add(T("Go to", "Ves a"), nav.label, "", nav.href ? () => window.open(nav.href, "_blank", "noopener") : () => showView(nav.id)));
+    [
+      [T("Daily check", "Revisió del dia"), dailyCheck],
+      [T("Change today’s training", "Canvia l’entrenament d’avui"), () => training()],
+      [T("My details", "Les meves dades"), editProfile],
+      [T("Download today’s plan", "Baixa el pla d’avui"), () => printPdf("plan")],
+      [T("Email me the week", "Envia’m la setmana"), () => emailWeekly("plan")]
+    ].forEach(([label, run]) => add(T("Actions", "Accions"), label, "", run));
+
+    return entries;
+  }
+
+  function searchResults(query) {
+    const needle = fold(query).trim();
+    if (needle.length < 2) return [];
+    const words = needle.split(/\s+/);
+    return searchIndex()
+      .map((entry) => {
+        const haystack = fold(entry.label + " " + entry.detail + " " + entry.group);
+        if (!words.every((word) => haystack.includes(word))) return null;
+        // A hit at the start of the label beats one buried in the ingredients.
+        return { entry, rank: fold(entry.label).startsWith(words[0]) ? 0 : fold(entry.label).includes(needle) ? 1 : 2 };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 12)
+      .map((hit) => hit.entry);
+  }
+
+  let searchHits = [];
+
+  function renderSearchResults(query) {
+    const list = document.querySelector("#search-results");
+    if (!list) return;
+    searchHits = searchResults(query);
+    if (fold(query).trim().length < 2) {
+      list.innerHTML = '<p class="search-hint">' + esc(T("Search a meal, an ingredient, a day or a screen.", "Cerca un àpat, un ingredient, un dia o una pantalla.")) + "</p>";
+      return;
+    }
+    if (!searchHits.length) {
+      list.innerHTML = '<p class="search-hint">' + esc(T("Nothing matches “" + query.trim() + "”.", "Res no coincideix amb «" + query.trim() + "».")) + "</p>";
+      return;
+    }
+    list.innerHTML = searchHits.map((hit, index) => '<button class="search-hit" type="button" data-search-hit="' + index + '">'
+      + '<span class="search-hit-group">' + esc(hit.group) + "</span>"
+      + '<span class="search-hit-label">' + esc(hit.label) + "</span>"
+      + (hit.detail ? '<span class="search-hit-detail">' + esc(hit.detail) + "</span>" : "")
+      + "</button>").join("");
+  }
+
+  function openSearch() {
+    if (document.querySelector("#search-panel")) return;
+    setMenuOpen(false);
+    const panel = document.createElement("div");
+    panel.className = "search-panel";
+    panel.id = "search-panel";
+    panel.innerHTML = '<div class="search-sheet" role="dialog" aria-modal="true" aria-label="' + esc(T("Search", "Cerca")) + '">'
+      + '<div class="search-bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>'
+      + '<input id="search-input" type="search" autocomplete="off" placeholder="' + esc(T("Search the Coach…", "Cerca al Coach…")) + '" aria-label="' + esc(T("Search the Coach", "Cerca al Coach")) + '">'
+      + '<button class="search-close" type="button" data-search-close>' + esc(T("Close", "Tanca")) + "</button></div>"
+      + '<div class="search-results" id="search-results" role="listbox"></div></div>';
+    document.body.append(panel);
+    document.body.classList.add("modal-open");
+    renderSearchResults("");
+    const input = panel.querySelector("#search-input");
+    input.addEventListener("input", () => renderSearchResults(input.value));
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || !searchHits.length) return;
+      event.preventDefault();
+      runSearchHit(0);
+    });
+    panel.addEventListener("click", (event) => {
+      if (event.target === panel || event.target.closest("[data-search-close]")) return closeSearch();
+      const hit = event.target.closest("[data-search-hit]");
+      if (hit) runSearchHit(Number(hit.dataset.searchHit));
+    });
+    requestAnimationFrame(() => input.focus());
+    translate();
+  }
+
+  function runSearchHit(index) {
+    const hit = searchHits[index];
+    closeSearch();
+    hit?.run();
+  }
+
+  function closeSearch() {
+    document.querySelector("#search-panel")?.remove();
+    document.body.classList.remove("modal-open");
   }
 
   function renderChrome() {
     const inSetup = !state.profile || state.needsTraining;
     const items = navItems();
-    const topnav = inSetup ? "" : '<nav class="topnav" aria-label="' + esc(T("Sections", "Seccions")) + '">' + items.map((item) => '<button class="topnav-link' + (currentView === item.id ? " is-active" : "") + '" type="button" data-nav="' + item.id + '"' + (currentView === item.id ? ' aria-current="page"' : "") + ">" + esc(item.label) + "</button>").join("") + "</nav>";
+    const topnav = inSetup ? "" : '<nav class="topnav" aria-label="' + esc(T("Sections", "Seccions")) + '">' + items.map((item) => (item.href
+      ? '<a class="topnav-link topnav-link--shop" href="' + esc(item.href) + '" target="_blank" rel="noopener">' + esc(item.label) + "</a>"
+      : '<button class="topnav-link' + (currentView === item.id ? " is-active" : "") + '" type="button" data-nav="' + item.id + '"' + (currentView === item.id ? ' aria-current="page"' : "") + ">" + esc(item.label) + "</button>")).join("") + "</nav>";
     const languages = '<div class="lang" data-language-control>' + [["en", "EN"], ["ca", "CA"]].map(([code, label]) => '<button type="button" data-language="' + code + '" class="' + (language === code ? "is-active" : "") + '" aria-pressed="' + (language === code) + '">' + label + "</button>").join("") + "</div>";
     const menuButton = inSetup ? "" : '<button class="icon-button" id="menu-toggle" type="button" aria-haspopup="true" aria-expanded="' + menuOpen + '" aria-controls="overflow-menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg><span class="sr-only">' + esc(T("More options", "Més opcions")) + "</span></button>";
     const chips = inSetup ? "" : streakChipsMarkup();
-    topbarHost.innerHTML = '<div class="topbar-inner"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">QV</span>Quota Vita <em>Coach</em></a>' + topnav + '<div class="topbar-actions">' + chips + languages + menuButton + "</div></div>" + (inSetup ? "" : menuMarkup());
+    const searchButton = inSetup ? "" : '<button class="icon-button" id="search-toggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span class="sr-only">' + esc(T("Search", "Cerca")) + "</span></button>";
+    topbarHost.innerHTML = '<div class="topbar-inner"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">QV</span>Quota Vita <em>Coach</em></a>' + topnav + '<div class="topbar-actions">' + chips + languages + searchButton + menuButton + "</div></div>" + (inSetup ? "" : menuMarkup());
     tabbarHost.hidden = inSetup;
-    tabbarHost.innerHTML = inSetup ? "" : items.map((item) => '<button class="tab' + (currentView === item.id ? " is-active" : "") + '" type="button" data-nav="' + item.id + '"' + (currentView === item.id ? ' aria-current="page"' : "") + ">" + svgIcon(item.id) + '<span class="tab-label">' + esc(item.label) + "</span></button>").join("");
+    tabbarHost.innerHTML = inSetup ? "" : items.map((item) => (item.href
+      ? '<a class="tab tab--shop" href="' + esc(item.href) + '" target="_blank" rel="noopener">' + svgIcon(item.id) + '<span class="tab-label">' + esc(item.label) + "</span></a>"
+      : '<button class="tab' + (currentView === item.id ? " is-active" : "") + '" type="button" data-nav="' + item.id + '"' + (currentView === item.id ? ' aria-current="page"' : "") + ">" + svgIcon(item.id) + '<span class="tab-label">' + esc(item.label) + "</span></button>")).join("");
     translate();
   }
 
@@ -718,6 +871,18 @@
     if (event.target.closest("[data-global-restart]")) return restartDay();
     const navButton = event.target.closest("[data-nav]");
     if (navButton) return showView(navButton.dataset.nav);
+    const density = event.target.closest("[data-density]");
+    if (density) {
+      const compact = density.dataset.density === "true";
+      if (Boolean(state.compactPlanView) !== compact) {
+        state.compactPlanView = compact;
+        expandedPlanDetails.clear();
+        save();
+        rerenderCurrentView();
+      }
+      return;
+    }
+    if (event.target.closest("#search-toggle")) return openSearch();
     if (event.target.closest("#menu-toggle")) return setMenuOpen(!menuOpen);
     const menuAction = event.target.closest("[data-menu-action]");
     if (menuAction) {
@@ -728,7 +893,14 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    // "/" is the shortcut everyone already knows for search.
+    if (event.key === "/" && state.profile && !state.needsTraining
+      && !event.target.matches("input, textarea, select, [contenteditable='true']")) {
+      event.preventDefault();
+      return openSearch();
+    }
     if (event.key !== "Escape") return;
+    if (document.querySelector("#search-panel")) return closeSearch();
     if (menuOpen) return setMenuOpen(false);
     document.querySelector(".modal [data-modal-close]")?.click();
   });
@@ -792,6 +964,25 @@
 
   /* Portion strings are written for a 2,000 kcal day. Scale the quantities with
      the target so the food on the card matches the numbers above it. */
+  /* The countable things a portion line can name, singular and plural, so a
+     scaled quantity reads correctly in both languages. */
+  const COUNTABLE_NOUNS = {
+    slice: ["slice", "slices"], slices: ["slice", "slices"],
+    egg: ["egg", "eggs"], eggs: ["egg", "eggs"],
+    banana: ["banana", "bananas"], bananas: ["banana", "bananas"],
+    apple: ["apple", "apples"], apples: ["apple", "apples"],
+    orange: ["orange", "oranges"], oranges: ["orange", "oranges"],
+    pear: ["pear", "pears"], pears: ["pear", "pears"],
+    "tuna can": ["tuna can", "tuna cans"], "tuna cans": ["tuna can", "tuna cans"],
+    llesca: ["llesca", "llesques"], llesques: ["llesca", "llesques"],
+    ou: ["ou", "ous"], ous: ["ou", "ous"],
+    "plàtan": ["plàtan", "plàtans"], "plàtans": ["plàtan", "plàtans"],
+    poma: ["poma", "pomes"], pomes: ["poma", "pomes"],
+    taronja: ["taronja", "taronges"], taronges: ["taronja", "taronges"],
+    pera: ["pera", "peres"], peres: ["pera", "peres"],
+    llauna: ["llauna", "llaunes"], llaunes: ["llauna", "llaunes"]
+  };
+
   function scalePortions(text, scale) {
     if (!Number.isFinite(scale) || Math.abs(scale - 1) < 0.06) return text;
     const roundTo = (value, step) => Math.max(step, Math.round(value / step) * step);
@@ -800,11 +991,12 @@
         const scaled = Number(String(amount).replace(",", ".")) * scale;
         return roundTo(scaled, scaled >= 100 ? 10 : 5) + unit.toLowerCase();
       })
-      .replace(/\b(\d+(?:[.,]\d+)?)\s+(slices?|eggs?|bananas?|apples?|oranges?|pears?|tuna cans?)\b/gi, (whole, amount, noun) => {
-        const scaled = Math.round(Number(String(amount).replace(",", ".")) * scale);
-        const count = Math.max(1, scaled);
-        const singular = noun.replace(/s$/i, "");
-        return count + " " + (count === 1 ? singular : (/s$/i.test(noun) ? noun : noun + "s"));
+      .replace(/\b(\d+(?:[.,]\d+)?)\s+([A-Za-zÀ-ÿ]+(?:\s+cans?)?)\b/g, (whole, amount, noun) => {
+        // Catalan plurals are not "add an s", so countable nouns carry both forms.
+        const forms = COUNTABLE_NOUNS[noun.toLowerCase()];
+        if (!forms) return whole;
+        const count = Math.max(1, Math.round(Number(String(amount).replace(",", ".")) * scale));
+        return count + " " + (count === 1 ? forms[0] : forms[1]);
       });
   }
 
@@ -822,7 +1014,6 @@
         ["Lunch", "Escalivada with chickpeas and chicken", "150g chicken · 160g chickpeas · 250g escalivada · 10g olive oil", "Build the plate around protein and plants.", "Escalivada"],
         ["Dinner", "Llenties estofades amb verdures i pa de pagès", "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain pa de pagès · salad", "A simple balanced evening meal.", "Llenties estofades"]
       ];
-    const scale = target.calories / 2000;
     /* Rounding each meal independently left one or two grams stranded, so a day
        where you ate everything still read "1g carbs remaining". Every meal but
        the last is rounded from its share; the last takes the exact remainder,
@@ -838,7 +1029,7 @@
     const fat = split(target.fatG);
     return foods.map(([slot, title, portions, hint, catalanName], index) => ({
       id: slot.toLowerCase(),
-      slot, title, portions: scalePortions(portions, scale), hint, catalanName,
+      slot, title, portions, hint, catalanName,
       calories: calories[index],
       proteinG: protein[index],
       carbohydrateG: carbohydrate[index],
@@ -846,12 +1037,19 @@
     }));
   }
 
+  /* Portion text is written for a 2,000 kcal day, in whichever language the
+     meal was localised into, so scaling runs after localisation. */
+  function scaleMealPortions(meal, scale) {
+    return { ...meal, portions: scalePortions(meal.portions, scale) };
+  }
+
   function currentPlan() {
     const target = dailyTarget(state.profile, state.activity);
     const fallbackMeals = mealPlan(target, state.activity);
     const menuKey = dailyMenuKey();
     const generatedMeals = state.dailyMeals?.key === menuKey ? state.dailyMeals.meals : null;
-    const meals = fallbackMeals.map((fallback, index) => localiseMeal({ ...fallback, ...(generatedMeals?.[index] || {}), id: fallback.id, slot: generatedMeals?.[index]?.slot || fallback.slot, calories: fallback.calories, proteinG: fallback.proteinG, carbohydrateG: fallback.carbohydrateG, fatG: fallback.fatG }));
+    const scale = target.calories / 2000;
+    const meals = fallbackMeals.map((fallback, index) => scaleMealPortions(localiseMeal({ ...fallback, ...(generatedMeals?.[index] || {}), id: fallback.id, slot: generatedMeals?.[index]?.slot || fallback.slot, calories: fallback.calories, proteinG: fallback.proteinG, carbohydrateG: fallback.carbohydrateG, fatG: fallback.fatG }), generatedMeals ? 1 : scale));
     return { target, meals };
   }
 
@@ -1083,7 +1281,7 @@
     mount("setup", viewShell(
       inSetup ? "Are you going to train today?" : T("What does today look like?", "Com és el dia d’avui?"),
       inSetup ? savedProfileLead : T("Your meals and quantities adapt to today’s movement.", "Els àpats i les quantitats s’adapten al moviment d’avui."),
-      (inSetup ? stepper(7, 7) : (greeting ? '<p class="greeting"><span aria-hidden="true">🔥</span>' + esc(greeting) + "</p>" : ""))
+      (inSetup ? stepper(7, 7) : (greeting ? '<p class="greeting">' + icon("flame") + '' + esc(greeting) + "</p>" : ""))
         + '<div class="setup"><section class="chat" aria-live="polite"><div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">'
         + esc(T("Choose one reply", "Tria una resposta"))
         + '</span><p class="keyboard-hint">' + esc(T("Press 1, 2, 3, 4 or 5 on your keyboard to choose.", "Prem 1, 2, 3, 4 o 5 al teclat per triar.")) + '</p><div class="quick-replies">'
@@ -1140,14 +1338,62 @@
     setTimeout(() => popup.print(), 250);
   }
 
+  /**
+   * Openings for a conversation nobody knows how to start.
+   *
+   * They are built from the plan on screen, not from a generic list, so the
+   * first tap asks about the dinner actually sitting in front of the person.
+   */
+  function coachStarters() {
+    const plan = state.profile ? currentPlan() : null;
+    const dinner = plan?.meals?.find((meal) => /dinner|sopar/i.test(meal.slot || ""));
+    const starters = [];
+
+    if (dinner?.title) {
+      starters.push({
+        label: T("Swap tonight’s dinner", "Canvia el sopar d’avui"),
+        text: T("Suggest a different dinner instead of " + dinner.title + ", with similar calories and protein.",
+                "Proposa un sopar diferent en comptes de " + dinner.title + ", amb calories i proteïna semblants."),
+      });
+    }
+    starters.push({
+      label: T("I’m eating out tonight", "Avui sopo fora"),
+      text: T("I am eating at a restaurant tonight. What should I order to stay close to today’s target?",
+              "Avui sopo en un restaurant. Què hauria de demanar per acostar-me a l’objectiu d’avui?"),
+    });
+    starters.push({
+      label: T("Make it cheaper", "Fes-ho més barat"),
+      text: T("How can I hit today’s target with cheaper ingredients from a normal supermarket?",
+              "Com puc assolir l’objectiu d’avui amb ingredients més barats d’un supermercat normal?"),
+    });
+    starters.push({
+      label: T("I trained harder than planned", "He entrenat més del previst"),
+      text: T("I trained harder than planned today. Should I eat more, and what?",
+              "Avui he entrenat més del previst. Hauria de menjar més, i què?"),
+    });
+
+    return starters.slice(0, 4);
+  }
+
+  function coachStartersMarkup() {
+    return '<div class="coach-starters">'
+      + coachStarters()
+        .map((starter) => '<button class="goal-chip" type="button" data-coach-starter="' + esc(starter.text) + '">' + esc(starter.label) + "</button>")
+        .join("")
+      + "</div>";
+  }
+
   function liveCoachMarkup(placement) {
     const ask = T("Ask", "Pregunta");
     const askLabel = T("Ask your Coach…", "Pregunta al teu Coach…");
     const messages = Array.isArray(state.chat) ? state.chat.slice(-8) : [];
+    // An empty chat with a blinking cursor is a test, not an invitation. Until
+    // there is a conversation, offer four ways into one.
     const thread = messages.length
       ? messages.map((message) => '<div class="bubble ' + (message.role === "user" ? "user" : "coach") + '">' + esc(message.text) + "</div>").join("")
       : '<div class="bubble coach">Ask about a meal, a healthy swap or today’s training.<span class="meta">General wellbeing guidance, not medical advice.</span></div>';
-    return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" data-live-coach-thread="' + placement + '" aria-live="polite">' + thread + '</div><form class="composer chat-input" data-live-coach-form="' + placement + '"><input maxlength="1400" placeholder="' + esc(askLabel) + '" aria-label="' + esc(askLabel) + '" required><button class="button" type="submit">' + esc(ask) + '</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
+    const starters = messages.length ? "" : coachStartersMarkup();
+    return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" data-live-coach-thread="' + placement + '" aria-live="polite">' + thread + '</div>' + starters + '<form class="composer chat-input" data-live-coach-form="' + placement + '"><input maxlength="1400" placeholder="' + esc(askLabel) + '" aria-label="' + esc(askLabel) + '" required><button class="button" type="submit">' + esc(ask) + '</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
   }
 
   function renderCoachThreads() {
@@ -1156,6 +1402,9 @@
       thread.innerHTML = messages.map((message) => '<div class="bubble ' + (message.role === "user" ? "user" : "coach") + '">' + esc(message.text) + "</div>").join("");
       thread.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
+    // The starters are an empty state. Once there is a conversation they are
+    // just four buttons in the middle of it.
+    if (messages.length) root.querySelectorAll(".coach-starters").forEach((node) => node.remove());
     translate();
   }
 
@@ -1207,6 +1456,13 @@
       const input = form.querySelector("input");
       const message = input.value.trim();
       if (message) askLiveCoach(message, form.dataset.liveCoachForm);
+    });
+    root.querySelectorAll("[data-coach-starter]").forEach((button) => {
+      button.onclick = () => {
+        const section = button.closest(".live-coach");
+        track("coach_prompt_used", { label: button.textContent.slice(0, 40) });
+        askLiveCoach(button.dataset.coachStarter, section?.querySelector("[data-live-coach-form]")?.dataset.liveCoachForm || "desktop");
+      };
     });
   }
 
@@ -1282,29 +1538,53 @@
    * The observer watches for the card's top edge passing under the top bar: a
    * sticky element stops being fully visible at exactly the point it sticks.
    */
-  let stuckObserver = null;
+  let unwatchTargetPanel = null;
 
   function watchTargetPanel() {
-    stuckObserver?.disconnect();
-    const panel = root.querySelector("#target-panel");
-    if (!panel || !("IntersectionObserver" in window)) return;
+    unwatchTargetPanel?.();
+    unwatchTargetPanel = null;
 
-    const topbar = document.querySelector(".topbar")?.offsetHeight ?? 60;
-    stuckObserver = new IntersectionObserver(
-      ([entry]) => panel.classList.toggle("is-stuck", entry.intersectionRatio < 1),
-      { threshold: [1], rootMargin: `-${topbar + 2}px 0px 0px 0px` },
-    );
-    stuckObserver.observe(panel);
+    const panel = root.querySelector("#target-panel");
+    if (!panel) return;
+
+    // A zero-height marker left where the card rests. Once the card is stuck its
+    // own rectangle stops moving, so it can no longer be asked whether it is
+    // stuck; the marker keeps scrolling and can.
+    let sentinel = panel.previousElementSibling;
+    if (!sentinel?.classList.contains("target-sentinel")) {
+      sentinel = document.createElement("div");
+      sentinel.className = "target-sentinel";
+      sentinel.setAttribute("aria-hidden", "true");
+      panel.before(sentinel);
+    }
+
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const limit = (document.querySelector(".topbar")?.offsetHeight ?? 60) + 2;
+      panel.classList.toggle("is-stuck", sentinel.getBoundingClientRect().top < limit);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
+
+    addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onScroll, { passive: true });
+    measure();
+
+    unwatchTargetPanel = () => {
+      removeEventListener("scroll", onScroll);
+      removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }
 
   function updateTargetPanel(plan) {
     const panel = root.querySelector("#target-panel");
     if (!panel) return;
-    const wasStuck = panel.classList.contains("is-stuck");
     panel.outerHTML = targetPanelMarkup(plan);
-    // outerHTML replaces the node, so the observer was left watching a detached
+    // outerHTML replaces the node, so the listener was left measuring a detached
     // element and the card would expand mid-scroll on the next meal logged.
-    if (wasStuck) root.querySelector("#target-panel")?.classList.add("is-stuck");
+    // watchTargetPanel re-attaches and re-measures, which also restores the
+    // stuck state without having to carry it across by hand.
     translate();
     watchTargetPanel();
   }
@@ -1363,7 +1643,7 @@
         : T("Every meal logged. That is a complete day.", "Tots els àpats registrats. Un dia complet.");
     return '<section class="day-done"><p class="eyebrow">' + esc(T("Day complete", "Dia complet")) + '</p><h2>' + esc(headline) + "</h2>"
       + '<div class="day-done-stats"><div><b>' + (g.streak || 0) + '</b><span>' + esc((g.streak === 1 ? T("day streak", "dia de ratxa") : T("day streak", "dies de ratxa"))) + '</span></div><div><b>' + day.xp + '</b><span>XP ' + esc(T("today", "avui")) + '</span></div>'
-      + (nextBadge ? '<div><b aria-hidden="true">' + nextBadge.icon + '</b><span>' + esc(language === "ca" ? nextBadge.hint.ca : nextBadge.hint.en) + "</span></div>" : "")
+      + (nextBadge ? '<div><b class="day-done-badge" aria-hidden="true">' + icon(nextBadge.icon) + '</b><span>' + esc(language === "ca" ? nextBadge.hint.ca : nextBadge.hint.en) + "</span></div>" : "")
       + "</div>"
       + '<div class="tomorrow"><span class="label">' + esc(T("Tomorrow’s movement", "El moviment de demà")) + '</span><div class="tomorrow-choices">'
       + choices.map(([value, label]) => '<button type="button" class="tomorrow-choice' + (tomorrow === value ? " is-active" : "") + '" data-tomorrow="' + value + '">' + esc(label) + "</button>").join("")
@@ -1571,9 +1851,12 @@
     mount("coach", viewShell(
       T("Talk to your Coach", "Parla amb el teu Coach"),
       T("Ask about a meal, a healthy swap or today’s training.", "Pregunta per un àpat, un canvi saludable o l’entrenament d’avui."),
-      liveCoachMarkup("page"),
+      // A conversation you arrive at from a meal needs a door back to it.
+      '<div class="coach-head-actions"><button class="link-button" type="button" id="coach-back">' + esc(T("Back to today", "Torna a avui")) + "</button></div>"
+      + liveCoachMarkup("page"),
       "view--coach"
     ));
+    root.querySelector("#coach-back").onclick = dashboard;
     bindLiveCoach();
     root.querySelector("[data-live-coach-form] input")?.focus({ preventScroll: true });
   }
@@ -1609,15 +1892,44 @@
     { id: "basket", xp: 10, go: "basket", en: "Open your shopping basket", ca: "Obre la teva cistella" }
   ];
 
+  // ── Icons ───────────────────────────────────────────────────────────────
+  // Emoji were doing the work of an icon set: 🍽️ 🔥 ⭐ 🏆 💪 🗓️ 📷 🫒. They render
+  // differently on every platform, they sit at a different optical weight to
+  // everything around them, they cannot take the brand colour, and — more than
+  // any single other thing on the page — they read as unfinished. One drawn set,
+  // one stroke weight, currentColor throughout.
+
+  const ICON_PATHS = {
+    plate: '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="4.4"/>',
+    flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    star: '<path d="M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.5l6-.8z"/>',
+    trophy: '<path d="M6.5 4h11v5.5a5.5 5.5 0 0 1-11 0z"/><path d="M6.5 5.5H5a2.2 2.2 0 0 0 0 4.4h.8M17.5 5.5H19a2.2 2.2 0 0 1 0 4.4h-.8"/><path d="M12 15v4.2M8.6 20h6.8"/>',
+    dumbbell: '<path d="M6.4 6.6v10.8M3.4 8.8v6.4M17.6 6.6v10.8M20.6 8.8v6.4M6.4 12h11.2"/>',
+    calendar: '<rect x="3.2" y="5" width="17.6" height="15.8" rx="2.2"/><path d="M3.2 9.6h17.6M8.2 2.8v4M15.8 2.8v4"/>',
+    camera: '<path d="M4.4 6.9h3.4l1.3-2.4h5.8l1.3 2.4h3.4a1.6 1.6 0 0 1 1.6 1.6v10a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6v-10a1.6 1.6 0 0 1 1.6-1.6z"/><circle cx="12" cy="13.4" r="3.6"/>',
+    leaf: '<path d="M11.4 20.2A7 7 0 0 1 10.2 6.3C15.7 5.2 17.2 4.6 19.2 2.2c1 2 2 4.2 2 8 0 5.5-4.8 10-9.8 10z"/><path d="M2.8 21.2c0-3 1.9-5.4 5.1-6C10.3 14.7 12.4 13.2 13.4 12"/>',
+    shield: '<path d="M12 2.8l7.4 3v5.9c0 4.5-3 8.6-7.4 9.9-4.4-1.3-7.4-5.4-7.4-9.9V5.8z"/>',
+    sparkle: '<path d="M12 3.4l1.7 4.5 4.5 1.7-4.5 1.7L12 15.8l-1.7-4.5-4.5-1.7 4.5-1.7z"/><path d="M18.6 15.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/>',
+    sync: '<path d="M20.4 12a8.4 8.4 0 0 1-14.3 6M3.6 12a8.4 8.4 0 0 1 14.3-6"/><path d="M17.6 2.9v4.2h-4.2M6.4 21.1v-4.2h4.2"/>',
+  };
+
+  /** One inline SVG, sized by its container's font-size, coloured by currentColor. */
+  const icon = (name, extraClass = "") => {
+    const path = ICON_PATHS[name];
+    if (!path) return "";
+    return '<svg class="icon' + (extraClass ? " " + extraClass : "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+      + 'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + path + "</svg>";
+  };
+
   const BADGES = [
-    { id: "first-plate", icon: "🍽️", en: "First plate", ca: "Primer plat", hint: { en: "Log your first meal", ca: "Registra el teu primer àpat" } },
-    { id: "streak-3", icon: "🔥", en: "Three in a row", ca: "Tres seguits", hint: { en: "A 3-day streak", ca: "Ratxa de 3 dies" } },
-    { id: "streak-7", icon: "⭐", en: "Full week", ca: "Setmana sencera", hint: { en: "A 7-day streak", ca: "Ratxa de 7 dies" } },
-    { id: "streak-30", icon: "🏆", en: "Thirty days", ca: "Trenta dies", hint: { en: "A 30-day streak", ca: "Ratxa de 30 dies" } },
-    { id: "protein-5", icon: "💪", en: "Protein five", ca: "Cinc de proteïna", hint: { en: "Hit protein on 5 days", ca: "Assoleix la proteïna 5 dies" } },
-    { id: "week-planner", icon: "🗓️", en: "Week planner", ca: "Planificador", hint: { en: "Build a weekly basket", ca: "Crea una cistella setmanal" } },
-    { id: "scanner", icon: "📷", en: "Eating out", ca: "Menjar fora", hint: { en: "Log a restaurant meal", ca: "Registra un àpat de restaurant" } },
-    { id: "level-5", icon: "🫒", en: "Mediterranean pro", ca: "Pro mediterrani", hint: { en: "Reach level 5", ca: "Arriba al nivell 5" } }
+    { id: "first-plate", icon: "plate", en: "First plate", ca: "Primer plat", hint: { en: "Log your first meal", ca: "Registra el teu primer àpat" } },
+    { id: "streak-3", icon: "flame", en: "Three in a row", ca: "Tres seguits", hint: { en: "A 3-day streak", ca: "Ratxa de 3 dies" } },
+    { id: "streak-7", icon: "star", en: "Full week", ca: "Setmana sencera", hint: { en: "A 7-day streak", ca: "Ratxa de 7 dies" } },
+    { id: "streak-30", icon: "trophy", en: "Thirty days", ca: "Trenta dies", hint: { en: "A 30-day streak", ca: "Ratxa de 30 dies" } },
+    { id: "protein-5", icon: "dumbbell", en: "Protein five", ca: "Cinc de proteïna", hint: { en: "Hit protein on 5 days", ca: "Assoleix la proteïna 5 dies" } },
+    { id: "week-planner", icon: "calendar", en: "Week planner", ca: "Planificador", hint: { en: "Build a weekly basket", ca: "Crea una cistella setmanal" } },
+    { id: "scanner", icon: "camera", en: "Eating out", ca: "Menjar fora", hint: { en: "Log a restaurant meal", ca: "Registra un àpat de restaurant" } },
+    { id: "level-5", icon: "leaf", en: "Mediterranean pro", ca: "Pro mediterrani", hint: { en: "Reach level 5", ca: "Arriba al nivell 5" } }
   ];
 
   function game() {
@@ -1694,7 +2006,7 @@
     if (g.badges.includes(id)) return false;
     g.badges.push(id);
     const badge = BADGES.find((item) => item.id === id);
-    if (badge) celebrate(badge.icon, T("Badge unlocked", "Insígnia desbloquejada"), language === "ca" ? badge.ca : badge.en);
+    if (badge) celebrate(icon(badge.icon), T("Badge unlocked", "Insígnia desbloquejada"), language === "ca" ? badge.ca : badge.en);
     return true;
   }
 
@@ -1724,13 +2036,13 @@
         // Seven days in a row earns a freeze back, up to two in hand.
         if (g.streak % 7 === 0 && (g.freezes || 0) < 2) {
           g.freezes = (g.freezes || 0) + 1;
-          celebrate("🛡️", T("Streak freeze earned", "Has guanyat una congelació"), T("You now have " + g.freezes, "Ara en tens " + g.freezes));
+          celebrate(icon("shield"), T("Streak freeze earned", "Has guanyat una congelació"), T("You now have " + g.freezes, "Ara en tens " + g.freezes));
         }
       }
-      celebrate("🔥", T("Daily goal complete", "Objectiu diari assolit"), T("Streak: ", "Ratxa: ") + g.streak + " " + (g.streak === 1 ? T("day", "dia") : T("days", "dies")));
+      celebrate(icon("flame"), T("Daily goal complete", "Objectiu diari assolit"), T("Streak: ", "Ratxa: ") + g.streak + " " + (g.streak === 1 ? T("day", "dia") : T("days", "dies")));
     }
     const afterLevel = levelFor(g.xp).number;
-    if (afterLevel > beforeLevel) celebrate("🎉", T("Level up", "Nivell superat"), levelFor(g.xp).name);
+    if (afterLevel > beforeLevel) celebrate(icon("sparkle"), T("Level up", "Nivell superat"), levelFor(g.xp).name);
     refreshBadges();
     save();
     schedulePushProgress();
@@ -1805,7 +2117,7 @@
         ? T("All " + plan.meals.length + " meals logged · " + day.xp + " XP", "Els " + plan.meals.length + " àpats registrats · " + day.xp + " XP")
         : T(logged.length + " of " + plan.meals.length + " meals eaten · " + day.xp + " XP", logged.length + " de " + plan.meals.length + " àpats menjats · " + day.xp + " XP");
       // A beat behind any goal or level popup, so they do not land on top of each other.
-      setTimeout(() => celebrate("🎉", T("Day complete", "Dia complet"), summary), 260);
+      setTimeout(() => celebrate(icon("sparkle"), T("Day complete", "Dia complet"), summary), 260);
     }
     save();
   }
@@ -1815,7 +2127,7 @@
     const day = todayGame();
     const percent = Math.min(100, Math.round((day.xp / DAILY_GOAL_XP) * 100));
     return '<button class="streak-chips" type="button" data-nav="progress" aria-label="' + esc(T("Your progress", "El teu progrés")) + '">'
-      + '<span class="streak-chip"><span aria-hidden="true">🔥</span>' + (g.streak || 0) + "</span>"
+      + '<span class="streak-chip">' + icon("flame") + (g.streak || 0) + "</span>"
       + '<span class="streak-chip streak-chip--xp"><span class="xp-ring" style="--p:' + percent + '"></span>' + day.xp + "</span>"
       + "</button>";
   }
@@ -1829,7 +2141,7 @@
       const key = dayOffsetKey(offset);
       const done = key === todayKey() ? day.goal : Boolean(g.days?.[key]?.goal);
       const initials = new Intl.DateTimeFormat(language === "ca" ? "ca-ES" : "en-GB", { weekday: "narrow" }).format(new Date(Date.now() - offset * 86400000)).replace(/\.$/, "");
-      return '<div class="streak-day' + (done ? " is-done" : "") + (offset === 0 ? " is-today" : "") + '"><span>' + esc(initials) + '</span><i aria-hidden="true">' + (done ? "🔥" : "") + "</i></div>";
+      return '<div class="streak-day' + (done ? " is-done" : "") + (offset === 0 ? " is-today" : "") + '"><span>' + esc(initials) + '</span><i>' + (done ? icon("flame") : "") + "</i></div>";
     }).join("");
     const quests = todayQuests().map((quest) => {
       const done = Boolean(day.quests[quest.id]);
@@ -1837,7 +2149,7 @@
     }).join("");
     const badges = BADGES.map((badge) => {
       const earned = g.badges.includes(badge.id);
-      return '<li class="badge' + (earned ? " is-earned" : "") + '"><span class="badge-icon" aria-hidden="true">' + badge.icon + '</span><strong>' + esc(language === "ca" ? badge.ca : badge.en) + "</strong><span>" + esc(language === "ca" ? badge.hint.ca : badge.hint.en) + "</span></li>";
+      return '<li class="badge' + (earned ? " is-earned" : "") + '"><span class="badge-icon">' + icon(badge.icon) + '</span><strong>' + esc(language === "ca" ? badge.ca : badge.en) + "</strong><span>" + esc(language === "ca" ? badge.hint.ca : badge.hint.en) + "</span></li>";
     }).join("");
     mount("progress", viewShell(
       T("Your progress", "El teu progrés"),
@@ -1935,7 +2247,7 @@
     const text = language === "ca"
       ? "Substitueix la proteïna · " + millilitres + " ml · 24 g/100 ml"
       : "Protein swap · " + millilitres + " ml · 24 g/100 ml";
-    return '<p class="milkshake" data-shop-ml="' + millilitres + '"><strong>Quota Vita Milkshake</strong><span>' + text + '</span></p>';
+    return '<p class="milkshake" data-shop-ml="' + millilitres + '" data-shop-surface="meal_card"><strong>Batut Quota Vita</strong><span>' + text + '</span></p>';
   };
 
   function mealCard(meal, showMilkshakeOption = meal.id === "lunch") {
@@ -1958,7 +2270,7 @@
       : "";
     const actions = status
       ? '<div class="meal-actions"><button class="button quiet" type="button" data-unlog-meal="' + esc(meal.id) + '">' + esc(T("Undo", "Desfés")) + '</button><button class="button quiet" type="button" data-meal="' + esc(meal.id) + '">' + esc(T("Change", "Canvia")) + "</button></div>"
-      : '<div class="meal-actions"><button class="button" type="button" data-confirm-meal="' + esc(meal.id) + '">' + esc(T("I’ll eat this", "M’ho menjaré")) + '</button><button class="button quiet" type="button" data-restaurant-meal="' + esc(meal.id) + '">' + esc(T("Restaurant", "Restaurant")) + '</button><button class="button quiet" type="button" data-skip-meal="' + esc(meal.id) + '">' + esc(T("Skip", "Omet")) + "</button></div>";
+      : '<div class="meal-actions"><button class="button" type="button" data-confirm-meal="' + esc(meal.id) + '">' + esc(T("I’ll eat this", "M’ho menjaré")) + '</button><button class="button quiet" type="button" data-restaurant-meal="' + esc(meal.id) + '">' + esc(T("Restaurant", "Restaurant")) + '</button><button class="button ghost" type="button" data-skip-meal="' + esc(meal.id) + '">' + esc(T("Skip", "Omet")) + "</button></div>";
     const catalanDish = meal.catalanName ? '<p class="meal-catalan"><strong>Catalan dish:</strong> ' + esc(meal.catalanName) + "</p>" : "";
     const macros = '<dl class="macros"><div><dt>kcal</dt><dd>' + meal.calories + '</dd></div><div class="macro--protein"><dt>' + esc(T("protein", "proteïna")) + "</dt><dd>" + meal.proteinG + 'g</dd></div><div><dt>' + esc(T("carbs", "carbo.")) + "</dt><dd>" + meal.carbohydrateG + 'g</dd></div><div><dt>' + esc(T("fat", "greix")) + "</dt><dd>" + meal.fatG + "g</dd></div></dl>";
     const detailKey = "daily-" + meal.id;
@@ -2025,17 +2337,49 @@
     }
   }
 
+  /**
+   * The five goals people actually arrive with. The week used to open on an
+   * empty text field and a "Continue" button, which asks someone to compose a
+   * sentence before they have seen anything — the highest-friction opening a
+   * screen can have, and the one most likely to be abandoned. The field stays,
+   * for the goal that is not on the list.
+   */
+  const WEEKLY_GOAL_PRESETS = [
+    { en: "Eat with more energy", ca: "Menjar amb més energia" },
+    { en: "Lose fat steadily", ca: "Perdre greix de manera constant" },
+    { en: "Build strength", ca: "Guanyar força" },
+    { en: "Train for a 10 km run", ca: "Preparar una cursa de 10 km" },
+    { en: "Eat well for less", ca: "Menjar bé gastant menys" },
+  ];
+
   function weeklySetup() {
     const saved = state.weekly || {};
+    const presets = WEEKLY_GOAL_PRESETS
+      .map((preset) => {
+        const label = language === "ca" ? preset.ca : preset.en;
+        return '<button class="goal-chip' + (saved.goal === label ? " is-active" : "") + '" type="button" data-goal="' + esc(label) + '">' + esc(label) + "</button>";
+      })
+      .join("");
+
     mount("week", coachShell(
       T("Let’s plan your week", "Planifiquem la teva setmana"),
       T("First, tell your Coach what you want from this week.", "Primer, digues al teu Coach què vols d’aquesta setmana."),
-      '<div class="bubble coach">' + esc(T("What are your goals for the week?", "Quins són els teus objectius per a la setmana?")) + '<span class="meta">' + esc(T("For example: feel more energetic, lose fat steadily, prepare for a 10 km run, or build strength.", "Per exemple: tenir més energia, perdre greix de manera constant, preparar una cursa de 10 km o guanyar força.")) + "</span></div>"
-      + '<form class="composer chat-input" id="weekly-goal-form"><input id="weekly-goal" enterkeyhint="next" placeholder="' + esc(T("Write your goal for this week", "Escriu el teu objectiu per a aquesta setmana")) + '" value="' + esc(saved.goal || "") + '" required><button class="button" type="submit">' + esc(T("Continue", "Continua")) + "</button></form>"
+      '<div class="bubble coach">' + esc(T("What are your goals for the week?", "Quins són els teus objectius per a la setmana?")) + '<span class="meta">' + esc(T("Pick one to start, or write your own.", "Tria’n un per començar, o escriu el teu.")) + "</span></div>"
+      + '<div class="goal-chips">' + presets + "</div>"
+      + '<form class="composer chat-input" id="weekly-goal-form"><input id="weekly-goal" enterkeyhint="next" placeholder="' + esc(T("Or write your own goal", "O escriu el teu objectiu")) + '" value="' + esc(saved.goal || "") + '" required><button class="button" type="submit">' + esc(T("Continue", "Continua")) + "</button></form>"
       + '<div class="actions"><button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + "</button></div>"
     ));
+
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#weekly-goal-form").onsubmit = (event) => { event.preventDefault(); weeklyTraining(root.querySelector("#weekly-goal").value.trim()); };
+    root.querySelectorAll("[data-goal]").forEach((button) => {
+      // One tap is the whole answer: a chip goes straight on rather than filling
+      // the box and waiting for a second press on Continue.
+      button.onclick = () => {
+        track("weekly_goal_preset", { preset: button.dataset.goal.slice(0, 40) });
+        weeklyTraining(button.dataset.goal);
+      };
+    });
   }
 
   function weeklyTraining(weeklyGoal) {
@@ -2097,7 +2441,7 @@
       [["Breakfast", "Oats with banana, yogurt and hazelnuts", "60g oats · 200g Greek yogurt · 1 banana · 15g hazelnuts"], ["Lunch", "Amanida mediterrània de tonyina i mongetes", "1 tuna can · 180g cooked white beans · tomato, cucumber and olives"], ["Dinner", "Crema de verdures with tofu and pa de pagès", "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil", "Crema de verdures amb pa de pagès"]]
     ][dayIndex];
     const scale = target.calories / 2000;
-    return mealPlan(target, activity).map((meal, index) => localiseMeal({ ...meal, title: menus[index][1], portions: scalePortions(menus[index][2], scale), catalanName: menus[index][3] }));
+    return mealPlan(target, activity).map((meal, index) => scaleMealPortions(localiseMeal({ ...meal, title: menus[index][1], portions: menus[index][2], catalanName: menus[index][3] }), scale));
   }
 
   /** Meals logged over the last seven days, from the progress history. */
@@ -2212,7 +2556,10 @@
     mount("week", viewShell(
       T("Your seven-day plan", "El teu pla de set dies"),
       weekLead + " " + (() => { const a = weekAdherence(); return a.days ? T(a.logged + " meals logged in the last 7 days.", a.logged + " àpats registrats en els darrers 7 dies.") : ""; })(),
-      '<div class="actions on-shell" style="margin:0 0 24px"><button class="button" type="button" id="approve-week">' + esc(T("Create the weekly basket", "Crea la cistella setmanal")) + '</button><button class="button quiet" type="button" data-menu-action="weekly-pdf">' + esc(T("Download the week", "Baixa la setmana")) + '</button><button class="button quiet" type="button" data-menu-action="weekly-email">' + esc(T("Email my week", "Envia’m la setmana")) + '</button><button class="button quiet" type="button" id="edit-week">' + esc(T("Edit my week", "Edita la setmana")) + '</button></div><div class="week-grid">' + cards + "</div>"
+      /* One action, plus a quiet way back into the setup. Downloading and
+         emailing the week live in the menu; having them here as well pushed
+         the plan itself off the bottom of a phone screen. */
+      '<div class="week-actions"><button class="button" type="button" id="approve-week">' + esc(T("Create the weekly basket", "Crea la cistella setmanal")) + '</button><button class="link-button" type="button" id="edit-week">' + esc(T("Edit my week", "Edita la setmana")) + '</button></div><div class="week-grid">' + cards + "</div>"
     ));
     root.querySelector("#approve-week").onclick = weeklyBasket;
     root.querySelector("#edit-week").onclick = weeklySetup;
@@ -2248,11 +2595,11 @@
     return meal ? quotaVitaMilkshakeMl(meal.proteinG) : 0;
   }
 
-  function shopBlockMarkup() {
+  function shopBlockMarkup(surface) {
     const millilitres = dailySwapMillilitres();
     if (!millilitres) return "";
-    return '<section class="shop-block" data-shop-ml="' + millilitres + '"><h2>' + esc(T("Cover the protein swap", "Cobreix el canvi de proteïna"))
-      + "</h2><p>" + esc(T("Your plan swaps one protein for a Quota Vita Milkshake. This is the tub that covers it.", "El teu pla canvia una proteïna per un Milkshake de Quota Vita. Aquest és el pot que ho cobreix."))
+    return '<section class="shop-block" data-shop-ml="' + millilitres + '" data-shop-surface="' + esc(surface) + '"><h2>' + esc(T("Cover the protein swap", "Cobreix el canvi de proteïna"))
+      + "</h2><p>" + esc(T("Your plan swaps one protein for a Batut Quota Vita. This is the tub that covers it.", "El teu pla canvia una proteïna per un Batut Quota Vita. Aquest és el pot que ho cobreix."))
       + "</p></section>";
   }
 
@@ -2269,6 +2616,43 @@
   /* The page gets these strings translated by translate() walking the DOM. The
      PDF and the email are not DOM, so they read the same dictionary directly
      rather than carrying a second Catalan wording of the same sentence. */
+  /* Basket items grouped the way a shop is laid out, so the list is walked once
+     rather than criss-crossed. The order of the keys is the order of the aisles. */
+  const FOOD_GROUPS = [
+    { key: "produce", en: "Fruit and vegetables", ca: "Fruita i verdura",
+      names: ["bananas", "banana", "apples or pears", "apple", "berries", "potatoes or sweet potatoes", "potatoes", "mixed vegetables and salad", "vegetables and salad"] },
+    { key: "protein", en: "Meat and fish", ca: "Carn i peix",
+      names: ["chicken breast", "chicken", "turkey", "salmon", "cod", "tuna cans"] },
+    { key: "dairy", en: "Dairy and eggs", ca: "Làctics i ous",
+      names: ["Greek yogurt", "eggs"] },
+    { key: "pulses", en: "Pulses and plant protein", ca: "Llegums i proteïna vegetal",
+      names: ["tofu", "cooked lentils", "cooked chickpeas or beans", "cooked chickpeas"] },
+    { key: "grains", en: "Grains and bread", ca: "Cereals i pa",
+      names: ["oats", "dry rice or quinoa", "dry rice", "dry wholegrain pasta", "slices wholegrain bread", "wholegrain bread"] },
+    { key: "cupboard", en: "Cupboard", ca: "Rebost",
+      names: ["olive oil", "nuts, seeds or peanut butter", "nuts"] }
+  ];
+
+  const foodGroupOf = (name) => FOOD_GROUPS.find((group) => group.names.includes(name)) || FOOD_GROUPS[FOOD_GROUPS.length - 1];
+  const foodGroupLabel = (group) => (language === "ca" ? group.ca : group.en);
+
+  /** Basket rows in aisle order, each carrying its price when one is known. */
+  function groupedBasketRows() {
+    const priced = new Map((weeklyBasketEstimate?.items || []).map((item) => [item.name, item]));
+    const rows = weeklyBasketItems().map(([name, amount]) => {
+      const estimate = priced.get(name);
+      return {
+        group: foodGroupOf(name),
+        amount: amount + (amount < 20 ? "" : " g"),
+        name: localiseFood(name),
+        price: estimate ? formatEur(estimate.price) : ""
+      };
+    });
+    return FOOD_GROUPS
+      .map((group) => ({ group: foodGroupLabel(group), items: rows.filter((row) => row.group === group) }))
+      .filter((section) => section.items.length);
+  }
+
   const basketEstimateCopy = () => ({
     title: localise("Estimated weekly basket cost"),
     source: localise("Average supermarket reference."),
@@ -2281,12 +2665,15 @@
   }
 
   function renderBasketEstimate(estimate) {
-    const mount = root.querySelector("#weekly-cost-estimate");
-    if (!mount || !Array.isArray(estimate.items) || !Number.isFinite(Number(estimate.total))) return;
+    const list = root.querySelector("#weekly-basket-list");
+    if (!list || !Array.isArray(estimate.items) || !Number.isFinite(Number(estimate.total))) return;
     weeklyBasketEstimate = estimate;
-    mount.innerHTML = '<section class="basket-costs"><h3>Estimated weekly basket cost</h3><p class="meta">' + esc(basketEstimateSource(estimate)) + '</p><ul>' + estimate.items.map((item) => '<li><span><strong>' + esc(basketAmountLabel(item)) + '</strong> ' + esc(localiseFood(item.name)) + '</span><strong>' + esc(formatEur(item.price)) + '</strong></li>').join("") + '</ul><p class="basket-costs-total"><strong>Estimated total</strong><strong>' + esc(formatEur(estimate.total)) + '</strong></p><p class="basket-costs-disclaimer">Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.</p></section>';
+    list.innerHTML = basketListMarkup(weeklyBasketSections(), formatEur(estimate.total));
+    const note = root.querySelector("#weekly-cost-note");
+    if (note) note.textContent = basketEstimateCopy().note;
     root.querySelector("#weekly-basket-pdf").disabled = false;
     root.querySelector("#weekly-basket-email").disabled = false;
+    translate();
   }
 
   async function loadBasketEstimate(totals) {
@@ -2300,11 +2687,35 @@
       if (!response.ok) throw new Error(estimate.error || "Unable to load the price estimate.");
       renderBasketEstimate(estimate);
     } catch {
-      const mount = root.querySelector("#weekly-cost-estimate");
-      if (mount) mount.innerHTML = note("Unable to load the price estimate.", true);
+      const note = root.querySelector("#weekly-cost-note");
+      // The basket is still usable without prices, so say only what is missing.
+      if (note) note.textContent = T("Prices are unavailable right now. The list is still complete.", "Ara mateix els preus no estan disponibles. La llista continua sent completa.");
       root.querySelector("#weekly-basket-pdf").disabled = false;
       root.querySelector("#weekly-basket-email").disabled = false;
     }
+  }
+
+  /* One list, walked in aisle order, with each price on its own line and the
+     total on top. It used to be two lists — the things to buy, then the same
+     things again with prices — which meant scrolling between them to answer
+     "what does this cost". */
+  function basketListMarkup(sections, total) {
+    const head = total
+      ? '<div class="basket-total"><span class="label">' + esc(basketEstimateCopy().total) + '</span><b>' + esc(total) + "</b>"
+        + '<span class="meta">' + esc(basketEstimateCopy().source) + "</span></div>"
+      : "";
+    const body = sections.map((section) => '<section class="basket-section"><h3>' + esc(section.title) + "</h3><ul>"
+      + section.items.map((row) => '<li><span class="basket-item"><b>' + esc(row.amount) + "</b> " + esc(row.name) + "</span>"
+        + (row.price ? '<span class="basket-price">' + esc(row.price) + "</span>" : "") + "</li>").join("")
+      + "</ul></section>").join("");
+    return head + '<div class="basket-list">' + body + "</div>";
+  }
+
+  function weeklyBasketSections() {
+    return groupedBasketRows().map((section) => ({
+      title: section.group,
+      items: section.items.map((row) => ({ amount: row.amount, name: row.name, price: row.price }))
+    }));
   }
 
   function weeklyBasket() {
@@ -2314,9 +2725,9 @@
       T("Your seven-day basket", "La teva cistella de set dies"),
       T("A varied basket matching the seven daily menus and your training pattern.", "Una cistella variada que encaixa amb els set menús diaris i el teu patró d’entrenament."),
       basketSwitcher("weekly")
-        + '<div class="card"><ul class="basket">' + totals.map(([name, amount]) => "<li><strong>" + (amount < 20 ? amount : amount + "g") + "</strong> " + esc(localiseFood(name)) + "</li>").join("")
-        + '</ul><section id="weekly-cost-estimate" aria-live="polite">' + note(T("Checking the latest price estimate…", "Comprovant l’estimació de preu més recent…")) + "</section>"
-        + shopBlockMarkup()
+        + '<div class="card"><section id="weekly-basket-list">' + basketListMarkup(weeklyBasketSections(), "") + "</section>"
+        + '<p class="meta" id="weekly-cost-note" aria-live="polite">' + esc(T("Checking the latest price estimate…", "Comprovant l’estimació de preu més recent…")) + "</p>"
+        + shopBlockMarkup("weekly_basket")
         + '<div class="actions"><button class="button" type="button" id="weekly-basket-pdf" disabled>' + esc(T("Download basket PDF", "Baixa el PDF de la cistella")) + '</button><button class="button quiet" type="button" id="weekly-basket-email" disabled>' + esc(T("Send by email", "Envia per correu")) + '</button><button class="button quiet" type="button" id="back">' + esc(T("Back to the week", "Torna a la setmana")) + "</button></div></div>"
     ));
     track("basket_created", { scope: "weekly", items: totals.length });
@@ -2329,45 +2740,18 @@
     loadBasketEstimate(totals);
   }
 
-  /* The week, unflattened. The email needs it structured to lay it out, and
-     weeklyText() is written on top of it so the two can never drift apart. */
-  function weeklySections(kind) {
-    if (kind === "basket") {
-      const items = weeklyBasketItems().map(([name, amount]) => ({ amount: amount + (amount < 20 ? "" : " g"), name: localiseFood(name) }));
-      if (!weeklyBasketEstimate) return { items };
-      return {
-        items,
-        estimate: {
-          source: basketEstimateCopy().source,
-          items: weeklyBasketEstimate.items.map((item) => ({ label: basketAmountLabel(item) + " " + localiseFood(item.name), price: formatEur(item.price) })),
-          total: formatEur(weeklyBasketEstimate.total),
-          note: basketEstimateCopy().note
-        }
-      };
-    }
-    const activities = weeklyActivities();
-    return weekdayNames().map((day, index) => ({
-      day,
-      activity: activityLabel(activities[index]),
-      meals: variedMeals(dailyTarget(state.profile, activities[index]), activities[index], index)
-        .map((meal) => ({ slot: meal.slot, title: meal.title, portions: meal.portions, catalanName: meal.catalanName || "" }))
-    }));
-  }
-
   function weeklyText(kind) {
     const sections = weeklySections(kind);
     if (kind === "basket") {
-      const lines = sections.items.map((item) => "- " + item.amount + " " + item.name);
-      if (!sections.estimate) return lines.join("\n");
       const copy = basketEstimateCopy();
-      return lines.concat([
-        "",
-        copy.title,
-        sections.estimate.source,
-        ...sections.estimate.items.map((item) => "- " + item.label + ": " + item.price),
-        copy.total + ": " + sections.estimate.total,
-        sections.estimate.note
-      ]).join("\n");
+      const head = sections.estimate ? [copy.total + ": " + sections.estimate.total, sections.estimate.source, ""] : [];
+      const body = (sections.groups || []).flatMap((section) => [
+        section.title.toUpperCase(),
+        ...section.items.map((item) => "- " + item.amount + " " + item.name + (item.price ? "  " + item.price : "")),
+        ""
+      ]);
+      const tail = sections.estimate ? [sections.estimate.note] : [];
+      return head.concat(body, tail).join("\n").trim();
     }
     /* The Catalan dish goes on its own indented line: inside the meal line it
        read like a debug annotation, and this pastes cleanly into Notes. */
@@ -2621,8 +3005,12 @@
       T("Quantities are for one person and this specific plan.", "Les quantitats són per a una persona i aquest pla concret."),
       basketSwitcher("daily")
         + '<div class="card"><ul class="basket">' + items.map(([amount, name]) => "<li><strong>" + amount + (typeof amount === "number" && amount !== 1 ? "g" : "") + "</strong> " + esc(localiseFood(name)) + "</li>").join("")
-        + '</ul>' + shopBlockMarkup()
-        + '<div class="actions"><button class="button" type="button" id="basket-pdf">' + esc(T("Download basket PDF", "Baixa el PDF de la cistella")) + '</button><button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + '</button><button class="button quiet" type="button" id="clear">' + esc(T("Delete this device plan", "Esborra el pla d’aquest dispositiu")) + "</button></div></div>"
+        + '</ul>' + shopBlockMarkup("daily_basket")
+        + '<div class="actions"><button class="button" type="button" id="basket-pdf">' + esc(T("Download basket PDF", "Baixa el PDF de la cistella")) + '</button><button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + "</button></div></div>"
+        // Erasing everything sat in the same row as "Download PDF" and "Back to
+        // today", in the same quiet grey, one slip of the thumb away from either.
+        // It keeps its place on the page and loses its disguise.
+        + '<div class="danger-zone"><button class="button danger" type="button" id="clear">' + esc(T("Delete this device plan", "Esborra el pla d’aquest dispositiu")) + "</button></div>"
     ));
     track("basket_created", { scope: "daily", items: items.length });
     root.querySelector("#basket-pdf").onclick = () => printPdf("basket");

@@ -1,3 +1,5 @@
+import { sendError, methodNotAllowed } from "../server/http.js";
+
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const CALA_QUERY_URL = "https://api.cala.ai/v1/knowledge/query";
 const SLOTS = ["Breakfast", "Lunch", "Dinner"];
@@ -66,8 +68,8 @@ async function calaDishContext(apiKey) {
 }
 
 export default async function handler(request, response) {
-  if (request.method !== "POST") return response.status(405).json({ error: "Method not allowed." });
-  if (!process.env.OPENAI_API_KEY) return response.status(503).json({ error: "Varied meal generation is not configured yet." });
+  if (request.method !== "POST") return methodNotAllowed(response, ["POST"]);
+  if (!process.env.OPENAI_API_KEY) return sendError(response, 503, "service_not_configured", "Varied meal generation is not configured yet.");
 
   const body = typeof request.body === "string" ? JSON.parse(request.body || "{}") : (request.body ?? {});
   const target = validTarget(body.target);
@@ -75,7 +77,7 @@ export default async function handler(request, response) {
   const goal = ["lose", "gain", "maintain"].includes(body.goal) ? body.goal : "maintain";
   const usualActivity = ["sedentary", "light", "moderate", "high"].includes(body.usualActivity) ? body.usualActivity : "light";
   const language = body.language === "ca" ? "Catalan" : "English";
-  if (!target || !activity) return response.status(400).json({ error: "Use a valid daily plan request." });
+  if (!target || !activity) return sendError(response, 400, "invalid_request", "Use a valid daily plan request.");
 
   const calaContext = await calaDishContext(process.env.CALA_API_KEY);
   const instructions = [
@@ -83,7 +85,7 @@ export default async function handler(request, response) {
     `Write all user-facing meal content in ${language}. Use natural Catalan/Mediterranean food when appropriate.`,
     "Return JSON only, with this exact shape: {\"meals\":[{\"slot\":\"Breakfast\",\"title\":string,\"portions\":string,\"hint\":string,\"catalanName\":string,\"milkshakeEligible\":boolean},{...Lunch},{...Dinner}]}. Use exactly three meals in Breakfast, Lunch, Dinner order.",
     "Portions must be a concise ingredient line with amounts. Titles, portions and hints must be appropriate to the supplied daily target and activity, but do not state medical claims or exact macro values.",
-    "Make this menu materially different from a generic yogurt/chickpea/lentil template. Include exactly one milkshakeEligible true value; it marks only the meal whose protein component may be replaced by a Quota Vita Milkshake. The client calculates the serving amount separately at 24 g protein per 100 ml.",
+    "Make this menu materially different from a generic yogurt/chickpea/lentil template. Include exactly one milkshakeEligible true value; it marks only the meal whose protein component may be replaced by a Batut Quota Vita. The client calculates the serving amount separately at 24 g protein per 100 ml.",
     "Avoid allergies, pregnancy, clinical conditions, supplements other than the explicitly requested milkshake, extreme restriction, and any unsafe advice.",
     calaContext ? "Cala knowledge context follows. Use it only to choose plausible familiar Catalan dishes; do not claim Cala has independently verified the final plan: " + calaContext : ""
   ].filter(Boolean).join(" ");
@@ -102,11 +104,11 @@ export default async function handler(request, response) {
     });
     const result = await openaiResponse.json().catch(() => ({}));
     const meals = cleanMeals(jsonFromText(textFromResponse(result))?.meals);
-    if (!openaiResponse.ok || !meals) return response.status(502).json({ error: "Varied meal generation is temporarily unavailable." });
+    if (!openaiResponse.ok || !meals) return sendError(response, 502, "upstream_unavailable", "Varied meal generation is temporarily unavailable.");
     response.setHeader("Cache-Control", "private, no-store");
     return response.status(200).json({ meals, calaAvailable: Boolean(calaContext) });
   } catch (error) {
     console.error("Daily meal generation failed", error);
-    return response.status(502).json({ error: "Varied meal generation is temporarily unavailable." });
+    return sendError(response, 502, "upstream_unavailable", "Varied meal generation is temporarily unavailable.");
   }
 }

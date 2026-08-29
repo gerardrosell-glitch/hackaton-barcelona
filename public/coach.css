@@ -252,6 +252,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar-inner {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: var(--s3);
   width: 100%;
   max-width: 1200px;
@@ -263,6 +264,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand {
   display: flex;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
   min-height: 44px;
   gap: var(--s2);
   margin-right: auto;
@@ -376,7 +379,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
   right: var(--s4);
   top: calc(100% - 4px);
   z-index: 40;
-  width: min(280px, calc(100vw - var(--s6)));
+  width: min(300px, calc(100vw - var(--s6)));
+  /* Taller than a small phone, so it scrolls inside itself rather than
+     running its last items off the bottom of the screen. */
+  max-height: calc(100dvh - var(--topbar-h) - env(safe-area-inset-top) - 28px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--s2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -909,23 +917,36 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   gap: var(--s2);
 }
 
-@media (min-width: 620px) {
-  .target-macros { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
+/* The target sits in a column whose width depends on whether the Coach panel is
+   beside it, so it is sized against its container, not the window. Judging it by
+   viewport width crushed the three macro rows into each other on a desktop that
+   was wide overall but narrow here. */
+.today-main { container-type: inline-size; container-name: plan; }
+
+/* Macros share a row only when each one has room to be read. */
+@container plan (min-width: 560px) {
+  .target-macros { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: var(--s2) var(--s5); }
 }
 
-/* On a wide screen the target reads as one summary bar. */
-@media (min-width: 900px) {
+/* Wider still, the whole card becomes one summary bar. */
+@container plan (min-width: 760px) {
   .target {
-    grid-template-columns: minmax(170px, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(160px, auto) minmax(0, 1fr);
     align-items: center;
     column-gap: var(--s6);
   }
 
   .target-head { grid-column: 1; grid-row: 1; display: block; }
   .target-head .chip { margin-top: var(--s2); }
-  .target-macros { grid-column: 2; grid-row: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2) var(--s5); }
+  .target-macros { grid-column: 2; grid-row: 1; }
   .target-foot { grid-column: 1 / -1; grid-row: 2; }
-  .macro-row { grid-template-columns: auto 1fr auto; }
+}
+
+/* Browsers without container queries keep the readable stacked layout. */
+@supports not (container-type: inline-size) {
+  @media (min-width: 1200px) {
+    .target-macros { grid-template-columns: repeat(3, minmax(165px, 1fr)); gap: var(--s2) var(--s5); }
+  }
 }
 
 .macro-row {
@@ -1213,7 +1234,8 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   min-height: 340px;
 }
 
-.view--coach .view-head { flex: 0 0 auto; margin-bottom: var(--s3); }
+.view--coach .view-head { flex: 0 0 auto; margin-bottom: var(--s2); }
+.coach-head-actions { flex: 0 0 auto; display: flex; margin: 0 0 var(--s3); }
 .view--coach .live-coach { flex: 1 1 auto; min-height: 0; }
 .view--coach .live-coach-thread { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
 .view--coach .live-coach .composer { flex: 0 0 auto; }
@@ -1606,15 +1628,15 @@ body.modal-open { overflow: hidden; }
 
 /* Between the tab bar breakpoint and a roomy desktop the header carries five
    nav items plus brand, streak, XP, language and menu: tighten it there. */
-@media (min-width: 620px) and (max-width: 1049px) {
+@media (min-width: 900px) and (max-width: 1199px) {
   .topbar-inner { gap: var(--s2); }
-  .topnav-link { padding: 0 var(--s3); font-size: 0.85rem; }
+  .topnav-link { padding: 0 var(--s3); font-size: 0.84rem; }
   .lang button { min-width: 40px; }
 }
 
 /* The header holds brand, streak, XP and the menu. Below tablet the language
    switch moves into the overflow menu so nothing has to be squeezed. */
-@media (max-width: 619px) {
+@media (max-width: 1099px) {
   .topbar-actions > .lang { display: none; }
   .topbar-inner { gap: var(--s2); }
 }
@@ -1626,6 +1648,14 @@ body.modal-open { overflow: hidden; }
   .streak-chips { padding: 4px 8px; gap: 6px; }
   .streak-chip { font-size: 0.8rem; }
   .brand em { display: none; }
+}
+
+/* On the narrowest phones the mark carries the brand on its own, so the
+   wordmark gives its width to the streak, search and menu controls. */
+@media (max-width: 400px) {
+  .brand { font-size: 0; gap: 0; }
+  .brand-mark { font-size: 0.72rem; }
+  .topbar-inner { padding-inline: var(--s3); gap: var(--s1); }
 }
 
 .level-card .level-head,
@@ -2050,6 +2080,18 @@ body.modal-open { overflow: hidden; }
   animation: install-rise 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Above 900px the tab bar is replaced by the top navigation, so reserving its
+   height at the bottom parked the offer in the middle of the quest list. */
+@media (min-width: 900px) {
+  .install-bar {
+    left: auto;
+    right: var(--s5);
+    bottom: var(--s5);
+    width: min(420px, calc(100vw - var(--s6)));
+    margin: 0;
+  }
+}
+
 .install-bar-text { display: grid; gap: 2px; min-width: 0; }
 .install-bar-text strong { font-size: var(--text-sm); }
 .install-bar-text span { color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.35; }
@@ -2142,3 +2184,228 @@ body.modal-open { overflow: hidden; }
   border-color: var(--plum);
   background: color-mix(in srgb, var(--plum) 10%, transparent);
 }
+
+/* The marker watchTargetPanel() measures against. Zero height, no box, no
+   effect on layout — it only needs to keep scrolling once the card has stopped. */
+.target-sentinel { height: 0; margin: 0; padding: 0; }
+
+/* --------------------------------------------------------- button weight */
+
+/* Three equal pills gave "I'll eat this", "Restaurant" and "Skip" the same
+   visual claim, so the card asked a question instead of proposing an answer.
+   The plan's own suggestion leads, the alternative is available, and skipping
+   is a way out rather than a third option of equal standing. */
+
+.button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.button.ghost:hover {
+  border-color: var(--line);
+  background: var(--wash);
+  color: var(--ink);
+}
+
+.meal-actions { grid-template-columns: 1.35fr 1fr 0.75fr; }
+
+@media (max-width: 480px) {
+  .meal-actions { grid-template-columns: 1.3fr 1fr 0.7fr; }
+}
+
+/* ------------------------------------------------------------- menu rows */
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-height: 44px;
+  padding: var(--s2) var(--s3);
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.menu-choice { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); }
+.menu-choice span { display: contents; }
+
+.menu-choice button {
+  min-width: 44px;
+  min-height: 30px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.menu-choice button.is-active { background: var(--brand); color: #fff; }
+
+.menu-links { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); padding: var(--s2) var(--s3) var(--s3); }
+.menu-links a { color: var(--ink-soft); font-size: 0.84rem; text-decoration: none; }
+.menu-links a:hover { color: var(--brand-strong); text-decoration: underline; }
+
+/* ----------------------------------------------------------------- search */
+
+.search-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(12px, 5vh, 72px) var(--s4) var(--s4);
+  background: rgba(43, 35, 32, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.search-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 100%);
+  max-height: min(76dvh, 640px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 0 0 auto;
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+
+.search-bar svg { width: 20px; height: 20px; flex: 0 0 auto; color: var(--ink-faint); }
+
+.search-bar input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.search-bar input:focus { outline: none; }
+.search-bar input::-webkit-search-cancel-button { display: none; }
+
+.search-close {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.search-close:hover { background: var(--surface-sunk); color: var(--ink); }
+
+.search-results { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--s2); }
+.search-hint { margin: 0; padding: var(--s4); color: var(--ink-faint); font-size: 0.9rem; text-align: center; }
+
+.search-hit {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--s3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-hit:hover, .search-hit:focus-visible { background: var(--brand-tint); }
+.search-hit-group { color: var(--brand-strong); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.search-hit-label { color: var(--ink); font-size: 0.98rem; font-weight: 600; }
+.search-hit-detail { color: var(--ink-soft); font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.week-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  margin: 0 0 var(--s5);
+}
+
+.week-actions .button { flex: 0 1 auto; }
+
+@media (max-width: 480px) {
+  .week-actions .button { flex: 1 1 100%; }
+}
+
+/* ------------------------------------------------------- basket sections */
+
+.basket-total {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  margin: 0 0 var(--s5);
+  padding: var(--s4);
+  border-radius: var(--radius-md);
+  background: var(--canvas-tint);
+  text-align: center;
+}
+
+.basket-total .label { color: var(--brand-strong); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.basket-total b { font-size: clamp(2.1rem, 7vw, 2.8rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+
+.basket-list { display: grid; gap: var(--s5); }
+.basket-section h3 { margin: 0 0 var(--s2); color: var(--brand-strong); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.basket-section ul { display: grid; gap: 0; }
+
+.basket-section li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.96rem;
+}
+
+.basket-section li:last-child { border-bottom: 0; }
+.basket-item b { font-variant-numeric: tabular-nums; }
+.basket-price { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The shop leaves the app, so it is marked as a link rather than a destination. */
+.tab--shop, .topnav-link--shop { text-decoration: none; }
+.tab--shop { color: var(--brand-strong); }
+.tab--shop:hover { color: var(--brand); }
+.topnav-link--shop { display: inline-flex; align-items: center; color: var(--brand-strong); font-weight: 700; }
+.topnav-link--shop:hover { background: var(--brand-tint); }
+
+/* Six destinations have to fit the narrowest phone still in use. */
+@media (max-width: 400px) {
+  .tabbar { gap: 0; padding-inline: var(--s1); }
+  .tab { min-width: 0; padding: var(--s1) 2px; font-size: 0.6rem; letter-spacing: -0.01em; }
+  .tab svg { width: 20px; height: 20px; }
+  .tab-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+@media (max-width: 340px) {
+  .tab { font-size: 0.55rem; }
+  .tab svg { width: 18px; height: 18px; }
+}
+
+.day-done-badge { display: inline-flex; }
+.day-done-badge svg { width: 30px; height: 30px; }
