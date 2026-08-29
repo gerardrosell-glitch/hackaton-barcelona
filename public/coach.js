@@ -7,6 +7,7 @@
   let capturedMealImage;
   let language = localStorage.getItem("quota-vita-coach-language") || "en";
   let mealDeckIndex = 0;
+  let mobileCoachOpen = false;
   let weeklyBasketEstimate;
   const pendingMealImages = new Set();
   const failedMealImages = new Set();
@@ -20,11 +21,20 @@
   paletteContrastStyle.textContent = ".coach-workspace{color:#392d23}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#392d23}.coach-workspace .eyebrow{color:#9e4e35}.coach-workspace .lead{color:#584538}.chat{background:rgba(255,249,237,.84);border-color:rgba(112,78,48,.32)}.bubble.coach{background:rgba(255,253,247,.97);color:#392d23}.bubble.user{background:#614633;border-color:#614633;color:#fffdf8}.bubble .meta,.chat-page .privacy,.keyboard-hint{color:#6d5948}.composer{background:rgba(255,253,247,.98);border-color:#c88152}.quick-replies button{background:#fff7e8;border-color:#bf885d;color:#392d23}.quick-replies button:hover{background:#f1d0aa}.quick-replies button:focus-visible,.restart-control:focus-visible{outline-color:#a14e34}.chat-input input{color:#392d23}.chat-input .button,.coach-workspace .button:not(.quiet){background:#614633;border-color:#614633;color:#fffdf8}.chat-cancel{color:#392d23!important;border-color:#9a6544!important;background:rgba(255,249,237,.7)!important}.restart-control{background:#fff9ed;border-color:#a66b48;color:#392d23}.shortcut-key{border-color:#a66b48;color:#7a4730}.week-day{background:rgba(255,253,247,.92);border-color:#d1a171}.meal-header,.meal p,.ledger,.method{color:#392d23}.meta,.ledger span{color:#6d5948}.meal-image-placeholder{display:grid;place-items:center;align-content:center;gap:12px;background:linear-gradient(135deg,#fff7e8,#efd6ab);color:#584538;font-weight:800;text-align:center}.meal-image-placeholder .button{margin:0}";
   document.head.append(paletteContrastStyle);
   const mealDeckStyle = document.createElement("style");
-  mealDeckStyle.textContent = ".daily-meal-deck{width:100%;padding:clamp(26px,4vw,56px) clamp(18px,6vw,96px);box-sizing:border-box;background:transparent;color:#392d23}.daily-meal-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;max-width:1440px;margin:0 auto}.daily-meal-overview{max-width:1440px;margin:0 auto 20px}.daily-meal-card{min-width:0}.daily-meal-content{height:100%}.daily-meal-card .meal{box-sizing:border-box;height:100%;min-height:0;margin:0;padding:24px;display:flex;flex-direction:column;border-left-width:7px;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-card .meal .actions{justify-content:flex-start;margin-top:auto}.daily-meal-card .meal .button{min-width:0}.daily-meal-card .meal-image{height:190px;object-fit:cover}.meal-deck-controls{display:flex;justify-content:flex-end;max-width:1440px;margin:0 auto 18px}.meal-deck-controls .coach-controls{margin:0}.meal-deck-position,.meal-deck-help{display:none}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.daily-plan-follow-up{width:min(980px,100%);margin:0 auto;padding:26px 18px 64px}.daily-plan-follow-up .bubble{max-width:100%}@media(max-width:719px){.daily-meal-deck{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:0;background:#392d23;color:#392d23;touch-action:pan-y}.daily-meal-track{display:flex;width:100%;max-width:none;height:100%;margin:0;gap:0;will-change:transform;transition:transform .28s cubic-bezier(.22,.8,.25,1)}.daily-meal-overview{display:none}.daily-meal-card{box-sizing:border-box;flex:0 0 100%;width:100%;min-height:100%;padding:76px 14px 54px;display:flex;align-items:center;overflow-y:auto}.daily-meal-content{width:100%}.daily-meal-card .meal{min-height:calc(100dvh - 170px);padding:20px;box-shadow:0 18px 45px rgba(16,10,7,.33)}.daily-meal-card .meal-image{height:min(25dvh,220px)}.meal-deck-controls{position:absolute;inset:12px 12px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;margin:0;color:#fffdf8;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.meal-deck-controls>*{pointer-events:auto}.meal-deck-controls .coach-controls{margin:0;color:inherit}.meal-deck-position{display:block;margin:0;text-shadow:0 1px 8px rgba(0,0,0,.35)}.meal-deck-help{display:block;position:absolute;z-index:2;inset:auto 18px 14px;margin:0;color:#fffdf8;text-align:center;font-size:.76rem;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}}@media(prefers-reduced-motion:reduce){.daily-meal-track{transition:none}}";
+  mealDeckStyle.textContent = ".daily-plan-workspace{padding:0!important}.daily-meal-deck{width:100%;min-height:100dvh;padding:clamp(12px,1.5vw,28px) clamp(20px,5.25vw,160px) clamp(48px,6vw,112px);box-sizing:border-box;background:transparent;color:#392d23}.daily-meal-track{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:clamp(16px,1.25vw,32px);width:100%;max-width:none;margin:0;align-items:stretch}.daily-meal-overview{width:100%;max-width:none;margin:0 0 clamp(16px,1.25vw,28px)}.daily-meal-card{min-width:0;container-type:inline-size}.daily-meal-content{height:100%}.daily-meal-card .meal{box-sizing:border-box;height:100%;min-height:0;margin:0;padding:clamp(18px,1.3vw,30px);display:flex;flex-direction:column;border-left-width:7px;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-card .meal .actions{justify-content:flex-start;margin-top:auto}.daily-meal-card .meal .button{min-width:0}.daily-meal-card .meal-image{height:clamp(170px,min(52cqw,34dvh),340px);object-fit:cover}.daily-meal-card h3{font-size:clamp(1.5rem,3cqw,2.2rem);line-height:1.04}.meal-deck-controls{display:flex;justify-content:flex-end;width:100%;max-width:none;margin:0 0 clamp(16px,1.25vw,28px)}.meal-deck-controls .coach-controls{margin:0}.meal-deck-position,.meal-deck-help{display:none}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.daily-plan-follow-up{width:min(980px,100%);margin:0 auto;padding:26px 18px 64px}.daily-plan-follow-up .bubble{max-width:100%}@media(min-width:720px) and (max-width:1050px){.daily-meal-deck{padding-inline:clamp(20px,4vw,48px)}.daily-meal-overview{grid-template-columns:minmax(220px,.36fr) minmax(0,1fr)}}@media(max-width:719px){.daily-meal-deck{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:0;background:#392d23;color:#392d23;touch-action:pan-y}.daily-meal-track{display:flex;width:100%;max-width:none;height:100%;margin:0;gap:0;will-change:transform;transition:transform .28s cubic-bezier(.22,.8,.25,1)}.daily-meal-overview{display:none!important}.daily-meal-card{box-sizing:border-box;flex:0 0 100%;width:100%;min-height:100%;padding:76px 14px 54px;display:flex;align-items:center;overflow-y:auto}.daily-meal-content{width:100%}.daily-meal-card .meal{min-height:calc(100dvh - 170px);padding:20px;box-shadow:0 18px 45px rgba(16,10,7,.33)}.daily-meal-card .meal-image{height:min(25dvh,220px)}.daily-meal-card h3{font-size:1.5rem}.meal-deck-controls{position:absolute;inset:12px 12px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;margin:0;color:#fffdf8;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.meal-deck-controls>*{pointer-events:auto}.meal-deck-controls .coach-controls{margin:0;color:inherit}.meal-deck-position{display:block;margin:0;text-shadow:0 1px 8px rgba(0,0,0,.35)}.meal-deck-help{display:block;position:absolute;z-index:2;inset:auto 18px 14px;margin:0;color:#fffdf8;text-align:center;font-size:.76rem;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}}@media(prefers-reduced-motion:reduce){.daily-meal-track{transition:none}}";
   document.head.append(mealDeckStyle);
   const liveCoachPanelStyle = document.createElement("style");
-  liveCoachPanelStyle.textContent = ".daily-meal-overview{display:grid;grid-template-columns:minmax(250px,.42fr) minmax(0,1fr);align-items:stretch;border-top:6px solid #e6bf67;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-overview .ledger{position:static;margin:0;padding:18px;border-top:0;border-right:1px solid #dfcba8;background:transparent}.daily-meal-overview .live-coach{min-width:0;padding:15px 20px}.daily-meal-overview .live-coach .eyebrow{margin:0 0 7px}.daily-meal-overview .live-coach-thread{display:grid;gap:6px;max-height:86px;overflow:auto}.daily-meal-overview .live-coach .bubble{max-width:100%;padding:9px 12px;border-radius:12px;box-shadow:none}.daily-meal-overview .live-coach .composer{margin:10px 0 0;padding:6px 10px;border-radius:14px;box-shadow:none}.daily-meal-overview .live-coach .chat-input input{padding:8px 7px}.daily-meal-overview .live-coach .chat-input .button{padding:9px 14px}.daily-meal-overview .live-coach>.meta{display:none}.daily-plan-follow-up .live-coach{display:none}@media(max-width:719px){.daily-plan-follow-up .live-coach{display:block}}";
+  liveCoachPanelStyle.textContent = ".daily-meal-overview{display:grid;grid-template-columns:minmax(250px,.42fr) minmax(0,1fr);align-items:stretch;border-top:6px solid #e6bf67;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-overview .ledger{position:static;margin:0;padding:18px;border-top:0;border-right:1px solid #dfcba8;background:transparent}.daily-meal-overview .live-coach{min-width:0;padding:15px 20px}.daily-meal-overview .live-coach .eyebrow{margin:0 0 7px}.daily-meal-overview .live-coach-thread{display:grid;gap:6px;max-height:86px;overflow:auto}.daily-meal-overview .live-coach .bubble{max-width:100%;padding:9px 12px;border-radius:12px;box-shadow:none}.daily-meal-overview .live-coach .bubble .meta{display:none}.daily-meal-overview .live-coach .composer{margin:10px 0 0;padding:6px 10px;border-radius:14px;box-shadow:none}.daily-meal-overview .live-coach .chat-input input{padding:8px 7px}.daily-meal-overview .live-coach .chat-input .button{padding:9px 14px}.daily-meal-overview .live-coach>.meta{display:none}.daily-plan-follow-up .live-coach{display:none}";
   document.head.append(liveCoachPanelStyle);
+  const mobileCoachStyle = document.createElement("style");
+  mobileCoachStyle.textContent = ".mobile-coach-toggle,.mobile-coach-drawer{display:none}@media(max-width:719px){.mobile-coach-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,253,247,.82);border-radius:999px;background:rgba(57,45,35,.72);color:#fffdf8;padding:7px 10px;font:inherit;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}.mobile-coach-drawer:not([hidden]){position:absolute;z-index:4;inset:58px 12px 12px;display:flex;flex-direction:column;min-height:0;padding:16px;border:1px solid rgba(255,253,247,.72);border-radius:18px;background:#fffdf7;color:#392d23;box-shadow:0 18px 48px rgba(16,10,7,.45)}.mobile-coach-drawer-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 10px}.mobile-coach-drawer-header .eyebrow{margin:0}.mobile-coach-close{border:0;background:transparent;color:#614633;padding:6px;font:inherit;font-size:.76rem;font-weight:800;cursor:pointer}.mobile-coach-drawer .live-coach{display:flex;flex:1;min-height:0;flex-direction:column}.mobile-coach-drawer .live-coach>.eyebrow{display:none}.mobile-coach-drawer .live-coach-thread{display:grid;flex:1;align-content:start;gap:8px;min-height:0;overflow:auto}.mobile-coach-drawer .live-coach .bubble{max-width:100%;padding:10px 12px}.mobile-coach-drawer .live-coach .composer{flex:0 0 auto;margin:10px 0 0;padding:6px 10px}.mobile-coach-drawer .live-coach>.meta{display:none}.meal-deck-controls .coach-controls{gap:7px}.meal-deck-controls .restart-control{padding:7px 8px}}@media(max-width:420px){.meal-deck-controls{inset:10px 8px auto;font-size:.6rem}.meal-deck-controls .coach-controls{gap:3px}.meal-deck-controls .coach-controls [data-language]{padding:3px}.mobile-coach-toggle{padding:6px 8px;font-size:.6rem}.meal-deck-controls .restart-control{padding:6px 7px;font-size:.58rem;letter-spacing:.04em}}";
+  document.head.append(mobileCoachStyle);
+  const mobileCoachCompactStyle = document.createElement("style");
+  mobileCoachCompactStyle.textContent = ".restart-control-short{display:none}@media(max-width:420px){.meal-deck-controls .restart-control-full{display:none}.meal-deck-controls .restart-control-short{display:inline}}";
+  document.head.append(mobileCoachCompactStyle);
+  const mobileCoachTightStyle = document.createElement("style");
+  mobileCoachTightStyle.textContent = "@media(max-width:719px){.meal-deck-controls{width:auto}}@media(max-width:420px){.meal-deck-controls .coach-controls{gap:2px}.mobile-coach-toggle{padding:5px;font-size:.55rem;letter-spacing:.02em}.meal-deck-controls .restart-control{padding:5px;font-size:.55rem}}";
+  document.head.append(mobileCoachTightStyle);
   const mealInteractionStyle = document.createElement("style");
   mealInteractionStyle.textContent = ".restaurant-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(57,45,35,.54);overflow:auto}.restaurant-overlay .restaurant-dialog{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border-radius:22px;background:#fff9ed;color:#392d23;box-shadow:0 20px 60px rgba(57,45,35,.35)}.restaurant-overlay .actions{justify-content:flex-start}.restaurant-overlay video{width:100%;max-width:620px;border-radius:14px;background:#392d23}.swipe-hint{margin:0 0 14px;color:#6d5948;font-size:.86rem}@media(max-width:600px){.restaurant-overlay{align-items:end;padding:0}.restaurant-overlay .restaurant-dialog{max-height:92dvh;border-radius:22px 22px 0 0}.swipe-hint{font-size:.8rem}}";
   document.head.append(mealInteractionStyle);
@@ -135,18 +145,17 @@
     ,"Review this meal": "Revisa aquest àpat"
     ,"Planned": "Planificat"
     ,"Talk to your Coach": "Parla amb el teu Coach"
-    ,"Ask me anything about today’s meals, a healthy swap, training fuel, a restaurant choice or your shopping basket.": "Pregunta'm el que vulguis sobre els àpats d'avui, una alternativa saludable, l'alimentació per a l'entrenament, una opció de restaurant o la teva cistella de compra."
-    ,"This is a live OpenAI conversation. It gives general wellbeing guidance, not medical advice.": "Aquesta és una conversa en directe amb OpenAI. Dona orientació general de benestar, no assessorament mèdic."
+    ,"Conversation": "Conversa"
+    ,"Reduce": "Redueix"
+    ,"Ask about a meal, a healthy swap or today’s training.": "Pregunta sobre un àpat, una alternativa saludable o l’entrenament d’avui."
+    ,"General wellbeing guidance, not medical advice.": "Orientació general de benestar, no assessorament mèdic."
     ,"Ask your Coach…": "Pregunta al teu Coach…"
     ,"Ask": "Pregunta"
     ,"Thinking…": "Pensant…"
     ,"Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.": "Els missatges s'envien a OpenAI per generar una resposta. Quota Vita només conserva aquesta conversa en aquest dispositiu."
     ,"Estimated weekly basket cost": "Cost setmanal estimat de la cistella"
     ,"Checking the latest price estimate…": "Comprovant l’estimació de preu més recent…"
-    ,"Cala-informed estimate": "Estimació basada en Cala"
-    ,"Spain market reference estimate": "Estimació de referència del mercat espanyol"
-    ,"Spain market reference": "Referència del mercat espanyol"
-    ,"Some prices use Cala; the rest use Spain market references.": "Alguns preus fan servir Cala; la resta fan servir referències del mercat espanyol."
+    ,"Average supermarket reference.": "Referència de supermercat mig."
     ,"Estimated total": "Total estimat"
     ,"Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.": "Les estimacions de preu cobreixen les quantitats indicades, no són un pressupost de compra. Les promocions, la botiga, la marca, les mides dels envasos i el lliurament poden canviar l’import final."
     ,"Unable to load the price estimate.": "No s’ha pogut carregar l’estimació de preu."
@@ -163,8 +172,14 @@
       if (catalan[text]) node.nodeValue = node.nodeValue.replace(text, catalan[text]);
     }
   };
-  const coachControls = () => '<div class="coach-controls" data-language-control><span><button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button></span><button class="restart-control" type="button" data-global-restart title="' + (language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement") + '">' + (language === "ca" ? "Comença de nou" : "Start over") + "</button></div>";
+  const coachControls = (includeConversation = false) => {
+    const restartLabel = language === "ca" ? "Comença de nou" : "Start over";
+    const compactRestartLabel = language === "ca" ? "Reinicia" : "Reset";
+    const restartTitle = language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement";
+    return '<div class="coach-controls" data-language-control><span><button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button></span>' + (includeConversation ? '<button class="mobile-coach-toggle" id="mobile-coach-toggle" type="button" aria-controls="mobile-coach-drawer" aria-expanded="' + mobileCoachOpen + '">Conversation</button>' : "") + '<button class="restart-control" type="button" data-global-restart title="' + restartTitle + '" aria-label="' + restartLabel + '"><span class="restart-control-full">' + restartLabel + '</span><span class="restart-control-short" aria-hidden="true">' + compactRestartLabel + "</span></button></div>";
+  };
   const resetCoach = () => {
+    mobileCoachOpen = false;
     if (state.profile) {
       failedMealImages.clear();
       state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
@@ -318,11 +333,12 @@
     const messages = Array.isArray(state.chat) ? state.chat.slice(-8) : [];
     const thread = messages.length
       ? messages.map((message) => '<div class="bubble ' + (message.role === "user" ? "user" : "coach") + '">' + esc(message.text) + "</div>").join("")
-      : '<div class="bubble coach">Ask me anything about today’s meals, a healthy swap, training fuel, a restaurant choice or your shopping basket.<span class="meta">This is a live OpenAI conversation. It gives general wellbeing guidance, not medical advice.</span></div>';
+      : '<div class="bubble coach">Ask about a meal, a healthy swap or today’s training.<span class="meta">General wellbeing guidance, not medical advice.</span></div>';
     return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" data-live-coach-thread="' + placement + '" aria-live="polite">' + thread + '</div><form class="composer chat-input" data-live-coach-form="' + placement + '"><input maxlength="1400" placeholder="Ask your Coach…" aria-label="Ask your Coach" required><button class="button" type="submit">Ask</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
   }
 
   async function askLiveCoach(message, placement) {
+    if (placement === "mobile") mobileCoachOpen = true;
     const chat = Array.isArray(state.chat) ? state.chat : [];
     state.chat = [...chat, { role: "user", text: message }].slice(-12);
     save();
@@ -358,7 +374,8 @@
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
     mealDeckIndex = Math.min(mealDeckIndex, plan.meals.length - 1);
     const remaining = '<div class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></div>';
-    root.innerHTML = '<section class="coach-workspace daily-plan-workspace"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls() + '</div><div class="daily-meal-overview">' + remaining + liveCoachMarkup("desktop") + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up">' + liveCoachMarkup("mobile") + '<div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
+    const mobileCoach = '<aside class="mobile-coach-drawer" id="mobile-coach-drawer"' + (mobileCoachOpen ? "" : " hidden") + '><div class="mobile-coach-drawer-header"><p class="eyebrow">Conversation</p><button class="mobile-coach-close" id="mobile-coach-close" type="button">Reduce</button></div>' + liveCoachMarkup("mobile") + "</aside>";
+    root.innerHTML = '<section class="coach-workspace daily-plan-workspace"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls(true) + '</div>' + mobileCoach + '<div class="daily-meal-overview">' + remaining + liveCoachMarkup("desktop") + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up"><div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
     root.querySelector("#daily-check").onclick = dailyCheck;
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
@@ -370,6 +387,16 @@
     root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.skipMeal, "skipped"); dashboard(); });
     root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal, true); });
     root.querySelectorAll("[data-live-coach-form]").forEach((form) => form.onsubmit = (event) => { event.preventDefault(); const input = form.querySelector("input"); const message = input.value.trim(); if (message) askLiveCoach(message, form.dataset.liveCoachForm); });
+    const mobileCoachDrawer = root.querySelector("#mobile-coach-drawer");
+    const setMobileCoachOpen = (open) => {
+      mobileCoachOpen = open;
+      mobileCoachDrawer.hidden = !open;
+      root.querySelector("#mobile-coach-toggle")?.setAttribute("aria-expanded", String(open));
+      root.querySelector(".daily-meal-deck")?.classList.toggle("conversation-open", open);
+      if (open) mobileCoachDrawer.querySelector("input")?.focus({ preventScroll: true });
+    };
+    root.querySelector("#mobile-coach-toggle")?.addEventListener("click", () => setMobileCoachOpen(!mobileCoachOpen));
+    root.querySelector("#mobile-coach-close")?.addEventListener("click", () => setMobileCoachOpen(false));
     enableMealSwipe(plan);
     loadMealImages(plan);
   }
@@ -392,6 +419,7 @@
     const releasePointer = () => { if (pointer?.id !== undefined && deck.hasPointerCapture(pointer.id)) deck.releasePointerCapture(pointer.id); pointer = null; };
     moveTo(mealDeckIndex, true);
     deck.addEventListener("pointerdown", (event) => {
+      if (deck.classList.contains("conversation-open")) return;
       if (event.target.closest("button, input, label, a")) return;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
       deck.setPointerCapture(event.pointerId);
@@ -597,15 +625,14 @@
   }
 
   function basketEstimateSource(estimate) {
-    if (estimate.source === "cala") return "Cala-informed estimate";
-    if (estimate.source === "mixed") return "Some prices use Cala; the rest use Spain market references.";
-    return "Spain market reference estimate";
+    return "Average supermarket reference.";
   }
 
   function basketEstimateText() {
     if (!weeklyBasketEstimate) return "";
     return [
-      "Estimated weekly basket cost — " + basketEstimateSource(weeklyBasketEstimate),
+      "Estimated weekly basket cost",
+      basketEstimateSource(weeklyBasketEstimate),
       ...weeklyBasketEstimate.items.map((item) => "- " + basketAmountLabel(item) + " " + item.name + ": " + formatEur(item.price)),
       "Estimated total: " + formatEur(weeklyBasketEstimate.total),
       "Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.",
@@ -616,7 +643,7 @@
     const mount = root.querySelector("#weekly-cost-estimate");
     if (!mount || !Array.isArray(estimate.items) || !Number.isFinite(Number(estimate.total))) return;
     weeklyBasketEstimate = estimate;
-    mount.innerHTML = '<section class="basket-costs"><h3>Estimated weekly basket cost</h3><p class="meta">' + esc(basketEstimateSource(estimate)) + '</p><ul>' + estimate.items.map((item) => '<li><span><strong>' + esc(basketAmountLabel(item)) + '</strong> ' + esc(item.name) + '<small>' + (item.source === "cala" ? "Cala" : "Spain market reference") + '</small></span><strong>' + esc(formatEur(item.price)) + '</strong></li>').join("") + '</ul><p class="basket-costs-total"><strong>Estimated total</strong><strong>' + esc(formatEur(estimate.total)) + '</strong></p><p class="basket-costs-disclaimer">Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.</p></section>';
+    mount.innerHTML = '<section class="basket-costs"><h3>Estimated weekly basket cost</h3><p class="meta">' + esc(basketEstimateSource(estimate)) + '</p><ul>' + estimate.items.map((item) => '<li><span><strong>' + esc(basketAmountLabel(item)) + '</strong> ' + esc(item.name) + '</span><strong>' + esc(formatEur(item.price)) + '</strong></li>').join("") + '</ul><p class="basket-costs-total"><strong>Estimated total</strong><strong>' + esc(formatEur(estimate.total)) + '</strong></p><p class="basket-costs-disclaimer">Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.</p></section>';
     root.querySelector("#weekly-basket-pdf").disabled = false;
     root.querySelector("#weekly-basket-email").disabled = false;
   }
