@@ -25,7 +25,7 @@
 .qv-nutrition-coach h1 { max-width: 600px; margin: 0; font: 500 clamp(2.25rem, 5vw, 4.5rem)/.94 Georgia, "Times New Roman", serif; letter-spacing: -.055em; }
 .qv-nutrition-coach__subhead { max-width: 500px; margin: 18px 0 0; color: #496760; font-size: 1rem; line-height: 1.55; }
 .qv-nutrition-coach__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
-.qv-nutrition-coach__button { border: 0; padding: 13px 17px; background: var(--ink); color: #fff; font-weight: 750; }
+.qv-nutrition-coach__button { display: inline-block; border: 0; padding: 13px 17px; background: var(--ink); color: #fff; font-weight: 750; text-decoration: none; }
 .qv-nutrition-coach__button:hover { background: #0c2b26; }
 .qv-nutrition-coach__button--quiet { background: transparent; color: var(--ink); outline: 1px solid var(--ink); outline-offset: -1px; }
 .qv-nutrition-coach__plate { position: relative; width: min(290px, 74vw); aspect-ratio: 1; margin: auto; border: 12px solid #fffdf8; border-radius: 50%; background: conic-gradient(var(--tomato) 0 25%, var(--sun) 25% 50%, var(--moss) 50% 75%, #78b99b 75%); box-shadow: 0 16px 0 rgba(21, 60, 54, .14), 0 18px 30px rgba(21, 60, 54, .16); }
