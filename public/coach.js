@@ -152,7 +152,10 @@
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
       const form = root.querySelector("#chat-form");
       if (form) form.onsubmit = (event) => { event.preventDefault(); advance(root.querySelector("#chat-answer").value); };
-      requestAnimationFrame(() => root.querySelector(".composer")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      requestAnimationFrame(() => {
+        root.querySelector(".composer")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        root.querySelector("#chat-answer")?.focus({ preventScroll: true });
+      });
     };
     const advance = (value) => {
       const question = questions[index];
