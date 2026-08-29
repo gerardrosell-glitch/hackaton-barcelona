@@ -1,0 +1,110 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   DIRECTION B — "Ink & Bone"
+
+   Reference: Awwwards' own site pages and Oimachi (oimachi.co). Both work on a
+   quiet neutral ground and then use near-black as a *material*: black chips,
+   black panels, black buttons, floating on grey. It reads expensive because the
+   contrast is decisive and the black is structural rather than decorative.
+
+   Applied here: a bone page, ink used as blocks — the header bar, the day's
+   closing panel, the primary button, the active tab — and one signal colour
+   kept for the thing you press. It gets the drama of the dark references
+   without turning a supermarket app into a dark app.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --canvas: #e8e6e0;
+  --canvas-tint: #dedbd3;
+  --surface: #ffffff;
+  --surface-sunk: #f1efe9;
+
+  --ink: #100f0d;
+  --ink-soft: #5c5852;
+  --ink-faint: #67625c;
+
+  /* Darkened until near-white text on the primary action clears 4.5:1. */
+  --brand: #a53a21;
+  --brand-strong: #862d18;
+  --brand-tint: #f6e6e0;
+
+  --line: rgba(16, 15, 13, 0.14);
+  --line-strong: rgba(16, 15, 13, 0.3);
+
+  --topbar-bg: #100f0d;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+/* The header is a block of ink, not a tinted sheet of the page. */
+.topbar {
+  background: var(--ink);
+  border-bottom: 0;
+}
+
+.brand { color: #f4f2ec; }
+.brand em { color: #8d8880; }
+.brand-mark { background: #f4f2ec; color: var(--ink); }
+.icon-button { border-color: rgba(244, 242, 236, 0.26); color: #f4f2ec; }
+.icon-button:hover { background: rgba(244, 242, 236, 0.12); }
+.streak-chips { border-color: rgba(244, 242, 236, 0.26); background: transparent; color: #f4f2ec; }
+.streak-chips:hover { background: rgba(244, 242, 236, 0.12); }
+.streak-chip--xp { color: #e8b48c; }
+.lang { border-color: rgba(244, 242, 236, 0.26); }
+.lang button { color: #b6b1a9; }
+.lang button.is-active { background: #f4f2ec; color: var(--ink); }
+.topnav-link { color: #b6b1a9; }
+.topnav-link:hover { background: rgba(244, 242, 236, 0.12); color: #f4f2ec; }
+.topnav-link.is-active { background: #f4f2ec; color: var(--ink); }
+.topnav-link--shop { color: #e8b48c; }
+
+/* Square-shouldered cards, defined by a line rather than a glow. */
+.card, .chat, .target, .meal-card, .week-day, .live-coach, .quest-strip {
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+/* The figure is set in the display face at a size nothing else competes with. */
+.target-figure b { font-size: clamp(3.4rem, 14vw, 5rem); letter-spacing: -0.045em; }
+.target-label { letter-spacing: 0.2em; }
+
+/* The day's closing panel is the one block of ink in the content. */
+.day-done {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #f4f2ec;
+}
+
+.day-done h2, .day-done-stats b { color: #f4f2ec; }
+.day-done .eyebrow, .day-done-stats span, .day-done .meta, .tomorrow .label { color: #a8a29a; }
+.day-done .tomorrow { border-top-color: rgba(244, 242, 236, 0.2); }
+.tomorrow-choice { border-color: rgba(244, 242, 236, 0.3); background: transparent; color: #f4f2ec; }
+.tomorrow-choice:hover { background: rgba(244, 242, 236, 0.14); border-color: rgba(244, 242, 236, 0.5); }
+.tomorrow-choice.is-active { background: #f4f2ec; border-color: #f4f2ec; color: var(--ink); }
+
+/* Buttons are ink; the signal colour is kept for the single primary action. */
+.button {
+  background: var(--ink);
+  border-color: var(--ink);
+  border-radius: var(--radius-sm);
+  color: #f4f2ec;
+}
+
+.button:hover { background: #2a2724; border-color: #2a2724; }
+.meal-card .meal-actions .button[data-confirm-meal],
+.day-done .button,
+.week-actions .button { color: #fff8f4; }
+.meal-card .meal-actions .button[data-confirm-meal]:hover, .week-actions .button:hover { background: #862d18; border-color: #862d18; }
+.button.quiet { background: transparent; border-color: var(--line-strong); color: var(--ink); border-radius: var(--radius-sm); }
+
+.tabbar { background: var(--ink); border-top: 0; }
+.tab { color: #8d8880; }
+.tab.is-active { color: #f4f2ec; }
+.tab--shop { color: #e8b48c; }
+
+.chip { border-radius: var(--radius-xs); }
+.bar { border-radius: 0; height: 6px; }
+.bar i { border-radius: 0; background: var(--ink); }
+.bar--carbs i { background: #8d8880; }
+.bar--fat i { background: #c2bdb4; }

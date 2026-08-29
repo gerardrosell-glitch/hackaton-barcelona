@@ -1,0 +1,155 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   DIRECTION C — "Kitchen Table"
+
+   Reference: Miu Miu "A House that we shaped" (immersivebags.miumiu.com) and
+   Decathlon Yestalgia. Both stage a single image full-bleed and set the type
+   over it, with a scrim doing the legibility work. The image is not an
+   illustration of the content — it *is* the content, and the interface is a
+   thin layer on top.
+
+   Applied here: the meal is the screen. Each card is a photograph with its
+   name, its numbers and its actions set over the image, chrome reduced to what
+   a thumb needs. This is the most cinematic of the three and the one that most
+   depends on the photographs being good — which, since they are generated per
+   meal, they now are.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --canvas: #f6f3ed;
+  --canvas-tint: #ece7dd;
+  --surface: #ffffff;
+  --surface-sunk: #efeae0;
+
+  --ink: #1b1712;
+  --ink-soft: #6a615a;
+  --ink-faint: #6e6862;
+
+  --brand: #b0553c;
+  --brand-strong: #8e412c;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+}
+
+/* The photograph fills the card and the type sits on it. */
+.meal-card {
+  position: relative;
+  grid-template-columns: 1fr;
+  /* Tall enough that the photograph is still the subject once the panel
+     of text sits over its lower half. */
+  min-height: clamp(540px, 116vw, 720px);
+  border: 0;
+  box-shadow: none;
+  isolation: isolate;
+}
+
+.meal-media { position: absolute; inset: 0; z-index: 0; }
+.meal-image { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
+
+/* First attempt set the text straight onto the photograph with a gradient
+   scrim. On a bright plate — which most of these are, they are lit food — the
+   macros and the portion line disappeared. A meal card carries too much detail
+   for that treatment to be honest.
+
+   So the photograph still fills the card, but the words sit on a frosted panel
+   that floats over the lower half of it. The image is still the subject, the
+   type is legible on any photograph, and the panel is what makes it look like
+   a product rather than a caption. */
+.meal-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(20, 16, 12, 0) 30%, rgba(20, 16, 12, 0.45) 100%);
+}
+
+.meal-body {
+  position: relative;
+  z-index: 2;
+  margin: auto clamp(10px, 3vw, 16px) clamp(10px, 3vw, 16px);
+  padding: clamp(16px, 3.5vw, 24px);
+  border-radius: var(--radius-md);
+  background: rgba(18, 14, 11, 0.72);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  box-shadow: 0 12px 40px rgba(12, 9, 7, 0.4);
+  color: #fdfaf5;
+}
+
+/* Where blur is unavailable the panel simply becomes more opaque, so the text
+   never ends up sitting on a bright photograph. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .meal-body { background: rgba(18, 14, 11, 0.9); }
+}
+
+.meal-slot { color: rgba(253, 250, 245, 0.8); }
+.meal-title { color: #fdfaf5; font-size: clamp(1.6rem, 6vw, 2.3rem); }
+.meal-portions, .meal-catalan { color: rgba(253, 250, 245, 0.9); }
+.meal-catalan strong { color: #fdfaf5; }
+.meal-body .meta { color: rgba(253, 250, 245, 0.82); }
+
+.macros { border-color: rgba(253, 250, 245, 0.28); }
+.macros dt { color: rgba(253, 250, 245, 0.7); }
+.macros dd { color: #fdfaf5; }
+.macros .macro--protein dd { color: #f7cfb4; }
+.macros > div + div { border-left-color: rgba(253, 250, 245, 0.28); }
+
+.milkshake {
+  border-color: rgba(240, 180, 140, 0.5);
+  background: rgba(20, 16, 12, 0.45);
+  color: #fdfaf5;
+}
+
+.milkshake strong { color: #f7cfb4; }
+
+.meal-actions .button {
+  backdrop-filter: blur(6px);
+  border-color: rgba(253, 250, 245, 0.45);
+  background: rgba(253, 250, 245, 0.16);
+  color: #fdfaf5;
+}
+
+.meal-actions .button:hover { background: rgba(253, 250, 245, 0.28); }
+
+/* The primary action keeps the brand fill it has everywhere else in the app —
+   consistency beats novelty on the one control people press daily — with light
+   text on it so it clears 4.5:1 against the terracotta. */
+.meal-card .meal-actions .button[data-confirm-meal] { color: #fff8f4; }
+.detail-toggle, .skip-offer { color: rgba(253, 250, 245, 0.85); }
+.detail-toggle { border-color: rgba(253, 250, 245, 0.4); }
+.chip { background: rgba(253, 250, 245, 0.2); color: #fdfaf5; }
+.chip--logged { background: rgba(116, 195, 154, 0.28); color: #d8f2e4; }
+
+/* Everything that is not a meal steps back so the photographs carry the page. */
+.target, .quest-strip, .card, .chat, .live-coach, .week-day {
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.target-figure b { font-size: clamp(3.2rem, 13vw, 4.6rem); }
+.view-head h1 { font-size: clamp(2.2rem, 8vw, 3.2rem); }
+
+.week-day { position: relative; min-height: 300px; overflow: hidden; }
+.weekly-card-visual { position: absolute; inset: 0; }
+.weekly-meal-image { width: 100%; height: 100%; object-fit: cover; }
+
+.week-day::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20, 16, 12, 0.1) 30%, rgba(20, 16, 12, 0.86) 100%);
+}
+
+.week-day > *:not(.weekly-card-visual) { position: relative; z-index: 2; color: #fdfaf5; }
+.week-day .week-day-details {
+  margin: auto clamp(8px, 2vw, 12px) clamp(8px, 2vw, 12px);
+  padding: clamp(12px, 2.5vw, 18px);
+  border-radius: var(--radius-md);
+  background: rgba(18, 14, 11, 0.72);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+.week-day h3 { color: #fdfaf5; }
+.week-day p, .week-day .meta { color: rgba(253, 250, 245, 0.88); }
+.week-day .chip--today { background: #fdfaf5; color: var(--ink); }

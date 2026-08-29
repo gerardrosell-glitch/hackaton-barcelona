@@ -1,0 +1,60 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   DIRECTION A — "Editorial Paper"
+
+   Reference: Awwwards' own article pages and the restraint of Miu Miu's
+   typography — one voice, enormous size contrast, wide-tracked micro labels,
+   and a ground the design commits to. Nothing decorative; the hierarchy is
+   built from size, weight and air.
+
+   Applied here: the shipped Coach, pushed further in the same direction. More
+   air between blocks, a larger display, hairlines instead of shadow, and the
+   accent kept for the single thing you press. The safest of the three and the
+   easiest to live with six times a day.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --canvas: #eeebe4;
+  --canvas-tint: #e4e0d7;
+  --surface: #ffffff;
+  --surface-sunk: #f3f0e9;
+  --ink: #17140f;
+  --ink-soft: #6a615a;
+  --ink-faint: #6f6862;
+  --line: rgba(23, 20, 15, 0.13);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* Air is the material. Every block gets room to be its own thought. */
+.view-head { margin-bottom: var(--s6); }
+.target { margin-bottom: var(--s6); padding: var(--s5); }
+.quest-strip { margin-bottom: var(--s6); padding: var(--s4) var(--s5); }
+.meal-list { gap: var(--s6); }
+
+/* One voice, sized decisively. */
+.view-head h1 { font-size: clamp(2.4rem, 9vw, 3.6rem); letter-spacing: -0.04em; line-height: 1; }
+.target-figure b { font-size: clamp(3.6rem, 15vw, 5.2rem); letter-spacing: -0.05em; line-height: 0.88; }
+.meal-title { font-size: clamp(1.5rem, 5vw, 2rem); letter-spacing: -0.025em; }
+
+/* Micro labels are small, wide and quiet: the spacing carries them. */
+.eyebrow, .label, .target-label, .meal-slot, .quest-strip-head .label, .basket-section h3 {
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+
+/* Structure from a hairline, never a glow. */
+.card, .chat, .target, .meal-card, .week-day, .live-coach, .quest-strip {
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+/* The rule under a macro row does more work than a filled bar at this size. */
+.bar { height: 5px; background: var(--surface-sunk); }
+.bar i { background: var(--ink); }
+.bar--carbs i { background: var(--ink-soft); }
+.bar--fat i { background: var(--ink-faint); }
+
+.button { border-radius: var(--radius-sm); }
+.button.quiet { border-radius: var(--radius-sm); }

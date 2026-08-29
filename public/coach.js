@@ -535,6 +535,17 @@
   const SHOP_URL = (window.COACH_CONFIG?.shopUrl || "https://www.quotavita.com")
     + "?ref=coach&utm_source=coach&utm_medium=app&utm_campaign=shop_nav";
 
+  /* Design directions can be previewed with ?theme=paper|ink|kitchen. Opt-in
+     only: without the parameter nothing loads and the shipped design stands. */
+  const previewTheme = new URLSearchParams(location.search).get("theme");
+  if (["paper", "ink", "kitchen"].includes(previewTheme)) {
+    const themeLink = document.createElement("link");
+    themeLink.rel = "stylesheet";
+    themeLink.href = "/themes/" + previewTheme + ".css";
+    document.head.append(themeLink);
+    document.documentElement.dataset.previewTheme = previewTheme;
+  }
+
   const topbarHost = chromeHost("topbar", "header", "topbar");
   const tabbarHost = chromeHost("tabbar", "nav", "tabbar", { "aria-label": "Sections", hidden: "" });
   let currentView = "setup";
