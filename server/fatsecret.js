@@ -52,5 +52,6 @@ export async function searchFoods({ search, region = "ES", language = "es", limi
   if (response.status === 401 || response.status === 403) throw new Error("Food search is not enabled for this FatSecret plan.");
   if (!response.ok) throw new Error("Food search is temporarily unavailable.");
   const payload = await response.json();
+  if (payload?.error) throw new Error("Food search is not enabled for this FatSecret plan.");
   return { items: foodResults(payload), provider: "FatSecret", retention: "No search terms or results are stored by Quota Vita." };
 }
