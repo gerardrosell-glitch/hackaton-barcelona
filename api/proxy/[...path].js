@@ -7,12 +7,16 @@ const parseBody = (request) => typeof request.body === "string" ? JSON.parse(req
 const allowedRoutes = new Set(["profile", "day", "meals", "activity", "shopping-list", "meal-photo"]);
 
 function proxyIdentity(request) {
-  if (!verifyShopifyProxySignature(request.query, process.env.SHOPIFY_APP_PROXY_SECRET)) {
+  // `request.query` is augmented by Vercel with the catch-all route segment.
+  // Verify only the original Shopify query string, otherwise a valid proxy
+  // signature would be computed against an extra, unsigned `path` field.
+  const query = Object.fromEntries(new URL(request.url, "https://nutrition-coach.local").searchParams.entries());
+  if (!verifyShopifyProxySignature(query, process.env.SHOPIFY_APP_PROXY_SECRET)) {
     throw new Error("Invalid Shopify App Proxy signature.");
   }
-  const customerId = request.query.logged_in_customer_id;
+  const customerId = query.logged_in_customer_id;
   if (!customerId) throw new Error("Sign in to your Quota Vita account to use Nutrition Coach.");
-  return { customerId: String(customerId), shop: String(request.query.shop) };
+  return { customerId: String(customerId), shop: String(query.shop), query };
 }
 
 async function activeConsent(customerId) {
@@ -35,7 +39,7 @@ export default async function handler(request, response) {
     // runtimes, so derive the endpoint from the request path instead.
     const route = new URL(request.url, "https://nutrition-coach.local").pathname.split("/").filter(Boolean).at(-1);
     if (!allowedRoutes.has(route)) return json(response, 404, { error: "Route not found." });
-    const { customerId, shop } = proxyIdentity(request);
+    const { customerId, shop, query } = proxyIdentity(request);
     const body = parseBody(request);
 
     if (route === "profile" && request.method === "GET") return json(response, 200, { profile: await profile(customerId) });
@@ -64,7 +68,7 @@ export default async function handler(request, response) {
 
     await requireConsent(customerId);
     if (route === "day" && request.method === "GET") {
-      const day = String(request.query.date ?? todayInMadrid());
+      const day = String(query.date ?? todayInMadrid());
       const meals = await supabaseRequest(`meal_entries?customer_id=eq.${encodeURIComponent(customerId)}&eaten_on=eq.${day}&select=calories,protein_g,carbohydrate_g,fat_g,fibre_g`);
       const totals = meals.reduce((sum, item) => ({ calories: sum.calories + (item.calories ?? 0), proteinG: sum.proteinG + (item.protein_g ?? 0), carbohydrateG: sum.carbohydrateG + (item.carbohydrate_g ?? 0), fatG: sum.fatG + (item.fat_g ?? 0), fibreG: sum.fibreG + (item.fibre_g ?? 0) }), { calories: 0, proteinG: 0, carbohydrateG: 0, fatG: 0, fibreG: 0 });
       return json(response, 200, { date: day, totals, profile: await profile(customerId) });

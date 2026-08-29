@@ -61,7 +61,11 @@
 .qv-nutrition-coach__modal p { color: #496760; line-height: 1.45; }
 .qv-nutrition-coach__field { display: grid; gap: 6px; margin: 16px 0; font-size: .86rem; font-weight: 700; }
 .qv-nutrition-coach__field input, .qv-nutrition-coach__field select { width: 100%; padding: 12px; border: 1px solid #a4c4b8; border-radius: 0; background: #fff; color: var(--ink); }
+.qv-nutrition-coach__form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.qv-nutrition-coach__checkbox { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; color: #496760; font-size: .86rem; line-height: 1.45; }
+.qv-nutrition-coach__checkbox input { margin-top: 3px; }
 .qv-nutrition-coach__status { min-height: 1.4em; margin: 12px 0 0; color: var(--moss); font-size: .85rem; font-weight: 700; }
+.qv-nutrition-coach__status[data-error] { color: #a53c2b; }
 .qv-nutrition-coach__privacy { margin-top: 20px; color: #627b74; font-size: .75rem; line-height: 1.4; }
-@media (max-width: 720px) { .qv-nutrition-coach { padding: 12px; } .qv-nutrition-coach__hero, .qv-nutrition-coach__content, .qv-nutrition-coach__footer { grid-template-columns: 1fr; } .qv-nutrition-coach__hero { background: var(--milk); } .qv-nutrition-coach__plate { width: 230px; } }
+@media (max-width: 720px) { .qv-nutrition-coach { padding: 12px; } .qv-nutrition-coach__hero, .qv-nutrition-coach__content, .qv-nutrition-coach__footer, .qv-nutrition-coach__form-grid { grid-template-columns: 1fr; } .qv-nutrition-coach__hero { background: var(--milk); } .qv-nutrition-coach__plate { width: 230px; } }
 @media (prefers-reduced-motion: reduce) { .qv-nutrition-coach *, .qv-nutrition-coach *::before, .qv-nutrition-coach *::after { scroll-behavior: auto !important; transition: none !important; } }

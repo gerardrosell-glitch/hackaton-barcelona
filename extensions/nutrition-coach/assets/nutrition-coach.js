@@ -2,53 +2,57 @@
   const root = document.querySelector("[data-nutrition-coach]");
   if (!root) return;
 
+  const proxyBase = root.dataset.proxyBase || "/apps/nutrition-coach";
+  const signedIn = Boolean(root.dataset.customer);
   const today = new Intl.DateTimeFormat(document.documentElement.lang || "en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-  const demo = { calories: 1240, calorieGoal: 2000, protein: 61, proteinGoal: 90, fibre: 17, fibreGoal: 25 };
+  const suggestions = ["Greek yogurt + berries", "Lentil & tomato salad", "Wholegrain toast + hummus"];
+  let state = { profile: null, day: null };
+  const escape = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" })[character]);
+  const status = (message, error = false) => `<p class="qv-nutrition-coach__status" role="status"${error ? " data-error" : ""}>${escape(message)}</p>`;
+  const request = async (path, options = {}) => {
+    const response = await fetch(`${proxyBase}/${path}`, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
+    const body = response.status === 204 ? null : await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "We could not save that just now.");
+    return body;
+  };
 
-  root.innerHTML = `
-    <div class="qv-nutrition-coach__shell">
-      <header class="qv-nutrition-coach__topline"><div class="qv-nutrition-coach__brand"><i class="qv-nutrition-coach__leaf"></i> Quota Vita / Daily food</div><time class="qv-nutrition-coach__date">${today}</time></header>
-      <div class="qv-nutrition-coach__hero">
-        <div><p class="qv-nutrition-coach__eyebrow">Your everyday guide</p><h1>Make the rest of today count.</h1><p class="qv-nutrition-coach__subhead">A little more protein and fibre will make your day feel balanced. No perfection required.</p><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" data-action="meal">Log a meal</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" data-action="shop">Build my shopping list</button></div></div>
-        <div class="qv-nutrition-coach__plate" aria-label="A visual representation of a balanced plate"><span class="qv-nutrition-coach__plate-label">vegetables<br>protein<br>whole grains<br>healthy fats</span></div>
-      </div>
-      <div class="qv-nutrition-coach__content">
-        <section class="qv-nutrition-coach__panel" aria-labelledby="qv-day-title"><h2 id="qv-day-title">Today’s steady pace</h2><p class="qv-nutrition-coach__caption">These are estimates for general wellbeing, not medical advice.</p><div class="qv-nutrition-coach__rings"><div class="qv-nutrition-coach__ring"><div><b data-calories>${demo.calories.toLocaleString()}</b><span>of ${demo.calorieGoal.toLocaleString()} kcal</span></div></div><div class="qv-nutrition-coach__ring"><div><b data-protein>${demo.protein}g</b><span>of ${demo.proteinGoal}g protein</span></div></div><div class="qv-nutrition-coach__ring"><div><b data-fibre>${demo.fibre}g</b><span>of ${demo.fibreGoal}g fibre</span></div></div></div><p class="qv-nutrition-coach__nudge" data-nudge>Try a handful of chickpeas, skyr, or a bean salad at your next meal. That closes most of today’s protein and fibre gap.</p></section>
-        <section class="qv-nutrition-coach__panel" aria-labelledby="qv-next-title"><h2 id="qv-next-title">Small next moves</h2><p class="qv-nutrition-coach__caption">Chosen from what your day could still use.</p><ul class="qv-nutrition-coach__list" data-next-list><li><span><strong>Greek yogurt + berries</strong><br><small>Protein · fibre</small></span><button data-add="Greek yogurt + berries">I had this</button></li><li><span><strong>Lentil & tomato salad</strong><br><small>Protein · fibre · iron</small></span><button data-add="Lentil & tomato salad">I had this</button></li><li><span><strong>Wholegrain toast + hummus</strong><br><small>Fibre · healthy fats</small></span><button data-add="Wholegrain toast + hummus">I had this</button></li></ul></section>
-      </div>
-      <footer class="qv-nutrition-coach__footer"><section class="qv-nutrition-coach__footer-card"><h3>Eating out?</h3><p>Photograph your plate and we’ll suggest foods and portions for you to check—never a guess presented as fact.</p><button class="qv-nutrition-coach__link-button" data-action="photo">Add restaurant meal</button></section><section class="qv-nutrition-coach__footer-card"><h3>Moving more today?</h3><p>Log a session to see a modest hydration and refuelling suggestion.</p><button class="qv-nutrition-coach__link-button" data-action="activity">Log activity</button></section></footer>
-    </div>
-    <dialog data-dialog><form class="qv-nutrition-coach__modal" method="dialog" data-form></form></dialog>`;
+  function shell(content) {
+    root.innerHTML = `<div class="qv-nutrition-coach__shell"><header class="qv-nutrition-coach__topline"><div class="qv-nutrition-coach__brand"><i class="qv-nutrition-coach__leaf"></i> Quota Vita / Daily food</div><time class="qv-nutrition-coach__date">${today}</time></header>${content}</div><dialog data-dialog><form class="qv-nutrition-coach__modal" method="dialog" data-form></form></dialog>`;
+  }
 
-  const dialog = root.querySelector("[data-dialog]");
-  const form = root.querySelector("[data-form]");
-  const open = (markup) => { form.innerHTML = markup; dialog.showModal(); };
-  const close = () => dialog.close();
-  const shopItems = ["Chickpeas (2 jars)", "Greek yogurt or skyr", "Cherry tomatoes", "Wholegrain bread", "Hummus"];
+  function renderOnboarding(message = "") {
+    shell(`<main class="qv-nutrition-coach__panel"><p class="qv-nutrition-coach__eyebrow">First, a few basics</p><h1>Build your everyday target.</h1><p class="qv-nutrition-coach__caption">Your details create a general-wellbeing estimate. This coach is not medical nutrition advice.</p><form data-onboarding><div class="qv-nutrition-coach__form-grid"><label class="qv-nutrition-coach__field">Age<input name="age" type="number" min="18" max="100" required></label><label class="qv-nutrition-coach__field">Sex (optional)<select name="sex"><option value="">Prefer not to say</option><option value="female">Female</option><option value="male">Male</option></select></label><label class="qv-nutrition-coach__field">Height (cm)<input name="heightCm" type="number" min="120" max="230" required></label><label class="qv-nutrition-coach__field">Weight (kg)<input name="weightKg" type="number" min="35" max="300" step="0.1" required></label><label class="qv-nutrition-coach__field">Usual activity<select name="activity"><option value="sedentary">Mostly sitting</option><option value="light" selected>Lightly active</option><option value="moderate">Moderately active</option><option value="high">Very active</option></select></label><label class="qv-nutrition-coach__field">My goal<select name="goal"><option value="maintain">Maintain wellbeing</option><option value="lose">Gentle weight loss</option><option value="gain">Build weight or strength</option></select></label></div><label class="qv-nutrition-coach__checkbox"><input name="consent" type="checkbox" required> I agree to Quota Vita using these nutrition details to create and save my personal coach plan. I can delete it at any time.</label><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button">Create my target</button></div><div data-onboarding-status>${message}</div></form></main>`);
+    root.querySelector("[data-onboarding]").addEventListener("submit", saveProfile);
+  }
 
-  root.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button) return;
-    const action = button.dataset.action;
-    if (button.dataset.add) {
-      demo.protein += 15; demo.fibre += 5;
-      root.querySelector("[data-protein]").textContent = `${demo.protein}g`;
-      root.querySelector("[data-fibre]").textContent = `${demo.fibre}g`;
-      root.querySelector("[data-nudge]").textContent = `${button.dataset.add} recorded. Nice—your remaining gap is smaller now.`;
-      button.closest("li").remove();
-    }
-    if (action === "meal") open(`<h2>Log something you ate</h2><p>Search, scan a product barcode, or add a restaurant photo. You will confirm every estimate.</p><label class="qv-nutrition-coach__field">What did you have?<input name="meal" autocomplete="off" placeholder="e.g. lentil soup and bread" required></label><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" value="save">Add to today</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" type="button" data-close>Cancel</button></div><p class="qv-nutrition-coach__privacy">Food data is personal. Save only after you have reviewed the entry.</p>`);
-    if (action === "photo") open(`<h2>Add a restaurant meal</h2><p>Choose a photo and we’ll suggest ingredients and portions for your review. It is not a precise calorie measurement.</p><label class="qv-nutrition-coach__field">Meal photo<input name="photo" type="file" accept="image/*" capture="environment" required></label><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" value="scan">Suggest ingredients</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" type="button" data-close>Cancel</button></div>`);
-    if (action === "activity") open(`<h2>Log your movement</h2><p>For longer sessions, we can gently adjust your hydration and refuelling guidance.</p><label class="qv-nutrition-coach__field">Minutes of activity<input name="minutes" type="number" min="1" max="600" value="45" required></label><label class="qv-nutrition-coach__field">Intensity<select name="intensity"><option value="light">Light</option><option value="moderate" selected>Moderate</option><option value="high">High</option></select></label><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" value="save">Save activity</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" type="button" data-close>Cancel</button></div>`);
-    if (action === "shop") open(`<h2>My simple shopping list</h2><p>Based on the meals that would help this week. Always check product labels for allergens.</p><ul class="qv-nutrition-coach__list">${shopItems.map((item) => `<li><span>${item}</span><small>Protein / fibre</small></li>`).join("")}</ul><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" value="save">Save list</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" type="button" data-close>Close</button></div>`);
-    if (button.dataset.close !== undefined) close();
-  });
+  function renderCoach() {
+    const target = state.profile.target || {};
+    const totals = state.day?.totals || {};
+    const proteinGap = Math.max(0, (target.proteinG || 0) - (totals.proteinG || 0));
+    const fibreGap = Math.max(0, (target.fibreG || 0) - (totals.fibreG || 0));
+    shell(`<div class="qv-nutrition-coach__hero"><div><p class="qv-nutrition-coach__eyebrow">Your everyday guide</p><h1>Make the rest of today count.</h1><p class="qv-nutrition-coach__subhead">A simple general-wellbeing estimate, built around your day. No perfection required.</p><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" data-action="meal">Log a meal</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" data-action="shop">Build my shopping list</button></div></div><div class="qv-nutrition-coach__plate" aria-label="A visual representation of a balanced plate"><span class="qv-nutrition-coach__plate-label">vegetables<br>protein<br>whole grains<br>healthy fats</span></div></div><div class="qv-nutrition-coach__content"><section class="qv-nutrition-coach__panel"><h2>Today’s steady pace</h2><p class="qv-nutrition-coach__caption">${escape(target.disclaimer || "Estimated general-wellbeing target; it is not medical advice.")}</p><div class="qv-nutrition-coach__rings"><div class="qv-nutrition-coach__ring"><div><b>${Math.round(totals.calories || 0).toLocaleString()}</b><span>of ${Math.round(target.calories || 0).toLocaleString()} kcal</span></div></div><div class="qv-nutrition-coach__ring"><div><b>${Math.round(totals.proteinG || 0)}g</b><span>of ${Math.round(target.proteinG || 0)}g protein</span></div></div><div class="qv-nutrition-coach__ring"><div><b>${Math.round(totals.fibreG || 0)}g</b><span>of ${Math.round(target.fibreG || 0)}g fibre</span></div></div></div><p class="qv-nutrition-coach__nudge">${proteinGap || fibreGap ? `Try a protein-and-fibre option next: about ${proteinGap}g protein and ${fibreGap}g fibre remain in this estimate.` : "Your estimated protein and fibre target is covered for today."}</p></section><section class="qv-nutrition-coach__panel"><h2>Small next moves</h2><p class="qv-nutrition-coach__caption">Chosen from what your day could still use.</p><ul class="qv-nutrition-coach__list">${suggestions.map((item) => `<li><span><strong>${escape(item)}</strong><br><small>Protein · fibre</small></span><button data-add="${escape(item)}">I had this</button></li>`).join("")}</ul></section></div><footer class="qv-nutrition-coach__footer"><section class="qv-nutrition-coach__footer-card"><h3>Eating out?</h3><p>Restaurant photo suggestions are coming once our EU provider safeguards are complete.</p><button class="qv-nutrition-coach__link-button" data-action="photo">Restaurant meals</button></section><section class="qv-nutrition-coach__footer-card"><h3>Moving more today?</h3><p>Log a session for a modest hydration and refuelling estimate.</p><button class="qv-nutrition-coach__link-button" data-action="activity">Log activity</button></section></footer>`);
+    root.removeEventListener("click", coachClick);
+    root.addEventListener("click", coachClick);
+  }
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const values = new FormData(form);
-    const status = document.createElement("p"); status.className = "qv-nutrition-coach__status";
-    status.textContent = values.get("photo") ? "Photo selected. In production, you’ll review the suggested foods next." : "Saved for today.";
-    form.append(status);
-  });
+  async function saveProfile(event) {
+    event.preventDefault(); const form = event.currentTarget; const output = form.querySelector("[data-onboarding-status]"); output.innerHTML = status("Creating your target…"); const data = new FormData(form);
+    try { const result = await request("profile", { method: "POST", body: JSON.stringify({ age: Number(data.get("age")), sex: data.get("sex") || undefined, heightCm: Number(data.get("heightCm")), weightKg: Number(data.get("weightKg")), activity: data.get("activity"), goal: data.get("goal"), consent: data.get("consent") === "on" }) }); state.profile = result.profile; if (result.needsProfessionalGuidance) return renderOnboarding(status("This coach cannot create a target for this care situation. Please speak with a qualified health professional.", true)); await loadDay(); renderCoach(); } catch (error) { output.innerHTML = status(error.message, true); }
+  }
+  async function loadDay() { const result = await request("day"); state.day = result; state.profile = result.profile || state.profile; }
+  function open(markup) { const dialog = root.querySelector("[data-dialog]"); dialog.querySelector("[data-form]").innerHTML = markup; dialog.showModal(); }
+  function close() { root.querySelector("[data-dialog]").close(); }
+  async function coachClick(event) {
+    const button = event.target.closest("button"); if (!button) return;
+    if (button.dataset.add) return openMeal(button.dataset.add);
+    if (button.dataset.action === "meal") return openMeal();
+    if (button.dataset.action === "activity") return openActivity();
+    if (button.dataset.action === "photo") return open(`<h2>Restaurant meal photos</h2><p>Photo analysis will be enabled after our EU provider data-protection agreement and retention settings are in place.</p><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" type="button" data-close>Close</button></div>`);
+    if (button.dataset.action === "shop") { open(`<h2>My simple shopping list</h2><p>Building your list…</p>`); try { const result = await request("shopping-list"); open(`<h2>My simple shopping list</h2><p>${escape(result.note)}</p><ul class="qv-nutrition-coach__list">${result.items.map((item) => `<li><span>${escape(item)}</span></li>`).join("")}</ul><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" type="button" data-close>Close</button></div>`); } catch (error) { open(`<h2>My simple shopping list</h2>${status(error.message, true)}`); } }
+  }
+  function openMeal(name = "") { open(`<h2>Log something you ate</h2><p>Save a reviewed food entry. Nutrition values can be added once verified from its label or recipe.</p><label class="qv-nutrition-coach__field">What did you have?<input name="name" value="${escape(name)}" autocomplete="off" required></label><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" data-submit="meal">Add to today</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" type="button" data-close>Cancel</button></div><div data-modal-status></div>`); bindModal(); }
+  function openActivity() { open(`<h2>Log your movement</h2><p>For longer sessions, this gives a gentle hydration and refuelling estimate.</p><label class="qv-nutrition-coach__field">Minutes of activity<input name="durationMinutes" type="number" min="1" max="600" value="45" required></label><label class="qv-nutrition-coach__field">Intensity<select name="intensity"><option value="light">Light</option><option value="moderate" selected>Moderate</option><option value="high">High</option></select></label><label class="qv-nutrition-coach__checkbox"><input name="competition" type="checkbox"> I have a competition today</label><div class="qv-nutrition-coach__actions"><button class="qv-nutrition-coach__button" data-submit="activity">Save activity</button><button class="qv-nutrition-coach__button qv-nutrition-coach__button--quiet" type="button" data-close>Cancel</button></div><div data-modal-status></div>`); bindModal(); }
+  function bindModal() { const form = root.querySelector("[data-form]"); form.addEventListener("click", async (event) => { const button = event.target.closest("button"); if (!button) return; if (button.dataset.close !== undefined) return close(); if (!button.dataset.submit) return; event.preventDefault(); const output = form.querySelector("[data-modal-status]"); const data = new FormData(form); output.innerHTML = status("Saving…"); try { if (button.dataset.submit === "meal") { await request("meals", { method: "POST", body: JSON.stringify({ name: data.get("name") }) }); await loadDay(); close(); renderCoach(); } else { const result = await request("activity", { method: "POST", body: JSON.stringify({ durationMinutes: Number(data.get("durationMinutes")), intensity: data.get("intensity"), competition: data.get("competition") === "on" }) }); output.innerHTML = status(`${result.adjustment.note} About ${result.adjustment.hydrationMl} ml extra hydration is estimated.`); } } catch (error) { output.innerHTML = status(error.message, true); } }); }
+  root.addEventListener("click", (event) => { if (event.target.closest("button[data-close]")) close(); });
+  (async () => { if (!signedIn) return shell(`<main class="qv-nutrition-coach__panel"><h1>Your daily food coach</h1><p class="qv-nutrition-coach__subhead">Please sign in to your Quota Vita account to save a personal plan.</p><p class="qv-nutrition-coach__caption">We provide general-wellbeing estimates, not medical advice.</p></main>`); try { const result = await request("profile"); state.profile = result.profile; if (!state.profile || state.profile.needs_professional_guidance) return renderOnboarding(); await loadDay(); renderCoach(); } catch (error) { shell(`<main class="qv-nutrition-coach__panel"><h1>Nutrition Coach is temporarily unavailable.</h1>${status(error.message, true)}</main>`); } })();
 })();
