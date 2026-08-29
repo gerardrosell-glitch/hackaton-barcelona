@@ -823,13 +823,26 @@
         ["Dinner", "Llenties estofades amb verdures i pa de pagès", "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain pa de pagès · salad", "A simple balanced evening meal.", "Llenties estofades"]
       ];
     const scale = target.calories / 2000;
+    /* Rounding each meal independently left one or two grams stranded, so a day
+       where you ate everything still read "1g carbs remaining". Every meal but
+       the last is rounded from its share; the last takes the exact remainder,
+       so the three always add up to the target. */
+    const split = (total, rounding = 1) => {
+      const parts = share.slice(0, -1).map((portion) => Math.round((total * portion) / rounding) * rounding);
+      const used = parts.reduce((sum, part) => sum + part, 0);
+      return [...parts, Math.max(0, total - used)];
+    };
+    const calories = split(target.calories, 25);
+    const protein = split(target.proteinG);
+    const carbohydrate = split(target.carbohydrateG);
+    const fat = split(target.fatG);
     return foods.map(([slot, title, portions, hint, catalanName], index) => ({
       id: slot.toLowerCase(),
       slot, title, portions: scalePortions(portions, scale), hint, catalanName,
-      calories: Math.round(target.calories * share[index] / 25) * 25,
-      proteinG: Math.round(target.proteinG * share[index]),
-      carbohydrateG: Math.round(target.carbohydrateG * share[index]),
-      fatG: Math.round(target.fatG * share[index])
+      calories: calories[index],
+      proteinG: protein[index],
+      carbohydrateG: carbohydrate[index],
+      fatG: fat[index]
     }));
   }
 
