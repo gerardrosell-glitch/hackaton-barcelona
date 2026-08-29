@@ -9,3 +9,4 @@
 - A label such as “proposal” is not an action. For a daily meal plan, use explicit outcomes (eat, restaurant, skip) and show one meal at a time in the flow.
 - Keep user-provided health details local by default; a live AI Coach needs a clear disclosure and server-side credentials, with a general-wellbeing safety boundary.
 - When removing a layout container, first remove or relocate every script dependency on that container; otherwise one null DOM lookup can blank the entire application.
+- In a guided chat, bound visible history to the screen’s intended rhythm; preserving all answers can break the composition even when the data is saved.
