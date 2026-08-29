@@ -27,9 +27,11 @@
     "General wellbeing guidance only. It does not provide medical advice.": "Orientació només per al benestar general. No ofereix assessorament mèdic.",
     "Your Coach": "El teu coach",
     "Let’s build today’s plan.": "Creem el pla d'avui.",
+    "Let’s build your daily meal plan.": "Creem el teu pla d’àpats diari.",
     "I will ask one thing at a time. You can restart whenever you want.": "Et faré una pregunta cada vegada. Pots començar de nou quan vulguis.",
     "Hi, I’m your Quota Vita Coach. I’ll make a practical meal plan around you—not a generic diet.": "Hola, sóc el teu Coach de Quota Vita. Et prepararé un pla d’àpats pràctic per a tu, no una dieta genèrica.",
     "One question at a time. Your plan adapts to the day you actually have.": "Una pregunta cada vegada. El pla s’adapta al dia que tens de veritat.",
+    "I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.": "Et crearé les calories i els macronutrients d’avui, tres idees d’àpats i una cistella de compra exacta per a un dia.",
     "How old are you?": "Quants anys tens?",
     "For adults aged 18 to 100.": "Per a adults de 18 a 100 anys.",
     "What is your height in centimetres?": "Quina alçada tens en centímetres?",
@@ -141,8 +143,8 @@
       const input = question.choices
         ? '<div class="composer"><span class="composer-label">Choose one reply</span><div class="quick-replies">' + question.choices.map(([label, value]) => '<button data-answer="' + esc(value) + '">' + esc(label) + "</button>").join("") + "</div></div>"
         : '<form class="composer chat-input" id="chat-form"><input id="chat-answer" aria-label="' + esc(question.label) + '" placeholder="Type your answer…" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" type="submit">Send</button></form>';
-      const intro = index === 0 ? '<div class="bubble coach coach-intro">Hi, I’m your Quota Vita Coach. I’ll make a practical meal plan around you—not a generic diet.</div>' : "";
-      root.innerHTML = '<section class="coach-workspace"><video class="coach-video" autoplay muted loop playsinline aria-hidden="true"><source src="https://cdn.shopify.com/s/files/1/0943/8042/5563/files/qv-projecte-720.mp4?v=1787404053" type="video/mp4"></video>' + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build today’s plan.</h2><p class="lead">One question at a time. Your plan adapts to the day you actually have.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
+      const intro = index === 0 ? '<div class="bubble coach coach-intro">Hi, I’m your Quota Vita Coach. I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.<span class="meta">I’ll tailor it to your body, usual activity, goal and today’s training—not give you a generic diet.</span></div>' : "";
+      root.innerHTML = '<section class="coach-workspace"><video class="coach-video" autoplay muted loop playsinline aria-hidden="true"><source src="https://cdn.shopify.com/s/files/1/0943/8042/5563/files/qv-projecte-720.mp4?v=1787404053" type="video/mp4"></video>' + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
       root.querySelector("#cancel").onclick = welcome;
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
       const form = root.querySelector("#chat-form");
