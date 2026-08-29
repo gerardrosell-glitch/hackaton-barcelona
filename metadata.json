@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.3",
+  "checkpoint_id": "01M17V13YYKM5A8JCMYP2RAB4C",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "api/coach-chat.js",
+    "api/daily-meals.js",
+    "package.json",
+    "public/assets/icon-180.png",
+    "public/assets/icon-192.png",
+    "public/assets/icon-512.png",
+    "public/assets/icon-maskable-512.png",
+    "public/assets/og-coach.png",
+    "public/coach.css",
+    "public/coach.js",
+    "public/manifest.webmanifest",
+    "public/sw.js",
+    "scripts/dev.mjs",
+    "server/agent-docs.js",
+    "server/home.js",
+    "server/http.js",
+    "server/markdown.js",
+    "server/negotiate.js",
+    "server/not-found.js",
+    "server/nutrition-store.js",
+    "server/openapi.js",
+    "server/session.js",
+    "server/shop.js",
+    "server/site.js",
+    "server/yaml.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
