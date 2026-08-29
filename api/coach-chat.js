@@ -44,7 +44,7 @@ export default async function handler(request, response) {
     const result = await openaiResponse.json().catch(() => ({}));
     const reply = textFromResponse(result);
     if (!openaiResponse.ok || !reply) {
-      console.error("OpenAI Coach request failed", { status: openaiResponse.status, error: result?.error?.message });
+      console.error("OpenAI Coach request failed", { status: openaiResponse.status, error: result?.error?.message, statusDetail: result?.status, outputTypes: result?.output?.map((item) => item?.type) });
       return response.status(502).json({ error: "The live Coach is temporarily unavailable. Please try again." });
     }
     response.setHeader("Cache-Control", "private, no-store");
