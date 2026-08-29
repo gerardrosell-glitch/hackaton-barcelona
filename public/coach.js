@@ -10,7 +10,7 @@
   chatStyle.textContent = ".coach-workspace{position:relative;isolation:isolate;min-height:760px;overflow:hidden;border-radius:26px;padding:clamp(24px,4vw,48px) clamp(18px,7vw,96px);background:#1d6254;color:#fff}.coach-workspace::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(9,46,39,.9),rgba(20,91,77,.72) 48%,rgba(255,106,70,.58))}.coach-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.coach-workspace .stepper{margin:0 auto 20px;max-width:760px}.coach-workspace .eyebrow,.coach-workspace .lead{color:#fff}.coach-workspace h2{max-width:760px;margin:0 auto 5px;color:#fff;font-size:clamp(2rem,4vw,3.5rem);line-height:1.02;text-align:left}.coach-workspace>.eyebrow,.coach-workspace>.lead{max-width:760px;margin-left:auto;margin-right:auto;text-align:left}.coach-workspace>.lead{margin-top:0;margin-bottom:22px;font-size:1rem}.chat{max-width:760px;min-height:440px;margin:0 auto;padding:18px;border:1px solid rgba(255,255,255,.35);border-radius:24px;background:rgba(8,43,36,.44);display:grid;align-content:start;gap:13px;backdrop-filter:blur(10px)}.bubble{max-width:78%;padding:14px 17px;border-radius:19px;line-height:1.45;box-shadow:0 10px 24px rgba(4,37,31,.14)}.bubble.coach{justify-self:start;background:rgba(255,255,255,.97);color:#173e36;border-bottom-left-radius:5px}.bubble.user{justify-self:end;background:#123e35;color:#fff;border:1px solid rgba(255,255,255,.35);border-bottom-right-radius:5px}.bubble .meta{display:block;margin-top:6px;color:#55736d;font-size:.9em}.coach-intro{font-size:1.04rem}.composer{width:100%;box-sizing:border-box;margin:8px 0 0;padding:11px;border:1px solid rgba(255,255,255,.8);border-radius:22px;background:rgba(255,255,255,.98);box-shadow:0 18px 42px rgba(4,37,31,.2)}.composer-label{display:block;padding:2px 7px 9px;color:#41675f;font-weight:700;font-size:.88rem}.quick-replies{display:flex;flex-wrap:wrap;gap:8px}.quick-replies button{border:1px solid #8fb9ab;border-radius:999px;background:#f6fbf8;color:#173e36;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}.quick-replies button:hover{background:#dceee6}.chat-input{display:flex;gap:8px}.chat-input input{min-width:0;flex:1;border:0;background:transparent;padding:12px 10px;color:#173e36;font:inherit;font-size:1rem;outline:none}.chat-input .button{border-radius:15px}.chat-cancel{display:block;margin:16px auto 0;background:transparent!important;border-color:rgba(255,255,255,.8)!important;color:#fff!important}.coach-workspace .privacy{margin:16px auto 0;color:#fff;text-align:center}.coach-workspace .actions{justify-content:center}@media(max-width:600px){.coach-workspace{min-height:680px;border-radius:0;padding:28px 16px}.coach-workspace h2{font-size:2.25rem}.chat{min-height:455px;padding:13px}.bubble{max-width:92%}.chat-input .button{padding:11px 14px}}";
   document.head.append(chatStyle);
   const conversationOverflowStyle = document.createElement("style");
-  conversationOverflowStyle.textContent = ".coach-workspace{overflow:visible!important}";
+  conversationOverflowStyle.textContent = ".coach-workspace{overflow:visible!important}.chat-page{max-width:760px;margin:0 auto}.chat-page .bubble{max-width:100%;box-sizing:border-box}.chat-page .day{display:grid;gap:16px}.chat-page .meal-list{display:grid;gap:14px}.meal-image{width:100%;height:190px;object-fit:cover;border-radius:12px;margin:0 0 12px}.weekly-grid{display:grid;gap:12px}.week-day{padding:14px;border:1px solid #c9d7c7;border-radius:12px;background:#f7fbf8}.week-day h3{margin:0 0 6px}.chat-page .privacy{color:#55736d;text-align:left}";
   document.head.append(conversationOverflowStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
@@ -35,6 +35,11 @@
     "Hi, I’m your Quota Vita Coach. I’ll make a practical meal plan around you—not a generic diet.": "Hola, sóc el teu Coach de Quota Vita. Et prepararé un pla d’àpats pràctic per a tu, no una dieta genèrica.",
     "One question at a time. Your plan adapts to the day you actually have.": "Una pregunta cada vegada. El pla s’adapta al dia que tens de veritat.",
     "I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.": "Et crearé les calories i els macronutrients d’avui, tres idees d’àpats i una cistella de compra exacta per a un dia.",
+    "Personal calories and macros, three meals and a one-day shopping basket.": "Calories i macronutrients personalitzats, tres àpats i una cistella de compra per a un dia.",
+    "Hi, I’m your Quota Vita Coach. I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.": "Hola, soc el teu Coach de Quota Vita. Et crearé les calories i els macronutrients d’avui, tres idees d’àpats i una cistella de compra exacta per a un dia.",
+    "I’ll tailor it to your body, usual activity, goal and today’s training—not give you a generic diet.": "L’adaptaré al teu cos, activitat habitual, objectiu i entrenament d’avui; no serà una dieta genèrica.",
+    "Mostly sitting = little planned movement. Lightly active = walking or light exercise 1–2 days/week. Regular training = exercise 3–4 days/week. Frequent training = demanding exercise 5+ days/week.": "Principalment assegut = poc moviment planificat. Activitat lleugera = caminar o exercici suau 1–2 dies per setmana. Entrenament regular = exercici 3–4 dies per setmana. Entrenament freqüent = exercici exigent 5 o més dies per setmana.",
+    "Lose fat = a gentle calorie reduction. Gain muscle = a small calorie increase and more protein. Maintain = steady energy and weight. These are general-wellbeing estimates, not clinical advice.": "Perdre greix = una reducció calòrica moderada. Guanyar múscul = un petit augment de calories i més proteïna. Mantenir = energia i pes estables. Són estimacions de benestar general, no assessorament clínic.",
     "How old are you?": "Quants anys tens?",
     "For adults aged 18 to 100.": "Per a adults de 18 a 100 anys.",
     "What is your height in centimetres?": "Quina alçada tens en centímetres?",
@@ -136,8 +141,8 @@
       { key: "heightCm", label: "What is your height in centimetres?", hint: "For example, 175.", type: "number", min: 120, max: 230 },
       { key: "weightKg", label: "What is your weight in kilograms?", hint: "This lets us estimate protein and energy needs.", type: "number", min: 35, max: 300, step: "0.1" },
       { key: "sex", label: "Which option should we use for the energy estimate?", hint: "You can choose “prefer not to say”; we will use a midpoint estimate.", choices: [["Female", "female"], ["Male", "male"], ["Prefer not to say", ""]] },
-      { key: "activity", label: "What does a usual week look like?", hint: "This is your normal week, not today: mostly sitting, light movement, regular training, or frequent training.", choices: [["Mostly sitting", "sedentary"], ["Lightly active", "light"], ["Regular training", "moderate"], ["Frequent training", "high"]] },
-      { key: "goal", label: "What would you like to work toward?", hint: "This applies only a gentle starting calorie adjustment. It is not a clinical prescription.", choices: [["Lose fat", "lose"], ["Gain muscle", "gain"], ["Maintain", "maintain"]] }
+      { key: "activity", label: "What does a usual week look like?", hint: "Mostly sitting = little planned movement. Lightly active = walking or light exercise 1–2 days/week. Regular training = exercise 3–4 days/week. Frequent training = demanding exercise 5+ days/week.", choices: [["Mostly sitting", "sedentary"], ["Lightly active", "light"], ["Regular training", "moderate"], ["Frequent training", "high"]] },
+      { key: "goal", label: "What would you like to work toward?", hint: "Lose fat = a gentle calorie reduction. Gain muscle = a small calorie increase and more protein. Maintain = steady energy and weight. These are general-wellbeing estimates, not clinical advice.", choices: [["Lose fat", "lose"], ["Gain muscle", "gain"], ["Maintain", "maintain"]] }
     ];
     let index = 0;
     const history = () => questions.slice(0, index).map((question) => '<div class="bubble coach">' + esc(question.label) + '<span class="meta">' + esc(question.hint) + '</span></div><div class="bubble user">' + esc(question.choices ? question.choices.find((item) => item[1] === answers[question.key])?.[0] || "Prefer not to say" : answers[question.key]) + "</div>").join("");
@@ -145,11 +150,17 @@
       const question = questions[index];
       const input = question.choices
         ? '<div class="composer"><span class="composer-label">Choose one reply</span><div class="quick-replies">' + question.choices.map(([label, value]) => '<button data-answer="' + esc(value) + '">' + esc(label) + "</button>").join("") + "</div></div>"
-        : '<form class="composer chat-input" id="chat-form"><input id="chat-answer" aria-label="' + esc(question.label) + '" placeholder="Type your answer…" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" type="submit">Send</button></form>';
+        : '<form class="composer chat-input" id="chat-form"><input id="chat-answer" aria-label="' + esc(question.label) + '" placeholder="' + (language === "ca" ? "Escriu la resposta…" : "Type your answer…") + '" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" type="submit">Send</button></form>';
       const intro = index === 0 ? '<div class="bubble coach coach-intro">Hi, I’m your Quota Vita Coach. I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.<span class="meta">I’ll tailor it to your body, usual activity, goal and today’s training—not give you a generic diet.</span></div>' : "";
       root.innerHTML = '<section class="coach-workspace"><video class="coach-video" autoplay muted loop playsinline aria-hidden="true"><source src="https://cdn.shopify.com/videos/c/o/v/d73f2a51730245db9f2b5066a1638686.mp4" type="video/mp4"></video>' + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
       root.querySelector("#cancel").onclick = welcome;
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
+      root.onkeydown = (event) => {
+        if (event.target.matches("input,textarea")) return;
+        const choice = Number(event.key) - 1;
+        const choices = [...root.querySelectorAll("[data-answer]")];
+        if (choice >= 0 && choice < choices.length) { event.preventDefault(); advance(choices[choice].dataset.answer); }
+      };
       const form = root.querySelector("#chat-form");
       if (form) form.onsubmit = (event) => { event.preventDefault(); advance(root.querySelector("#chat-answer").value); };
       requestAnimationFrame(() => {
@@ -163,20 +174,23 @@
       answers[question.key] = question.choices ? value : Number(value);
       index += 1;
       if (index < questions.length) return render();
-      root.innerHTML = stepper(1) + '<section class="chat"><div class="bubble coach">I have what I need. Would you like to keep this plan on this device?<span class="meta">It stays in this browser and can be deleted with Start over. Nothing is saved to an account.</span></div></section><div class="actions"><button class="button" id="save-device">Create and save my plan</button><button class="button quiet" id="one-time">Create a one-time plan</button></div>';
-      const finish = (persist) => {
+      root.innerHTML = coachShell("Your daily meal plan is ready.", "Save it on this device, then tell your Coach about today’s movement.", '<div class="bubble coach">I have what I need. I’ll now create and save your personalised daily meal plan, including meals and your shopping basket.<span class="meta">It stays in this browser and can be deleted with Start over. Nothing is saved to an account.</span></div><div class="actions"><button class="button" id="save-device">Create and save my plan</button></div>');
+      const finish = () => {
         state = { profile: answers, activity: "rest", meals: {} };
-        if (persist) save(); else localStorage.removeItem(storageKey);
+        save();
         training();
       };
-      root.querySelector("#save-device").onclick = () => finish(true);
-      root.querySelector("#one-time").onclick = () => finish(false);
+      root.querySelector("#save-device").onclick = finish;
     };
     render();
   }
 
+  function coachShell(title, lead, content) {
+    return '<section class="coach-workspace"><video class="coach-video" autoplay muted loop playsinline aria-hidden="true"><source src="https://cdn.shopify.com/videos/c/o/v/d73f2a51730245db9f2b5066a1638686.mp4" type="video/mp4"></video><p class="eyebrow">Your Coach</p><h2>' + esc(title) + '</h2><p class="lead">' + esc(lead) + '</p><section class="chat chat-page" aria-live="polite">' + content + '</section></section>';
+  }
+
   function training() {
-    root.innerHTML = stepper(2) + '<p class="eyebrow">2 / Today’s movement</p><h2>Are you going to train today?</h2><p class="lead">Choose what best describes today. We will adjust the meal plan, carbohydrate guidance and food quantities.</p>' + buttons([["Rest or recovery day", "rest"], ["Walk", "walk"], ["Pilates", "pilates"], ["Strength training", "strength"], ["Run", "run"]]) + '<button class="button quiet" id="back">Back</button>';
+    root.innerHTML = coachShell("Are you going to train today?", "Your meals and quantities will adapt to today’s movement.", '<div class="bubble coach">Choose what best describes today. We will adjust the meal plan, carbohydrate guidance and food quantities.</div>' + buttons([["Rest or recovery day", "rest"], ["Walk", "walk"], ["Pilates", "pilates"], ["Strength training", "strength"], ["Run", "run"]]) + '<button class="button quiet" id="back">Back</button>');
     root.querySelector("#back").onclick = profile;
     root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { state.activity = button.dataset.choice; state.meals = {}; save(); dashboard(); });
   }
@@ -215,9 +229,11 @@
     const plan = currentPlan();
     const eaten = totals(plan);
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
-    root.innerHTML = stepper(3) + '<p class="eyebrow">3 / Your daily plan</p><h2>' + esc(activityLabels[state.activity]) + ' meal plan.</h2><p class="lead">' + (state.activity === "run" ? "Add familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Spread protein across the day and include carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.") + '</p><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download meal plan PDF</button><button class="button quiet" id="basket">My buying basket</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button><a class="button quiet" href="https://www.quotavita.com/account">Sign in to your Quota Vita account</a></div><p class="privacy">PDF downloads are created in your browser. This anonymous plan is stored only in this browser. Account-based cloud saving is available only after explicit consent and final Shopify account integration.</p>' + methodology();
+    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">See weekly meals</button><button class="button quiet" id="week-basket">Weekly shopping basket</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
+    root.querySelector("#week-plan").onclick = weeklyPlan;
+    root.querySelector("#week-basket").onclick = weeklyBasket;
     root.querySelector("#change-training").onclick = training;
     root.querySelector("#start-over").onclick = () => { localStorage.removeItem(storageKey); state = { profile: null, activity: "rest", meals: {} }; welcome(); };
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
@@ -227,12 +243,25 @@
     const saved = state.meals[meal.id];
     const status = saved?.status;
     const label = status === "restaurant" ? "Restaurant meal logged" : status === "eaten" ? "Logged" : "Daily proposal";
-    return '<article class="meal ' + (status || "") + '"><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p><div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">' + label + "</button></div></article>";
+    const images = { breakfast: "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1000&q=80", lunch: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1000&q=80", dinner: "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1000&q=80" };
+    return '<article class="meal ' + (status || "") + '"><img class="meal-image" src="' + images[meal.id] + '" alt="' + esc(meal.title) + '"><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p><div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">' + label + "</button></div></article>";
+  }
+
+  function weeklyPlan() {
+    const plan = currentPlan(); const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    root.innerHTML = coachShell("Your weekly meal plan", "Seven practical daily plans using your current calorie and macro target.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day) => '<article class="week-day"><h3>' + day + '</h3><p>' + plan.meals.map((meal) => '<strong>' + meal.slot + ':</strong> ' + esc(meal.title)).join(" · ") + '</p></article>').join("") + '</div><div class="actions"><button class="button" id="weekly-basket">See weekly shopping basket</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.querySelector("#weekly-basket").onclick = weeklyBasket; root.querySelector("#back").onclick = dashboard;
+  }
+
+  function weeklyBasket() {
+    const items = basketItems(currentPlan());
+    root.innerHTML = coachShell("Your weekly shopping basket", "Quantities for seven days of your current meal plan.", '<div class="bubble coach full-card"><ul class="basket">' + items.map(([amount, name]) => '<li><strong>' + (typeof amount === "number" && amount !== 1 ? amount * 7 + "g" : amount * 7) + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.querySelector("#back").onclick = dashboard;
   }
 
   function checkIn(id, message = "") {
     const plan = currentPlan(); const meal = plan.meals.find((item) => item.id === id);
-    root.innerHTML = `<p class="eyebrow">Daily check-in</p><h2>${esc(meal.slot)} check-in.</h2><p class="lead">${esc(meal.title)}</p><div class="actions"><button class="button" id="eaten">I ate this proposal</button><button class="button quiet" id="restaurant">I ate at a restaurant</button><button class="button quiet" id="skip">I skipped it</button></div>${message}<button class="button quiet" id="back">Back to plan</button>`;
+    root.innerHTML = coachShell(meal.slot + " check-in", meal.title, `<div class="bubble coach">Did you eat this proposed meal?</div><div class="actions"><button class="button" id="eaten">I ate this proposal</button><button class="button quiet" id="restaurant">I ate at a restaurant</button><button class="button quiet" id="skip">I skipped it</button></div>${message}<button class="button quiet" id="back">Back to plan</button>`);
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#eaten").onclick = () => { state.meals[id] = { status: "eaten" }; save(); dashboard(); };
     root.querySelector("#skip").onclick = () => { state.meals[id] = { status: "skipped" }; save(); dashboard(); };
@@ -241,7 +270,7 @@
 
   function restaurant(id, meal) {
     capturedMealImage = null;
-    root.innerHTML = '<p class="eyebrow">Restaurant meal</p><h2>Scan the meal, then adapt the day.</h2><p class="lead">Take a clear photo of the plate. On a phone, “Take photo” opens the rear camera; on desktop, it opens your camera if available.</p><div class="actions"><button class="button" id="open-camera">Take photo</button><label class="button quiet" for="photo">Choose photo</label><input id="photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="camera-area"></div><label class="field"><input id="logmeal-consent" type="checkbox"> I authorise Quota Vita to send this one meal photo to LogMeal for automated analysis. Quota Vita does not store the image.</label><div class="actions"><button class="button" id="scan">Scan meal</button><button class="button quiet" id="manual">Mark as restaurant meal without scanning</button></div><div id="feedback"></div><button class="button quiet" id="back">Back</button>';
+    root.innerHTML = coachShell("Restaurant meal", "Scan the meal, then adapt the rest of today’s plan.", '<div class="bubble coach">Take a clear photo of the plate. On a phone, Take photo opens the rear camera; on desktop, it opens your camera if available.</div><div class="actions"><button class="button" id="open-camera">Take photo</button><label class="button quiet" for="photo">Choose photo</label><input id="photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="camera-area"></div><label class="field"><input id="logmeal-consent" type="checkbox"> I authorise Quota Vita to send this one meal photo to LogMeal for automated analysis. Quota Vita does not store the image.</label><div class="actions"><button class="button" id="scan">Scan meal</button><button class="button quiet" id="manual">Mark as restaurant meal without scanning</button></div><div id="feedback"></div><button class="button quiet" id="back">Back</button>');
     const stopCamera = () => { cameraStream?.getTracks().forEach((track) => track.stop()); cameraStream = null; };
     root.querySelector("#back").onclick = () => { stopCamera(); checkIn(id); };
     root.querySelector("#manual").onclick = () => { state.meals[id] = { status: "restaurant" }; save(); dashboard(); };
@@ -285,7 +314,7 @@
 
   function basket() {
     const plan = currentPlan(); const items = basketItems(plan);
-    root.innerHTML = '<p class="eyebrow">Your one-day basket</p><h2>Buy what today’s plan needs.</h2><p class="lead">Quantities are for one person and this specific plan. Check labels for allergens and adjust for household portions.</p><ul class="basket">' + items.map(([amount, name]) => "<li><strong>" + amount + (typeof amount === "number" && amount !== 1 ? "g" : "") + "</strong> " + esc(name) + "</li>").join("") + '</ul><div class="actions"><button class="button" id="basket-pdf">Download basket PDF</button><button class="button quiet" id="back">Back to daily plan</button><button class="button quiet" id="clear">Delete this device plan</button></div>';
+    root.innerHTML = coachShell("Your one-day shopping basket", "Quantities are for one person and this specific plan.", '<div class="bubble coach full-card"><ul class="basket">' + items.map(([amount, name]) => "<li><strong>" + amount + (typeof amount === "number" && amount !== 1 ? "g" : "") + "</strong> " + esc(name) + "</li>").join("") + '</ul><div class="actions"><button class="button" id="basket-pdf">Download basket PDF</button><button class="button quiet" id="back">Back to daily plan</button><button class="button quiet" id="clear">Delete this device plan</button></div></div>');
     root.querySelector("#basket-pdf").onclick = () => printPdf("basket");
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#clear").onclick = () => { localStorage.removeItem(storageKey); state = { profile: null, activity: "rest", meals: {} }; welcome(); };
