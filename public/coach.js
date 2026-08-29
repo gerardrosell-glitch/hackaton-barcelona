@@ -60,21 +60,45 @@
     root.querySelector("#begin").onclick = profile;
   }
 
-  function profile(error = "") {
-    const existing = state.profile || {};
-    root.innerHTML = stepper(1) + '<p class="eyebrow">1 / Your starting point</p><h2>First, a few basics.</h2><p class="lead">These give us a sensible daily calorie and macro estimate.</p><form id="profile-form" class="grid"><label class="field">Age<input name="age" type="number" min="18" max="100" value="' + esc(existing.age || "") + '" required></label><label class="field">Sex<select name="sex"><option value="">Prefer not to say</option><option value="female"' + (existing.sex === "female" ? " selected" : "") + '>Female</option><option value="male"' + (existing.sex === "male" ? " selected" : "") + '>Male</option></select></label><label class="field">Height (cm)<input name="heightCm" type="number" min="120" max="230" value="' + esc(existing.heightCm || "") + '" required></label><label class="field">Weight (kg)<input name="weightKg" type="number" min="35" max="300" step=".1" value="' + esc(existing.weightKg || "") + '" required></label><label class="field">Usual sport level<select name="activity"><option value="sedentary">Mostly sitting</option><option value="light"' + (!existing.activity || existing.activity === "light" ? " selected" : "") + '>Lightly active</option><option value="moderate"' + (existing.activity === "moderate" ? " selected" : "") + '>Regular training</option><option value="high"' + (existing.activity === "high" ? " selected" : "") + '>Frequent training</option></select><small>Your normal week, not today: choose mostly sitting, light movement, regular training, or frequent training.</small></label><label class="field">Goal<select name="goal"><option value="lose"' + (existing.goal === "lose" ? " selected" : "") + '>Lose fat</option><option value="gain"' + (existing.goal === "gain" ? " selected" : "") + '>Gain muscle</option><option value="maintain"' + (!existing.goal || existing.goal === "maintain" ? " selected" : "") + '>Maintain</option></select><small>This makes a gentle starting calorie adjustment. It is not a clinical weight-loss or muscle-building prescription.</small></label><label class="field full"><input name="deviceConsent" type="checkbox" required> Store this plan privately on this device. You can delete it any time.</label><div class="actions"><button class="button">Continue</button><button class="button quiet" type="button" id="cancel">Cancel</button></div></form>' + error;
-    root.querySelector("#cancel").onclick = welcome;
-    root.querySelector("#profile-form").onsubmit = (event) => {
-      event.preventDefault();
-      const values = new FormData(event.currentTarget);
-      state = {
-        profile: { age: Number(values.get("age")), sex: values.get("sex"), heightCm: Number(values.get("heightCm")), weightKg: Number(values.get("weightKg")), activity: values.get("activity"), goal: values.get("goal") },
-        activity: state.activity || "rest",
-        meals: {}
-      };
-      save();
-      training();
+  function profile() {
+    const answers = { ...(state.profile || {}) };
+    const questions = [
+      { key: "age", label: "How old are you?", hint: "For adults aged 18 to 100.", type: "number", min: 18, max: 100 },
+      { key: "heightCm", label: "What is your height in centimetres?", hint: "For example, 175.", type: "number", min: 120, max: 230 },
+      { key: "weightKg", label: "What is your weight in kilograms?", hint: "This lets us estimate protein and energy needs.", type: "number", min: 35, max: 300, step: "0.1" },
+      { key: "sex", label: "Which option should we use for the energy estimate?", hint: "You can choose “prefer not to say”; we will use a midpoint estimate.", choices: [["Female", "female"], ["Male", "male"], ["Prefer not to say", ""]] },
+      { key: "activity", label: "What does a usual week look like?", hint: "This is your normal week, not today: mostly sitting, light movement, regular training, or frequent training.", choices: [["Mostly sitting", "sedentary"], ["Lightly active", "light"], ["Regular training", "moderate"], ["Frequent training", "high"]] },
+      { key: "goal", label: "What would you like to work toward?", hint: "This applies only a gentle starting calorie adjustment. It is not a clinical prescription.", choices: [["Lose fat", "lose"], ["Gain muscle", "gain"], ["Maintain", "maintain"]] }
+    ];
+    let index = 0;
+    const history = () => questions.slice(0, index).map((question) => '<p class="status"><strong>You:</strong> ' + esc(question.choices ? question.choices.find((item) => item[1] === answers[question.key])?.[0] || "Prefer not to say" : answers[question.key]) + "</p>").join("");
+    const render = () => {
+      const question = questions[index];
+      const input = question.choices
+        ? '<div class="options">' + question.choices.map(([label, value]) => '<button class="option" data-answer="' + esc(value) + '">' + esc(label) + "</button>").join("") + "</div>"
+        : '<div class="actions"><input id="chat-answer" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" id="chat-next">Continue</button></div>';
+      root.innerHTML = stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build today’s plan.</h2><p class="lead">I will ask one thing at a time. You can restart whenever you want.</p><section aria-live="polite">' + history() + `<p class="status"><strong>Coach:</strong> ${esc(question.label)}<br><span class="meta">${esc(question.hint)}</span></p>` + input + '</section><button class="button quiet" id="cancel">Cancel</button>';
+      root.querySelector("#cancel").onclick = welcome;
+      root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
+      const next = root.querySelector("#chat-next");
+      if (next) next.onclick = () => advance(root.querySelector("#chat-answer").value);
     };
+    const advance = (value) => {
+      const question = questions[index];
+      if (!question.choices && (!Number.isFinite(Number(value)) || Number(value) < question.min || Number(value) > question.max)) return render();
+      answers[question.key] = question.choices ? value : Number(value);
+      index += 1;
+      if (index < questions.length) return render();
+      root.innerHTML = stepper(1) + '<p class="status"><strong>Coach:</strong> I have what I need. Would you like to keep this plan on this device?</p><p class="lead">It stays in this browser and can be deleted with Start over. Nothing is saved to an account.</p><div class="actions"><button class="button" id="save-device">Create and save my plan</button><button class="button quiet" id="one-time">Create a one-time plan</button></div>';
+      const finish = (persist) => {
+        state = { profile: answers, activity: "rest", meals: {} };
+        if (persist) save(); else localStorage.removeItem(storageKey);
+        training();
+      };
+      root.querySelector("#save-device").onclick = () => finish(true);
+      root.querySelector("#one-time").onclick = () => finish(false);
+    };
+    render();
   }
 
   function training() {
@@ -117,10 +141,11 @@
     const plan = currentPlan();
     const eaten = totals(plan);
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
-    root.innerHTML = stepper(3) + '<p class="eyebrow">3 / Your daily plan</p><h2>' + esc(activityLabels[state.activity]) + ' meal plan.</h2><p class="lead">' + (state.activity === "run" ? "Add familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Spread protein across the day and include carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.") + '</p><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download meal plan PDF</button><button class="button quiet" id="basket">My buying basket</button><button class="button quiet" id="change-training">Change training</button><a class="button quiet" href="https://www.quotavita.com/account">Sign in to your Quota Vita account</a></div><p class="privacy">PDF downloads are created in your browser. This anonymous plan is stored only in this browser. Account-based cloud saving is available only after explicit consent and final Shopify account integration.</p>' + methodology();
+    root.innerHTML = stepper(3) + '<p class="eyebrow">3 / Your daily plan</p><h2>' + esc(activityLabels[state.activity]) + ' meal plan.</h2><p class="lead">' + (state.activity === "run" ? "Add familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Spread protein across the day and include carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.") + '</p><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download meal plan PDF</button><button class="button quiet" id="basket">My buying basket</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button><a class="button quiet" href="https://www.quotavita.com/account">Sign in to your Quota Vita account</a></div><p class="privacy">PDF downloads are created in your browser. This anonymous plan is stored only in this browser. Account-based cloud saving is available only after explicit consent and final Shopify account integration.</p>' + methodology();
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
     root.querySelector("#change-training").onclick = training;
+    root.querySelector("#start-over").onclick = () => { localStorage.removeItem(storageKey); state = { profile: null, activity: "rest", meals: {} }; welcome(); };
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
   }
 
@@ -142,7 +167,7 @@
 
   function restaurant(id, meal) {
     capturedMealImage = null;
-    root.innerHTML = '<p class="eyebrow">Restaurant meal</p><h2>Scan the meal, then adapt the day.</h2><p class="lead">Take a clear photo of the plate. On a phone, “Take photo” opens the rear camera; on desktop, it opens your camera if available. The image is only sent when you press “Scan meal.”</p><div class="actions"><button class="button" id="open-camera">Take photo</button><label class="button quiet" for="photo">Choose photo</label><input id="photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="camera-area"></div><div class="actions"><button class="button" id="scan">Scan meal</button><button class="button quiet" id="manual">Mark as restaurant meal without scanning</button></div><div id="feedback"></div><button class="button quiet" id="back">Back</button>';
+    root.innerHTML = '<p class="eyebrow">Restaurant meal</p><h2>Scan the meal, then adapt the day.</h2><p class="lead">Take a clear photo of the plate. On a phone, “Take photo” opens the rear camera; on desktop, it opens your camera if available. The image is only submitted when you press “Scan meal.”</p><div class="actions"><button class="button" id="open-camera">Take photo</button><label class="button quiet" for="photo">Choose photo</label><input id="photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="camera-area"></div><div class="actions"><button class="button" id="scan">Scan meal</button><button class="button quiet" id="manual">Mark as restaurant meal without scanning</button></div><div id="feedback"></div><button class="button quiet" id="back">Back</button>';
     const stopCamera = () => { cameraStream?.getTracks().forEach((track) => track.stop()); cameraStream = null; };
     root.querySelector("#back").onclick = () => { stopCamera(); checkIn(id); };
     root.querySelector("#manual").onclick = () => { state.meals[id] = { status: "restaurant" }; save(); dashboard(); };

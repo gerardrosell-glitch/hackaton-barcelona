@@ -11,7 +11,7 @@ function imageFromBase64(imageBase64) {
 
 export async function analyseMealPhoto(imageBase64) {
   if (process.env.LOGMEAL_DPA_APPROVED !== "true") {
-    throw new Error("Restaurant photo analysis is awaiting the LogMeal DPA and approved retention terms.");
+    throw new Error("Restaurant photo analysis is not enabled in this production version.");
   }
   const token = process.env.LOGMEAL_API_TOKEN;
   if (!token) throw new Error("Restaurant photo analysis is not configured.");
