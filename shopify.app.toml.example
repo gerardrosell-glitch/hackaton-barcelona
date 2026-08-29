@@ -1,0 +1,16 @@
+# Copy to shopify.app.toml after creating/linking the custom app with Shopify CLI.
+client_id = "REPLACE_WITH_SHOPIFY_CLIENT_ID"
+name = "Quota Vita Nutrition Coach"
+application_url = "https://REPLACE_WITH_EU_HOSTED_APP_URL"
+embedded = false
+
+[access_scopes]
+scopes = "write_app_proxy"
+
+[auth]
+redirect_urls = ["https://REPLACE_WITH_EU_HOSTED_APP_URL/auth/callback"]
+
+[app_proxy]
+url = "https://REPLACE_WITH_EU_HOSTED_APP_URL/proxy"
+prefix = "apps"
+subpath = "nutrition-coach"

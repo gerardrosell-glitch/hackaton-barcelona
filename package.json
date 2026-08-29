@@ -1,0 +1,8 @@
+{
+  "name": "quota-vita-nutrition-coach",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

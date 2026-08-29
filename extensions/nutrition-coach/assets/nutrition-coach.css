@@ -1,0 +1,67 @@
+.qv-nutrition-coach {
+  --ink: #153c36;
+  --moss: #2d6b53;
+  --milk: #fffaf0;
+  --sand: #efe4cd;
+  --sun: #f2b84b;
+  --tomato: #dd6048;
+  --mist: #d9ebe3;
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: clamp(18px, 4vw, 44px);
+}
+
+.qv-nutrition-coach * { box-sizing: border-box; }
+.qv-nutrition-coach button { font: inherit; cursor: pointer; }
+.qv-nutrition-coach__shell { background: var(--milk); border: 1px solid var(--sand); overflow: hidden; box-shadow: 0 20px 60px rgba(21, 60, 54, .12); }
+.qv-nutrition-coach__topline { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--sand); }
+.qv-nutrition-coach__brand { display: flex; align-items: center; gap: 10px; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.qv-nutrition-coach__leaf { width: 28px; height: 28px; border-radius: 70% 0 70% 0; background: var(--moss); transform: rotate(45deg); }
+.qv-nutrition-coach__date { color: #58726b; font-size: .85rem; }
+.qv-nutrition-coach__hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; padding: clamp(26px, 5vw, 56px); background: linear-gradient(115deg, var(--milk) 64%, #f7d68b 64%); }
+.qv-nutrition-coach__eyebrow { margin: 0 0 8px; color: var(--tomato); font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.qv-nutrition-coach h1 { max-width: 600px; margin: 0; font: 500 clamp(2.25rem, 5vw, 4.5rem)/.94 Georgia, "Times New Roman", serif; letter-spacing: -.055em; }
+.qv-nutrition-coach__subhead { max-width: 500px; margin: 18px 0 0; color: #496760; font-size: 1rem; line-height: 1.55; }
+.qv-nutrition-coach__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.qv-nutrition-coach__button { border: 0; padding: 13px 17px; background: var(--ink); color: #fff; font-weight: 750; }
+.qv-nutrition-coach__button:hover { background: #0c2b26; }
+.qv-nutrition-coach__button--quiet { background: transparent; color: var(--ink); outline: 1px solid var(--ink); outline-offset: -1px; }
+.qv-nutrition-coach__plate { position: relative; width: min(290px, 74vw); aspect-ratio: 1; margin: auto; border: 12px solid #fffdf8; border-radius: 50%; background: conic-gradient(var(--tomato) 0 25%, var(--sun) 25% 50%, var(--moss) 50% 75%, #78b99b 75%); box-shadow: 0 16px 0 rgba(21, 60, 54, .14), 0 18px 30px rgba(21, 60, 54, .16); }
+.qv-nutrition-coach__plate::before, .qv-nutrition-coach__plate::after { content: ""; position: absolute; inset: 50%; background: #fffdf8; transform: translate(-50%, -50%); }
+.qv-nutrition-coach__plate::before { width: 16px; height: 100%; }
+.qv-nutrition-coach__plate::after { width: 100%; height: 16px; }
+.qv-nutrition-coach__plate-label { position: absolute; z-index: 1; left: 50%; top: 50%; width: 116px; padding: 15px 9px; border-radius: 50%; background: var(--ink); color: #fff; text-align: center; font-size: .72rem; font-weight: 700; line-height: 1.25; transform: translate(-50%, -50%); }
+.qv-nutrition-coach__content { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--sand); }
+.qv-nutrition-coach__panel { min-width: 0; padding: clamp(22px, 3vw, 36px); background: #fffdf8; }
+.qv-nutrition-coach h2 { margin: 0; font: 500 1.6rem/1 Georgia, "Times New Roman", serif; letter-spacing: -.03em; }
+.qv-nutrition-coach__caption { margin: 8px 0 20px; color: #627b74; font-size: .88rem; line-height: 1.45; }
+.qv-nutrition-coach__rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.qv-nutrition-coach__ring { display: grid; place-items: center; aspect-ratio: 1; border: 8px solid var(--mist); border-top-color: var(--moss); border-radius: 50%; text-align: center; }
+.qv-nutrition-coach__ring:nth-child(2) { border-top-color: var(--sun); border-right-color: var(--sun); }
+.qv-nutrition-coach__ring:nth-child(3) { border-top-color: var(--tomato); }
+.qv-nutrition-coach__ring b { display: block; font-size: .86rem; }
+.qv-nutrition-coach__ring span { display: block; color: #627b74; font-size: .66rem; }
+.qv-nutrition-coach__nudge { margin-top: 20px; padding: 14px; border-left: 5px solid var(--sun); background: #fff3d7; font-size: .9rem; line-height: 1.42; }
+.qv-nutrition-coach__list { margin: 0; padding: 0; list-style: none; }
+.qv-nutrition-coach__list li { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--sand); font-size: .92rem; }
+.qv-nutrition-coach__list small { color: #627b74; }
+.qv-nutrition-coach__list button { padding: 3px 0; border: 0; background: transparent; color: var(--moss); font-size: .8rem; font-weight: 800; }
+.qv-nutrition-coach__footer { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1px; background: var(--sand); }
+.qv-nutrition-coach__footer-card { padding: 22px clamp(22px, 3vw, 36px); background: var(--ink); color: #fff; }
+.qv-nutrition-coach__footer-card + .qv-nutrition-coach__footer-card { background: var(--moss); }
+.qv-nutrition-coach__footer-card h3 { margin: 0 0 5px; font-size: 1rem; }
+.qv-nutrition-coach__footer-card p { margin: 0; color: #d9ebe3; font-size: .86rem; line-height: 1.45; }
+.qv-nutrition-coach__link-button { margin-top: 12px; padding: 0; border: 0; background: transparent; color: #fff; text-decoration: underline; font-weight: 750; }
+.qv-nutrition-coach dialog { width: min(520px, calc(100% - 32px)); border: 0; padding: 0; color: var(--ink); box-shadow: 0 20px 80px rgba(0,0,0,.3); }
+.qv-nutrition-coach dialog::backdrop { background: rgba(10, 40, 34, .55); }
+.qv-nutrition-coach__modal { padding: 28px; background: var(--milk); }
+.qv-nutrition-coach__modal h2 { margin-bottom: 10px; }
+.qv-nutrition-coach__modal p { color: #496760; line-height: 1.45; }
+.qv-nutrition-coach__field { display: grid; gap: 6px; margin: 16px 0; font-size: .86rem; font-weight: 700; }
+.qv-nutrition-coach__field input, .qv-nutrition-coach__field select { width: 100%; padding: 12px; border: 1px solid #a4c4b8; border-radius: 0; background: #fff; color: var(--ink); }
+.qv-nutrition-coach__status { min-height: 1.4em; margin: 12px 0 0; color: var(--moss); font-size: .85rem; font-weight: 700; }
+.qv-nutrition-coach__privacy { margin-top: 20px; color: #627b74; font-size: .75rem; line-height: 1.4; }
+@media (max-width: 720px) { .qv-nutrition-coach { padding: 12px; } .qv-nutrition-coach__hero, .qv-nutrition-coach__content, .qv-nutrition-coach__footer { grid-template-columns: 1fr; } .qv-nutrition-coach__hero { background: var(--milk); } .qv-nutrition-coach__plate { width: 230px; } }
+@media (prefers-reduced-motion: reduce) { .qv-nutrition-coach *, .qv-nutrition-coach *::before, .qv-nutrition-coach *::after { scroll-behavior: auto !important; transition: none !important; } }

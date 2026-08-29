@@ -1,0 +1,29 @@
+{{ 'nutrition-coach.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'nutrition-coach.js' | asset_url }}" defer="defer"></script>
+
+<section
+  class="qv-nutrition-coach"
+  data-nutrition-coach
+  data-proxy-base="{{ block.settings.proxy_base | escape }}"
+  data-customer="{% if customer %}{{ customer.id }}{% endif %}"
+  aria-label="Quota Vita Nutrition Coach"
+>
+  <div class="qv-nutrition-coach__loading">Preparing your daily plate…</div>
+</section>
+
+{% schema %}
+{
+  "name": "Nutrition Coach",
+  "target": "section",
+  "javascript": "nutrition-coach.js",
+  "stylesheet": "nutrition-coach.css",
+  "settings": [
+    {
+      "type": "text",
+      "id": "proxy_base",
+      "label": "App proxy path",
+      "default": "/apps/nutrition-coach"
+    }
+  ]
+}
+{% endschema %}
