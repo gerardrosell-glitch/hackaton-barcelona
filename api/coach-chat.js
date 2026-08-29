@@ -39,7 +39,7 @@ export default async function handler(request, response) {
     const openaiResponse = await fetch(OPENAI_RESPONSES_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-5-mini", instructions, input, max_output_tokens: 300, store: false })
+      body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-4.1-mini", instructions, input, max_output_tokens: 300, store: false })
     });
     const result = await openaiResponse.json().catch(() => ({}));
     const reply = textFromResponse(result);
