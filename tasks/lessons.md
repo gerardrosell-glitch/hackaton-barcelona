@@ -28,3 +28,12 @@
 - When a product substitution has a declared nutrient density, calculate and show the exact serving amount rather than treating it as generic product placement.
 - Image-generation verification must cover the request lifecycle and the rendered card, not merely the success response from the image endpoint.
 - An uploaded image is not a successful photo-analysis flow until the downstream analysis response is verified and any unavailable provider state is explained clearly.
+
+## Never patch a stylesheet by injecting another one — 2026-08-29
+
+Seventeen `document.createElement("style")` blocks had accumulated in `public/coach.js`, each one
+added to correct the previous, all fighting a minified base stylesheet embedded in `api/index.js`.
+Two palettes were live at once and every new rule needed `!important` to land.
+
+Rule for myself: when a second style block appears for the same surface, stop and extract the CSS
+into one real stylesheet instead of adding a third. The cost of extracting grows with every patch.

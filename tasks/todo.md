@@ -119,3 +119,40 @@ Desktop now uses the available canvas instead of a fixed 1,440 px board: cards r
 On phone, the desktop summary is suppressed. A compact Conversation button opens and reduces an in-place Coach drawer without interfering with the swipe deck; all phone controls fit within a 390 px viewport.
 
 The weekly basket displays one source note directly beneath its title: “Referència de supermercat mig.” No row repeats a market-reference label. Browser checks covered 1,024 px, 1,280 px, 1,920 px, and 390 px layouts plus the Catalan basket; syntax, whitespace, and all ten project tests pass.
+
+## Full design, responsiveness and flow revision — 2026-08-29
+
+- [x] Move every rule out of JavaScript into one stylesheet (`public/coach.css`) and delete the 17 injected `<style>` blocks.
+- [x] Rebuild the visual language: espresso shell, cream cards, terracotta accent, serif display, full-bleed food photography.
+- [x] Replace the "Plan options" grab-bag with a persistent navigation: bottom tab bar on phone, header nav on desktop, secondary actions in one overflow menu.
+- [x] Rework onboarding: answer transcript, working Back, honest "Step n of 7" progress.
+- [x] Put the "still to eat" target back on the phone as a sticky panel; it was `display:none` on mobile.
+- [x] Stop destructive re-renders: logging a meal and the arrival of the generated plan now patch in place.
+- [x] Make the weekly setup answers actually shape the week.
+- [x] Close the Catalan gaps: food names, weekday names, activity labels and every new string.
+- [x] Verify at 390, 620, 768, 900, 1180 and 1440 px, in both languages, then deploy.
+
+### Review
+
+The stylesheet is the change that made the rest possible. Every previous fix had been another
+injected `<style>` block fighting the minified base CSS inside `api/index.js`, so two palettes
+(pine green and brown) were live at once and each correction needed `!important`. There is now one
+token set and one place to change a colour, a radius or a spacing step.
+
+Navigation is now a model rather than a toolbar. Today, Week, Basket and Coach are always one tap
+away — a bottom tab bar on the phone, a header nav on desktop — and the seven secondary actions sit
+in a single grouped overflow menu. The weekly toolbar that ran off the right edge of a 390 px screen
+no longer exists.
+
+Onboarding keeps its answers on screen, has a real Back button, and its progress bar tells the truth
+(seven steps, not a three-dot stepper stuck at one). The desktop shell now fills the viewport; the
+cream L-shaped band at 1440 px is gone.
+
+On the phone the calorie and macro target is a sticky panel that stays under the header while the
+meal cards scroll beneath it. Logging a meal updates that panel and the one card in place: scroll
+position holds and the meal photographs are not re-fetched. The generated plan swaps into the list
+the same way instead of re-rendering the whole page underneath the reader.
+
+Verified at 390, 620, 768, 900, 1180 and 1440 px with zero horizontal overflow at every width, in
+English and Catalan, across onboarding, Today, Daily check, Week, both baskets, the Coach chat, the
+restaurant modal and the email dialog. `npm test` passes its ten tests; `node --check` passes.
