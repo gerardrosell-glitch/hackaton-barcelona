@@ -21,7 +21,9 @@
   state = { mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 0, chat: [], ...(readState() || { profile: null, activity: "rest", meals: {} }) };
   const todayKey = (date = new Date()) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
   if (state.profile && state.planDate !== todayKey()) {
-    state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
+    // If they chose tomorrow's movement last night, the plan is ready on waking.
+    const planned = state.tomorrowActivity;
+    state = { ...state, planDate: todayKey(), needsTraining: !planned, activity: planned || "rest", tomorrowActivity: null, meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
     save();
   }
   // ── Measurement ─────────────────────────────────────────────────────────
@@ -394,6 +396,7 @@
     "Crema de verdures with tofu and pa de pagès": "Crema de verdures amb tofu i pa de pagès",
     "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil": "180g de tofu · crema de verdures · 2 llesques de pa integral · 10g d’oli d’oliva"
   };
+  const localise = (text) => (language === "ca" ? (catalan[text] || text) : text);
   const localiseMealText = (text) => language === "ca" ? (catalanMealText[text] || text) : text;
   const localiseMeal = (meal) => ({ ...meal, slot: localiseMealText(meal.slot), title: localiseMealText(meal.title), portions: localiseMealText(meal.portions), hint: localiseMealText(meal.hint) });
   const T = (english, catalan) => (language === "ca" ? catalan : english);
@@ -435,9 +438,22 @@
 
   const svgIcon = (name) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + navIcons[name] + "</svg>";
 
+  /** The site and developer pages, as links. Shown in setup and in the menu. */
+  function siteLinks() {
+    return [
+      ["/about", T("About", "Qui som")],
+      ["/contact", T("Contact", "Contacte")],
+      ["/privacy", T("Privacy", "Privacitat")],
+      ["/developers", T("Developers and API", "Desenvolupadors i API")]
+    ].map(([href, label]) => '<a href="' + href + '">' + esc(label) + "</a>").join(" · ");
+  }
+
   function menuMarkup() {
     const compact = state.compactPlanView ? T("Full cards", "Vista completa") : T("Compact cards", "Vista compacta");
     const group = (title, items) => "<h2>" + esc(title) + "</h2>" + items.map(([action, label, extra = ""]) => '<button class="menu-item' + extra + '" type="button" data-menu-action="' + action + '">' + esc(label) + "</button>").join("");
+    // Site and developer pages are server-rendered documents, not app views, so
+    // they are real links: the menu is the only place a person can reach them.
+    const linkGroup = (title, items) => "<h2>" + esc(title) + "</h2>" + items.map(([href, label]) => '<a class="menu-item" href="' + href + '">' + esc(label) + "</a>").join("");
     const languageGroup = '<h2>' + esc(T("Language", "Idioma")) + '</h2><div class="menu-lang" data-language-control>'
       + [["en", "English"], ["ca", "Català"]].map(([code, label]) => '<button class="menu-item' + (language === code ? " is-active" : "") + '" type="button" data-language="' + code + '">' + label + "</button>").join("")
       + "</div>";
@@ -457,9 +473,17 @@
           ["account", signedIn() ? T("Your account", "El teu compte") : T("Save my plan to my account", "Desa el meu pla al meu compte")]
         ])
         : "")
-      + group(T("View", "Vista"), [
+      + group(T("You", "Tu"), [
+        ["edit-profile", T("My details", "Les meves dades")],
         ["compact-view", compact],
-        ["start-over", T("Start over", "Comença de nou"), " menu-item--danger"]
+        ["restart-day", T("Start today again", "Torna a començar el dia")],
+        ["delete-data", T("Delete my data", "Esborra les meves dades"), " menu-item--danger"]
+      ])
+      + linkGroup(T("Quota Vita", "Quota Vita"), [
+        ["/about", T("About the Coach", "Sobre el Coach")],
+        ["/contact", T("Contact", "Contacte")],
+        ["/privacy", T("Privacy", "Privacitat")],
+        ["/developers", T("Developers and API", "Desenvolupadors i API")]
       ])
       + "</div>";
   }
@@ -487,6 +511,9 @@
   function mount(view, html) {
     const changed = view !== currentView;
     currentView = view;
+    if (ROUTES.includes(view) && location.hash.slice(1) !== view) {
+      history.replaceState(null, "", "#" + view);
+    }
     root.innerHTML = html;
     menuOpen = false;
     renderChrome();
@@ -494,24 +521,69 @@
     if (changed) window.scrollTo({ top: 0, behavior: "auto" });
   }
 
-  const resetCoach = () => {
-    if (state.profile) {
-      failedMealImages.clear();
-      failedWeeklyMealImages.clear();
-      state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
-      save();
-      return training();
-    }
-    localStorage.removeItem(storageKey);
-    state = { profile: null, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 0 };
-    welcome();
+  /** Re-asks today's movement and rebuilds today's plan. Keeps everything else. */
+  const restartDay = () => {
+    if (!state.profile) return welcome();
+    failedMealImages.clear();
+    failedWeeklyMealImages.clear();
+    state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
+    save();
+    training();
   };
+
+  /** Actually erases everything this device holds. Confirmed first, always. */
+  function deleteEverything() {
+    const items = [
+      T("Your age, height, weight, activity and goal", "L’edat, l’alçada, el pes, l’activitat i l’objectiu"),
+      T("Today’s plan and everything you have logged", "El pla d’avui i tot el que has registrat"),
+      T("Your streak, XP, quests and badges", "La ratxa, els XP, les missions i les insígnies"),
+      T("Your saved conversation with the Coach", "La conversa desada amb el Coach")
+    ];
+    const { overlay, close } = openModal(
+      '<p class="eyebrow">' + esc(T("Delete my data", "Esborra les meves dades")) + '</p><h2 id="delete-title">' + esc(T("This cannot be undone", "Això no es pot desfer")) + "</h2>"
+      + '<p>' + esc(T("Everything below is stored only in this browser and will be erased for good:", "Tot el següent es desa només en aquest navegador i s’esborrarà definitivament:")) + "</p>"
+      + '<ul class="plain-list">' + items.map((item) => "<li>" + esc(item) + "</li>").join("") + "</ul>"
+      + '<div class="actions"><button class="button button--danger" type="button" id="confirm-delete">' + esc(T("Delete everything", "Esborra-ho tot")) + '</button><button class="button quiet" type="button" data-modal-close>' + esc(T("Keep my data", "Conserva les dades")) + "</button></div>",
+      "delete-title"
+    );
+    overlay.querySelector("#confirm-delete").onclick = () => {
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem("quota-vita-coach-language");
+      state = { profile: null, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 0, chat: [] };
+      close();
+      welcome();
+    };
+  }
   const viewRenderers = () => ({ today: dashboard, week: weeklyPlan, basket: basket, coach: coachPage, progress: progressView, account: account });
+
+  const ROUTES = ["today", "week", "basket", "coach", "progress"];
 
   function showView(name) {
     const render = viewRenderers()[name];
+    if (!render) return;
+    if (ROUTES.includes(name) && location.hash.slice(1) !== name) {
+      history.pushState(null, "", "#" + name);
+    }
+    render();
+  }
+
+  /** Renders whatever the address bar says, so back and refresh behave. */
+  function renderFromHash() {
+    const name = location.hash.slice(1);
+    if (!state.profile || state.needsTraining) return;
+    const render = viewRenderers()[ROUTES.includes(name) ? name : "today"];
     if (render) render();
   }
+
+  window.addEventListener("online", () => {
+    failedMealImages.clear();
+    failedWeeklyMealImages.clear();
+    failedDailyMealPlans.clear();
+    if (currentView === "today") dashboard();
+  });
+
+  window.addEventListener("popstate", renderFromHash);
+  window.addEventListener("hashchange", renderFromHash);
 
   function rerenderCurrentView() {
     (viewRenderers()[currentView] || dashboard)();
@@ -525,13 +597,16 @@
     "weekly-email": () => emailWeekly("plan"),
     "compact-view": () => { state.compactPlanView = !state.compactPlanView; expandedPlanDetails.clear(); save(); rerenderCurrentView(); },
     "account": account,
-    "start-over": resetCoach
+    "edit-profile": editProfile,
+    "leave-demo": () => { state.demo = false; state.profile = null; save(); profile(); },
+    "restart-day": restartDay,
+    "delete-data": deleteEverything
   });
 
   document.addEventListener("click", (event) => {
     const languageButton = event.target.closest("[data-language]");
     if (languageButton) { language = languageButton.dataset.language; localStorage.setItem("quota-vita-coach-language", language); location.reload(); return; }
-    if (event.target.closest("[data-global-restart]")) return resetCoach();
+    if (event.target.closest("[data-global-restart]")) return restartDay();
     const navButton = event.target.closest("[data-nav]");
     if (navButton) return showView(navButton.dataset.nav);
     if (event.target.closest("#menu-toggle")) return setMenuOpen(!menuOpen);
@@ -575,16 +650,53 @@
   };
   const localiseFood = (name) => (language === "ca" ? (catalanFood[name] || name) : name);
 
+  /* The lowest daily intake this Coach will ever put on screen. Below these,
+     a general-wellbeing tool has no business writing a plan at all, so the
+     target is raised to the floor and the user is told to see a clinician. */
+  const CALORIE_FLOOR = { male: 1500, female: 1200, "": 1300 };
+
   function dailyTarget(profile, activity) {
     const factor = { sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725 }[profile.activity];
     const sexAdjustment = profile.sex === "male" ? 5 : profile.sex === "female" ? -161 : -78;
     const bmr = 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + sexAdjustment;
-    const goalAdjustment = profile.goal === "lose" ? -300 : profile.goal === "gain" ? 250 : 0;
     const trainingAdjustment = { rest: 0, walk: 100, pilates: 125, strength: 250, run: 350 }[activity];
-    const calories = Math.round((bmr * factor + goalAdjustment + trainingAdjustment) / 25) * 25;
-    const proteinG = Math.round(profile.weightKg * (activity === "strength" || profile.goal === "gain" ? 1.6 : profile.goal === "lose" ? 1.4 : 1.2));
+    const maintenance = bmr * factor + trainingAdjustment;
+    // A proportional deficit or surplus. A flat 300 kcal is a rounding error for
+    // a large athlete and a third of the day's food for a small older person.
+    const goalAdjustment = profile.goal === "lose"
+      ? -Math.min(500, Math.round(maintenance * 0.15))
+      : profile.goal === "gain" ? Math.min(400, Math.round(maintenance * 0.12)) : 0;
+    const requested = Math.round((maintenance + goalAdjustment) / 25) * 25;
+    const floor = CALORIE_FLOOR[profile.sex] ?? CALORIE_FLOOR[""];
+    const belowFloor = requested < floor;
+    const calories = Math.max(floor, requested);
+    const proteinPerKg = activity === "strength" || profile.goal === "gain" ? 1.6 : profile.goal === "lose" ? 1.4 : 1.2;
+    // Protein and fat may never crowd carbohydrate out of the day: cap them so
+    // at least 20% of energy is left for carbs, instead of clamping carbs at 0.
     const fatG = Math.round(calories * 0.28 / 9);
-    return { calories, proteinG, carbohydrateG: Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4)), fatG, fibreG: profile.sex === "male" ? 30 : 25 };
+    const carbFloorKcal = calories * 0.2;
+    const proteinCapG = Math.max(40, Math.floor((calories - carbFloorKcal - fatG * 9) / 4));
+    const proteinG = Math.min(Math.round(profile.weightKg * proteinPerKg), proteinCapG);
+    const carbohydrateG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
+    return { calories, proteinG, carbohydrateG, fatG, fibreG: profile.sex === "male" ? 30 : 25, belowFloor, requested, floor };
+  }
+
+  /* Portion strings are written for a 2,000 kcal day. Scale the quantities with
+     the target so the food on the card matches the numbers above it. */
+  function scalePortions(text, scale) {
+    if (!Number.isFinite(scale) || Math.abs(scale - 1) < 0.06) return text;
+    const roundTo = (value, step) => Math.max(step, Math.round(value / step) * step);
+    return String(text)
+      .replace(/(\d+(?:[.,]\d+)?)\s*(g|ml)\b/gi, (whole, amount, unit) => {
+        const scaled = Number(String(amount).replace(",", ".")) * scale;
+        return roundTo(scaled, scaled >= 100 ? 10 : 5) + unit.toLowerCase();
+      })
+      .replace(/\b(\d+(?:[.,]\d+)?)\s+(slices?|eggs?|bananas?|apples?|oranges?|pears?|tuna cans?)\b/gi, (whole, amount, noun) => {
+        const scaled = Math.round(Number(String(amount).replace(",", ".")) * scale);
+        const count = Math.max(1, scaled);
+        const singular = noun.replace(/s$/i, "");
+        return count + " " + (count === 1 ? singular : (/s$/i.test(noun) ? noun : noun + "s"));
+      });
   }
 
   function mealPlan(target, activity) {
@@ -601,9 +713,10 @@
         ["Lunch", "Escalivada with chickpeas and chicken", "150g chicken · 160g chickpeas · 250g escalivada · 10g olive oil", "Build the plate around protein and plants.", "Escalivada"],
         ["Dinner", "Llenties estofades amb verdures i pa de pagès", "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain pa de pagès · salad", "A simple balanced evening meal.", "Llenties estofades"]
       ];
+    const scale = target.calories / 2000;
     return foods.map(([slot, title, portions, hint, catalanName], index) => ({
       id: slot.toLowerCase(),
-      slot, title, portions, hint, catalanName,
+      slot, title, portions: scalePortions(portions, scale), hint, catalanName,
       calories: Math.round(target.calories * share[index] / 25) * 25,
       proteinG: Math.round(target.proteinG * share[index]),
       carbohydrateG: Math.round(target.carbohydrateG * share[index]),
@@ -672,7 +785,7 @@
   }
 
   function welcome() {
-    profile();
+    landing();
   }
 
   function profile() {
@@ -705,8 +818,8 @@
         "Personal calories and macros, three meals and a one-day shopping basket.",
         stepper(index + 1, totalSteps)
           + '<div class="setup"><section class="chat" aria-live="polite">' + intro + transcript
-          + '<div class="bubble coach">' + esc(question.label) + '<span class="meta">' + esc(question.hint) + "</span></div>" + input
-          + '</section><div class="actions on-shell">' + back + '<button class="button quiet" id="cancel" type="button">' + esc(T("Cancel and restart", "Cancel·la i comença de nou")) + '</button></div><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></div>',
+          + (problem ? '<div class="bubble coach bubble--problem">' + esc(problem) + "</div>" : '<div class="bubble coach">' + esc(question.label) + '<span class="meta">' + esc(question.hint) + "</span></div>") + input
+          + '</section><div class="actions on-shell">' + back + '<button class="button quiet" id="cancel" type="button">' + esc(T("Cancel and restart", "Cancel·la i comença de nou")) + '</button></div><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p><p class="privacy privacy-links">' + siteLinks() + '</p></div>',
         "view--setup"
       ));
       root.querySelector("#cancel").onclick = welcome;
@@ -716,9 +829,16 @@
       if (form) form.onsubmit = (event) => { event.preventDefault(); advance(root.querySelector("#chat-answer").value); };
       requestAnimationFrame(() => root.querySelector("#chat-answer")?.focus({ preventScroll: true }));
     };
+    let problem = "";
     const advance = (value) => {
       const question = questions[index];
-      if (!question.choices && (!Number.isFinite(Number(value)) || Number(value) < question.min || Number(value) > question.max)) return render();
+      if (!question.choices && (!Number.isFinite(Number(value)) || Number(value) < question.min || Number(value) > question.max)) {
+        problem = String(value).trim()
+          ? T("That is outside " + question.min + "–" + question.max + ". " + question.label, "Això queda fora de " + question.min + "–" + question.max + ". " + question.label)
+          : T("I need a number to work with. " + question.label, "Necessito un número. " + question.label);
+        return render();
+      }
+      problem = "";
       answers[question.key] = question.choices ? value : Number(value);
       index += 1;
       if (index < questions.length) return render();
@@ -726,7 +846,7 @@
       save();
       track("onboarding_completed", { goal: String(answers.goal || ""), activity: String(answers.activity || "") });
       void pushProfile();
-      training();
+      training(true);
     };
     render();
   }
@@ -735,23 +855,113 @@
     return '<section class="view' + (extraClass ? " " + extraClass : "") + (state.compactPlanView ? " compact-view" : "") + '"><header class="view-head"><p class="eyebrow">' + esc(T("Your Coach", "El teu coach")) + '</p><h1>' + esc(title) + "</h1>" + (lead ? '<p class="view-lead">' + esc(lead) + "</p>" : "") + "</header>" + content + "</section>";
   }
 
+  /* The six setup answers, editable. A nutrition app whose whole premise is
+     adapting to your body has to let the body change. */
+  function editProfile() {
+    const p = state.profile || {};
+    const numberField = (key, label, hint, min, max, step) => '<label class="field">' + esc(label)
+      + '<input id="edit-' + key + '" type="number" inputmode="decimal" min="' + min + '" max="' + max + '" step="' + (step || 1) + '" value="' + esc(p[key] ?? "") + '" required>'
+      + "<small>" + esc(hint) + "</small></label>";
+    const selectField = (key, label, options) => '<label class="field">' + esc(label)
+      + '<select id="edit-' + key + '">' + options.map(([value, text]) => '<option value="' + esc(value) + '"' + (String(p[key] ?? "") === value ? " selected" : "") + ">" + esc(text) + "</option>").join("") + "</select></label>";
+    mount("profile", viewShell(
+      T("My details", "Les meves dades"),
+      T("Change these whenever your body or your goal changes. Your plan is recalculated straight away.", "Canvia-ho sempre que el teu cos o el teu objectiu canviïn. El pla es recalcula immediatament."),
+      '<form class="card" id="profile-form"><div class="field-grid">'
+      + numberField("age", T("Age", "Edat"), T("18 to 100", "De 18 a 100"), 18, 100)
+      + numberField("heightCm", T("Height in cm", "Alçada en cm"), T("120 to 230", "De 120 a 230"), 120, 230)
+      + numberField("weightKg", T("Weight in kg", "Pes en kg"), T("35 to 300", "De 35 a 300"), 35, 300, "0.1")
+      + selectField("sex", T("Used for the energy estimate", "Per a l’estimació energètica"), [["female", T("Female", "Dona")], ["male", T("Male", "Home")], ["", T("Prefer not to say", "Prefereixo no dir-ho")]])
+      + selectField("activity", T("A usual week", "Una setmana habitual"), [["sedentary", T("Mostly sitting", "Principalment assegut")], ["light", T("Lightly active", "Activitat lleugera")], ["moderate", T("Regular training", "Entrenament regular")], ["high", T("Frequent training", "Entrenament freqüent")]])
+      + selectField("goal", T("Working toward", "Objectiu"), [["lose", T("Lose fat", "Perdre greix")], ["gain", T("Gain muscle", "Guanyar múscul")], ["maintain", T("Maintain", "Mantenir")]])
+      + '</div><div id="profile-feedback" aria-live="polite"></div>'
+      + '<div class="actions"><button class="button" type="submit">' + esc(T("Save and recalculate", "Desa i recalcula")) + '</button><button class="button quiet" type="button" id="profile-cancel">' + esc(T("Cancel", "Cancel·la")) + "</button></div></form>"
+    ));
+    root.querySelector("#profile-cancel").onclick = dashboard;
+    root.querySelector("#profile-form").onsubmit = (event) => {
+      event.preventDefault();
+      const read = (key) => Number(root.querySelector("#edit-" + key).value);
+      const bounds = { age: [18, 100], heightCm: [120, 230], weightKg: [35, 300] };
+      const invalid = Object.entries(bounds).find(([key, [min, max]]) => !Number.isFinite(read(key)) || read(key) < min || read(key) > max);
+      const feedback = root.querySelector("#profile-feedback");
+      if (invalid) return feedback.innerHTML = note(T("Check the " + invalid[0].replace("Cm", "").replace("Kg", "") + " field: it must be between " + invalid[1][0] + " and " + invalid[1][1] + ".", "Revisa el camp: ha d’estar entre " + invalid[1][0] + " i " + invalid[1][1] + "."), true);
+      state.profile = {
+        age: read("age"), heightCm: read("heightCm"), weightKg: read("weightKg"),
+        sex: root.querySelector("#edit-sex").value,
+        activity: root.querySelector("#edit-activity").value,
+        goal: root.querySelector("#edit-goal").value
+      };
+      // The targets moved, so the generated menu and its photos no longer match.
+      state.dailyMeals = null;
+      state.mealImages = {};
+      state.weeklyMealImages = {};
+      state.menuNonce = (state.menuNonce || 0) + 1;
+      failedDailyMealPlans.clear();
+      failedMealImages.clear();
+      save();
+      dashboard();
+    };
+  }
+
+  /* A stranger should be able to see what this produces before handing over
+     their body measurements. */
+  function landing() {
+    mount("landing", viewShell(
+      T("Eat for the day you actually have.", "Menja segons el dia que tens de veritat."),
+      T("Your calories, your macros, three meals and the exact shopping list — built around your body, your goal and today’s training.", "Les teves calories, els teus macronutrients, tres àpats i la llista de la compra exacta, segons el teu cos, el teu objectiu i l’entrenament d’avui."),
+      '<div class="landing"><div class="card landing-card"><h2>' + esc(T("How it works", "Com funciona")) + "</h2>" + '<ol class="steps">'
+      + [[T("Six questions", "Sis preguntes"), T("Age, height, weight, usual week and what you are working toward.", "Edat, alçada, pes, setmana habitual i què vols aconseguir.")],
+         [T("Today’s movement", "El moviment d’avui"), T("Rest, a walk, pilates, strength or a run — the plan adapts to it.", "Descans, caminar, pilates, força o córrer: el pla s’hi adapta.")],
+         [T("Your day, planned", "El teu dia, planificat"), T("Three meals with real portions, a shopping basket and a Coach you can ask.", "Tres àpats amb racions reals, una cistella de la compra i un Coach a qui preguntar.")]]
+        .map(([title, body]) => "<li><strong>" + esc(title) + "</strong><span>" + esc(body) + "</span></li>").join("")
+      + '</ol><div class="actions"><button class="button" type="button" id="start-setup">' + esc(T("Build my plan", "Crea el meu pla")) + '</button><button class="button quiet" type="button" id="see-example">' + esc(T("See an example day", "Mira un dia d’exemple")) + "</button></div>"
+      + '<p class="meta">' + esc(T("No account needed. Everything stays in this browser until you choose otherwise.", "No cal compte. Tot es queda en aquest navegador fins que decideixis el contrari.")) + "</p></div></div>"
+      + '<p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p><p class="privacy privacy-links">' + siteLinks() + "</p>",
+      "view--landing"
+    ));
+    root.querySelector("#start-setup").onclick = profile;
+    root.querySelector("#see-example").onclick = startDemo;
+  }
+
+  /** A full working day on a sample profile, clearly labelled, one tap to adopt. */
+  function startDemo() {
+    state = {
+      ...state,
+      demo: true,
+      profile: { age: 34, heightCm: 172, weightKg: 68, sex: "", activity: "moderate", goal: "maintain" },
+      planDate: todayKey(), needsTraining: false, activity: "strength",
+      meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1
+    };
+    dashboard();
+  }
+
+  function demoBannerMarkup() {
+    if (!state.demo) return "";
+    return '<div class="notice notice--demo"><div><strong>' + esc(T("This is an example day", "Això és un dia d’exemple")) + "</strong><span>" + esc(T("Built for a 34-year-old who trains regularly. Yours will use your own numbers.", "Fet per a una persona de 34 anys que entrena sovint. El teu farà servir els teus números.")) + '</span></div><button class="button" type="button" data-menu-action="leave-demo">' + esc(T("Make this mine", "Fes-lo meu")) + "</button></div>";
+  }
+
   function coachShell(title, lead, content) {
     return viewShell(title, lead, '<section class="chat" aria-live="polite">' + content + "</section>");
   }
 
-  function training() {
+  function training(fromSetup = false) {
     const choices = [["Rest or recovery day", "rest"], ["Walk", "walk"], ["Pilates", "pilates"], ["Strength training", "strength"], ["Run", "run"]];
-    const inSetup = Boolean(state.needsTraining);
+    const inSetup = fromSetup;
     const savedProfileLead = language === "ca"
       ? "El teu perfil està desat en aquest dispositiu. Els àpats i les quantitats s’adaptaran al moviment d’avui."
       : "Your profile is saved on this device. Your meals and quantities will adapt to today’s movement.";
     const back = inSetup
       ? '<button class="button quiet" id="back" type="button">' + esc(T("Back", "Enrere")) + "</button>"
       : '<button class="button quiet" id="back" type="button">' + esc(T("Back to today", "Torna a avui")) + "</button>";
+    const g = game();
+    const returning = !inSetup || (g.streak || 0) > 0 || game().xp > 0;
+    const greeting = returning && (g.streak || 0) > 0
+      ? T("Good to see you — day " + g.streak + " of your streak.", "Que bo tornar-te a veure: dia " + g.streak + " de la teva ratxa.")
+      : "";
     mount("setup", viewShell(
-      "Are you going to train today?",
-      savedProfileLead,
-      (inSetup ? stepper(7, 7) : "")
+      inSetup ? "Are you going to train today?" : T("What does today look like?", "Com és el dia d’avui?"),
+      inSetup ? savedProfileLead : T("Your meals and quantities adapt to today’s movement.", "Els àpats i les quantitats s’adapten al moviment d’avui."),
+      (inSetup ? stepper(7, 7) : (greeting ? '<p class="greeting"><span aria-hidden="true">🔥</span>' + esc(greeting) + "</p>" : ""))
         + '<div class="setup"><section class="chat" aria-live="polite"><div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">'
         + esc(T("Choose one reply", "Tria una resposta"))
         + '</span><p class="keyboard-hint">' + esc(T("Press 1, 2, 3, 4 or 5 on your keyboard to choose.", "Prem 1, 2, 3, 4 o 5 al teclat per triar.")) + '</p><div class="quick-replies">'
@@ -853,8 +1063,12 @@
       save();
       renderCoachThreads();
     } catch (error) {
+      const offline = !navigator.onLine || error instanceof TypeError || /failed to fetch|networkerror|load failed|network request/i.test(String(error?.message || ""));
+      const message = offline
+        ? T("No connection right now. Your plan still works offline — the Coach will answer when you are back online.", "Ara mateix no hi ha connexió. El pla funciona igualment sense connexió; el Coach respondrà quan tornis a tenir-ne.")
+        : (error.message || T("The Coach is unavailable right now. Try again in a moment.", "El Coach no està disponible ara mateix. Torna-ho a provar d’aquí a un moment."));
       const thread = root.querySelector('[data-live-coach-thread="' + placement + '"]') || root.querySelector("[data-live-coach-thread]");
-      if (thread) thread.insertAdjacentHTML("beforeend", '<p class="status error">' + esc(error.message || "The live Coach is unavailable.") + "</p>");
+      if (thread) thread.insertAdjacentHTML("beforeend", '<p class="status error">' + esc(message) + "</p>");
     } finally {
       forms.forEach((form) => {
         form.querySelector("input").disabled = false;
@@ -921,6 +1135,62 @@
     if (panel) { panel.outerHTML = targetPanelMarkup(plan); translate(); }
   }
 
+  /** Shown when the honest calculation lands under the safe floor. */
+  function safetyNoticeMarkup(target) {
+    if (!target.belowFloor) return "";
+    return '<div class="notice notice--care"><div><strong>' + esc(T("These numbers need a professional, not an app", "Aquests números necessiten un professional, no una app")) + "</strong><span>"
+      + esc(T("Your details work out at about " + target.requested + " kcal a day, which is below what this Coach will plan for. It has been raised to " + target.calories + " kcal so the day is still balanced, but please talk to a doctor or dietitian before following it.",
+             "Amb les teves dades surten uns " + target.requested + " kcal al dia, per sota del que aquest Coach pot planificar. S’ha apujat a " + target.calories + " kcal perquè el dia segueixi equilibrat, però parla amb un metge o dietista abans de seguir-lo."))
+      + '</span></div><button class="button quiet" type="button" data-menu-action="edit-profile">' + esc(T("Check my details", "Revisa les meves dades")) + "</button></div>";
+  }
+
+  /** The compact quest strip, so the game is visible where people actually are. */
+  function questStripMarkup() {
+    const day = todayGame();
+    const quests = todayQuests();
+    const done = quests.filter((quest) => day.quests[quest.id]).length;
+    return '<section class="quest-strip"><div class="quest-strip-head"><span class="label">' + esc(T("Today’s quests", "Missions d’avui")) + '</span><span class="quest-strip-count">' + done + " / " + quests.length + "</span></div><ul>"
+      + quests.map((quest) => '<li class="' + (day.quests[quest.id] ? "is-done" : "") + '"><span class="quest-check" aria-hidden="true">' + (day.quests[quest.id] ? "✓" : "") + "</span>" + esc(language === "ca" ? quest.ca : quest.en) + '<b>+' + quest.xp + "</b></li>").join("")
+      + "</ul></section>";
+  }
+
+  /** A streak save is worth nothing if the user never learns it happened. */
+  function freezeNoticeMarkup() {
+    const g = game();
+    if (g.freezeNotice !== todayKey()) return "";
+    return '<div class="notice notice--freeze"><div><strong>' + esc(T("A streak freeze saved your " + g.streak + "-day streak", "Una congelació ha salvat la teva ratxa de " + g.streak + " dies")) + "</strong><span>"
+      + esc(g.freezes > 0
+        ? T("You missed a day and one of your freezes covered it. You have " + g.freezes + " left — earn another after seven days in a row.", "Has fallat un dia i una de les congelacions ho ha cobert. Te’n queden " + g.freezes + ". En guanyaràs una altra després de set dies seguits.")
+        : T("You missed a day and your last freeze covered it. Seven days in a row earns another one.", "Has fallat un dia i l’última congelació ho ha cobert. Set dies seguits en tornen a donar una."))
+      + '</span></div><button class="button quiet" type="button" data-dismiss-freeze>' + esc(T("Got it", "Entesos")) + "</button></div>";
+  }
+
+  /** Everything logged: give the day an ending instead of a row of zeroes. */
+  function dayCompleteMarkup(plan) {
+    const decided = plan.meals.filter((meal) => state.meals[meal.id]?.status);
+    if (decided.length < plan.meals.length) return "";
+    const g = game();
+    const day = todayGame();
+    const ate = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status)).length;
+    const checked = state.dailyCheckAwardedDate === todayKey();
+    const nextBadge = BADGES.find((badge) => !g.badges.includes(badge.id));
+    const tomorrow = state.tomorrowActivity;
+    const choices = [["rest", T("Rest", "Descans")], ["walk", T("Walk", "Caminar")], ["pilates", T("Pilates", "Pilates")], ["strength", T("Strength", "Força")], ["run", T("Run", "Córrer")]];
+    const headline = ate === 0
+      ? T("Today did not go to plan. That is still a day logged.", "Avui no ha anat segons el pla. Tot i així, és un dia registrat.")
+      : ate < plan.meals.length
+        ? T("Day closed — " + ate + " of " + plan.meals.length + " meals eaten as planned.", "Dia tancat: " + ate + " de " + plan.meals.length + " àpats com estava previst.")
+        : T("Every meal logged. That is a complete day.", "Tots els àpats registrats. Un dia complet.");
+    return '<section class="day-done"><p class="eyebrow">' + esc(T("Day complete", "Dia complet")) + '</p><h2>' + esc(headline) + "</h2>"
+      + '<div class="day-done-stats"><div><b>' + (g.streak || 0) + '</b><span>' + esc((g.streak === 1 ? T("day streak", "dia de ratxa") : T("day streak", "dies de ratxa"))) + '</span></div><div><b>' + day.xp + '</b><span>XP ' + esc(T("today", "avui")) + '</span></div>'
+      + (nextBadge ? '<div><b aria-hidden="true">' + nextBadge.icon + '</b><span>' + esc(language === "ca" ? nextBadge.hint.ca : nextBadge.hint.en) + "</span></div>" : "")
+      + "</div>"
+      + (checked ? "" : '<div class="actions"><button class="button" type="button" data-menu-action="daily-check">' + esc(T("Finish your daily check", "Acaba la revisió del dia")) + "</button></div>")
+      + '<div class="tomorrow"><span class="label">' + esc(T("Tomorrow’s movement", "El moviment de demà")) + '</span><div class="tomorrow-choices">'
+      + choices.map(([value, label]) => '<button type="button" class="tomorrow-choice' + (tomorrow === value ? " is-active" : "") + '" data-tomorrow="' + value + '">' + esc(label) + "</button>").join("")
+      + '</div><p class="meta">' + esc(tomorrow ? T("Set. Tomorrow’s plan will be ready when you open the Coach.", "Fet. El pla de demà estarà a punt quan obris el Coach.") : T("Pick one and tomorrow’s plan is ready before you wake up.", "Tria’n una i el pla de demà estarà a punt abans que et llevis.")) + "</p></div></section>";
+  }
+
   function dashboard() {
     const plan = currentPlan();
     const generating = !state.dailyMeals && pendingDailyMealPlans.size > 0;
@@ -928,8 +1198,10 @@
     mount("today", viewShell(
       T("Today’s plan", "El pla d’avui"),
       T("Three meals built around your body, your goal and today’s movement.", "Tres àpats pensats pel teu cos, el teu objectiu i el moviment d’avui."),
-      chip
+      demoBannerMarkup() + safetyNoticeMarkup(plan.target) + freezeNoticeMarkup() + chip
         + '<div class="today"><div class="today-main">' + targetPanelMarkup(plan)
+        + questStripMarkup()
+        + dayCompleteMarkup(plan)
         + '<ul class="meal-list" id="meal-list">' + mealListMarkup(plan) + "</ul>"
         + '<p class="privacy">This plan is stored only in this browser.</p>' + methodology() + "</div>"
         + '<aside class="today-aside">' + liveCoachMarkup("desktop") + "</aside></div>",
@@ -955,6 +1227,7 @@
     bindTodayHandlers(plan);
     updateTargetPanel(plan);
     translate();
+    fillShopOffers();
     loadMealImages(plan);
   }
 
@@ -962,17 +1235,45 @@
     const plan = currentPlan();
     const card = root.querySelector('[data-meal-card="' + id + '"]');
     if (!card) return dashboard();
+    // The moment the last meal gets an answer the day earns its closing card,
+    // which only a full render can add.
+    const allDecided = plan.meals.every((meal) => state.meals[meal.id]?.status);
+    if (allDecided && !root.querySelector(".day-done")) return dashboard();
     const milkshakeMeal = plan.meals.find((meal) => meal.milkshakeEligible)?.id || "lunch";
     card.outerHTML = mealCard(plan.meals.find((meal) => meal.id === id), id === milkshakeMeal);
     bindTodayHandlers(plan);
     updateTargetPanel(plan);
     translate();
+    fillShopOffers();
   }
 
   function bindTodayHandlers(plan) {
+    root.querySelectorAll("[data-tomorrow]").forEach((button) => button.onclick = () => {
+      state.tomorrowActivity = button.dataset.tomorrow;
+      save();
+      dashboard();
+    });
+    root.querySelector("[data-dismiss-freeze]")?.addEventListener("click", () => {
+      game().freezeNotice = "";
+      save();
+      dashboard();
+    });
+    root.querySelectorAll("[data-swap-meal]").forEach((button) => button.onclick = () => askForSwap(button.dataset.swapMeal));
+    root.querySelectorAll("[data-retry-image]").forEach((button) => button.onclick = () => {
+      const meal = currentPlan().meals.find((item) => item.id === button.dataset.retryImage);
+      if (!meal) return;
+      failedMealImages.delete(mealImageKey(meal));
+      refreshMealCard(meal.id);
+      void loadMealImage(meal);
+    });
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
     root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.confirmMeal, "eaten"); refreshMealCard(button.dataset.confirmMeal); });
     root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.skipMeal, "skipped"); refreshMealCard(button.dataset.skipMeal); });
+    root.querySelectorAll("[data-unlog-meal]").forEach((button) => button.onclick = () => {
+      delete state.meals[button.dataset.unlogMeal];
+      save();
+      refreshMealCard(button.dataset.unlogMeal);
+    });
     root.querySelectorAll("[data-restaurant-meal]").forEach((button) => {
       const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal);
       button.onclick = () => restaurantOverlay(button.dataset.restaurantMeal, meal);
@@ -1008,6 +1309,18 @@
         refreshMealCard(id);
       }, { passive: true });
     });
+  }
+
+  /** Turns a skip into a conversation instead of a dead end. */
+  function askForSwap(id) {
+    const meal = currentPlan().meals.find((item) => item.id === id);
+    if (!meal) return;
+    const question = T(
+      "I skipped " + meal.slot.toLowerCase() + " (" + meal.title + "). Suggest two lighter or quicker swaps that keep me near my targets.",
+      "M’he saltat " + meal.slot.toLowerCase() + " (" + meal.title + "). Suggereix-me dues alternatives més lleugeres o ràpides que em mantinguin a prop dels objectius."
+    );
+    coachPage();
+    askLiveCoach(question, "page");
   }
 
   function coachPage() {
@@ -1125,6 +1438,7 @@
       g.freezes -= 1;
       g.lastGoalDay = yesterday;
       g.frozeOn = today;
+      g.freezeNotice = today;
       return;
     }
     if (g.lastGoalDay < yesterday) g.streak = 0;
@@ -1161,6 +1475,11 @@
       if (g.lastGoalDay !== today) {
         g.streak = g.lastGoalDay === dayOffsetKey(1) ? (g.streak || 0) + 1 : 1;
         g.lastGoalDay = today;
+        // Seven days in a row earns a freeze back, up to two in hand.
+        if (g.streak % 7 === 0 && (g.freezes || 0) < 2) {
+          g.freezes = (g.freezes || 0) + 1;
+          celebrate("🛡️", T("Streak freeze earned", "Has guanyat una congelació"), T("You now have " + g.freezes, "Ara en tens " + g.freezes));
+        }
       }
       celebrate("🔥", T("Daily goal complete", "Objectiu diari assolit"), T("Streak: ", "Ratxa: ") + g.streak + " " + (g.streak === 1 ? T("day", "dia") : T("days", "dies")));
     }
@@ -1226,6 +1545,7 @@
   function checkMealQuests() {
     const plan = currentPlan();
     const logged = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
+    todayGame().logged = logged.length;
     if (logged.length) awardBadge("first-plate");
     if (logged.length >= plan.meals.length) completeQuest("log-all");
     checkProteinQuest();
@@ -1290,6 +1610,11 @@
     if (eligible && !previous.pointsAwarded) {
       awardXp(10, T("Meal logged", "Àpat registrat"));
       if (status === "restaurant") awardBadge("scanner");
+    } else if (status === "skipped" && !previous.skipLogged) {
+      // Recording what actually happened is the habit worth rewarding, even
+      // when the honest answer is "I did not eat it".
+      state.meals[id].skipLogged = true;
+      awardXp(3, T("Logged honestly", "Registrat amb sinceritat"));
     }
     checkMealQuests();
     track("meal_logged", { status, meal: id });
@@ -1299,7 +1624,9 @@
   function dailyCheck() {
     const plan = currentPlan();
     const completed = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
-    const pending = plan.meals.filter((meal) => !["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
+    // A skipped meal is a decision, not an omission: the day can still be closed.
+    const pending = plan.meals.filter((meal) => !state.meals[meal.id]?.status);
+    const skipped = plan.meals.filter((meal) => state.meals[meal.id]?.status === "skipped");
     const date = new Intl.DateTimeFormat(language === "ca" ? "ca-ES" : "en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
     const completedToday = state.dailyCheckAwardedDate === todayKey();
     const points = todayGame().xp;
@@ -1311,11 +1638,13 @@
     const content = scoreboard
       + (pending.length
         ? '<div class="card"><p class="eyebrow">' + esc(T("Still to review", "Encara per revisar")) + '</p><div class="quick-replies">' + pending.map((meal) => '<button type="button" data-daily-check="' + esc(meal.id) + '"><span>' + esc(meal.slot) + ": " + esc(meal.title) + "</span></button>").join("") + "</div></div>"
-        : '<div class="card"><p>' + esc(T("Your daily check is complete. Your meals and plan are saved on this device for today.", "La revisió del dia està completa. Els àpats i el pla es desen en aquest dispositiu per avui.")) + "</p></div>")
+        : '<div class="card"><p>' + esc(skipped.length
+            ? T("Every meal has an answer, including the " + skipped.length + " you skipped. That still counts as a day logged.", "Tots els àpats tenen resposta, inclosos els " + skipped.length + " que t’has saltat. Compta igualment com a dia registrat.")
+            : T("Your daily check is complete. Your meals and plan are saved on this device for today.", "La revisió del dia està completa. Els àpats i el pla es desen en aquest dispositiu per avui.")) + "</p></div>")
       + '<div class="actions on-shell">'
       + (pending.length ? "" : completedToday
-        ? '<span class="chip chip--logged">' + esc(T("Daily check completed · +10", "Revisió completada · +10")) + "</span>"
-        : '<button class="button" type="button" id="complete-check">' + esc(T("Complete today’s check (+10)", "Completa la revisió d’avui (+10)")) + "</button>")
+        ? '<span class="chip chip--logged">' + esc(T("Daily check completed", "Revisió completada")) + "</span>"
+        : '<button class="button" type="button" id="complete-check">' + esc(T("Complete today’s check", "Completa la revisió d’avui")) + " (+" + (QUEST_POOL.find((quest) => quest.id === "check")?.xp || 15) + " XP)</button>")
       + '<button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + "</button></div>";
     mount("today", viewShell(T("Daily check", "Revisió del dia"), T("Review what you have eaten today and adapt the remaining meals.", "Revisa què has menjat avui i adapta els àpats que queden."), '<div class="stack">' + content + "</div>"));
     root.querySelector("#back").onclick = dashboard;
@@ -1358,9 +1687,14 @@
     const imageUrl = state.mealImages?.[meal.id];
     const image = imageUrl
       ? '<img class="meal-image" src="' + esc(imageUrl) + '" alt="' + esc(meal.title) + '">'
-      : '<div class="meal-image meal-image-placeholder" data-meal-image-placeholder="' + esc(meal.id) + '" role="status"><span>' + esc(failedMealImages.has(mealImageKey(meal)) ? T("Meal image is unavailable right now.", "Ara mateix la imatge de l’àpat no està disponible.") : T("Creating your meal image…", "Creant la imatge de l’àpat…")) + "</span></div>";
+      : '<div class="meal-image meal-image-placeholder" data-meal-image-placeholder="' + esc(meal.id) + '" role="status">' + (failedMealImages.has(mealImageKey(meal))
+        ? "<span>" + esc(T("Meal image unavailable.", "Imatge no disponible.")) + '</span><button class="link-button" type="button" data-retry-image="' + esc(meal.id) + '">' + esc(T("Try again", "Torna-ho a provar")) + "</button>"
+        : "<span>" + esc(T("Creating your meal image…", "Creant la imatge de l’àpat…")) + "</span>") + "</div>";
+    const skipOffer = status === "skipped"
+      ? '<p class="skip-offer">' + esc(T("Not feeling this one?", "No et ve de gust?")) + '<button class="link-button" type="button" data-swap-meal="' + esc(meal.id) + '">' + esc(T("Ask for a swap", "Demana un canvi")) + "</button></p>"
+      : "";
     const actions = status
-      ? '<div class="meal-actions"><button class="button quiet" type="button" data-meal="' + esc(meal.id) + '">' + esc(T("Review this meal", "Revisa aquest àpat")) + "</button></div>"
+      ? '<div class="meal-actions"><button class="button quiet" type="button" data-unlog-meal="' + esc(meal.id) + '">' + esc(T("Undo", "Desfés")) + '</button><button class="button quiet" type="button" data-meal="' + esc(meal.id) + '">' + esc(T("Change", "Canvia")) + "</button></div>"
       : '<div class="meal-actions"><button class="button" type="button" data-confirm-meal="' + esc(meal.id) + '">' + esc(T("I’ll eat this", "M’ho menjaré")) + '</button><button class="button quiet" type="button" data-restaurant-meal="' + esc(meal.id) + '">' + esc(T("Restaurant", "Restaurant")) + '</button><button class="button quiet" type="button" data-skip-meal="' + esc(meal.id) + '">' + esc(T("Skip", "Omet")) + "</button></div>";
     const catalanDish = meal.catalanName ? '<p class="meal-catalan"><strong>Catalan dish:</strong> ' + esc(meal.catalanName) + "</p>" : "";
     const macros = '<dl class="macros"><div><dt>kcal</dt><dd>' + meal.calories + '</dd></div><div class="macro--protein"><dt>' + esc(T("protein", "proteïna")) + "</dt><dd>" + meal.proteinG + 'g</dd></div><div><dt>' + esc(T("carbs", "carbo.")) + "</dt><dd>" + meal.carbohydrateG + 'g</dd></div><div><dt>' + esc(T("fat", "greix")) + "</dt><dd>" + meal.fatG + "g</dd></div></dl>";
@@ -1373,7 +1707,7 @@
       + '<div class="meal-details" id="' + esc(detailKey) + '-details">' + macros + catalanDish
       + '<p class="meal-portions">' + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + "</p>"
       + (showMilkshakeOption ? milkshakeOptionMarkup(meal) : "")
-      + actions + "</div></div></article>";
+      + skipOffer + actions + "</div></div></article>";
   }
 
   function loadMealImages(plan) {
@@ -1388,7 +1722,12 @@
     const placeholders = root.querySelectorAll('[data-meal-image-placeholder="' + meal.id + '"]');
     placeholders.forEach((placeholder) => {
       if (!imageUrl) {
-        placeholder.textContent = T("Meal image is unavailable right now.", "Ara mateix la imatge de l’àpat no està disponible.");
+        placeholder.innerHTML = "<span>" + esc(T("Meal image unavailable.", "Imatge no disponible.")) + '</span><button class="link-button" type="button" data-retry-image="' + esc(meal.id) + '">' + esc(T("Try again", "Torna-ho a provar")) + "</button>";
+        placeholder.querySelector("[data-retry-image]").onclick = () => {
+          failedMealImages.delete(mealImageKey(meal));
+          refreshMealCard(meal.id);
+          void loadMealImage(meal);
+        };
         return;
       }
       const image = document.createElement("img");
@@ -1494,7 +1833,22 @@
       [["Breakfast", "Vegetable omelette and pa amb tomàquet", "3 eggs · spinach and mushrooms · 2 slices wholegrain bread · tomato", "Truita de verdures amb pa amb tomàquet"], ["Lunch", "Salmó with potato and leafy salad", "140g salmon · 300g potatoes · large leafy salad · 10g olive oil"], ["Dinner", "Pasta integral amb llenties and tomato", "250g cooked lentils · 80g dry wholegrain pasta · tomato sauce and vegetables"]],
       [["Breakfast", "Oats with banana, yogurt and hazelnuts", "60g oats · 200g Greek yogurt · 1 banana · 15g hazelnuts"], ["Lunch", "Amanida mediterrània de tonyina i mongetes", "1 tuna can · 180g cooked white beans · tomato, cucumber and olives"], ["Dinner", "Crema de verdures with tofu and pa de pagès", "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil", "Crema de verdures amb pa de pagès"]]
     ][dayIndex];
-    return mealPlan(target, activity).map((meal, index) => localiseMeal({ ...meal, title: menus[index][1], portions: menus[index][2], catalanName: menus[index][3] }));
+    const scale = target.calories / 2000;
+    return mealPlan(target, activity).map((meal, index) => localiseMeal({ ...meal, title: menus[index][1], portions: scalePortions(menus[index][2], scale), catalanName: menus[index][3] }));
+  }
+
+  /** Meals logged over the last seven days, from the progress history. */
+  function weekAdherence() {
+    const g = game();
+    let logged = 0;
+    let days = 0;
+    for (let offset = 0; offset < 7; offset += 1) {
+      const record = g.days?.[dayOffsetKey(offset)];
+      if (!record) continue;
+      days += 1;
+      logged += Number(record.logged) || 0;
+    }
+    return { logged, days, possible: 21 };
   }
 
   function weeklyDayCard(entry, milkshakeOptions) {
@@ -1502,7 +1856,13 @@
     const collapsed = Boolean(state.compactPlanView) && !expandedPlanDetails.has(detailKey);
     const details = '<p><strong>' + entry.target.calories + " kcal</strong> · " + entry.target.proteinG + "g " + esc(T("protein", "proteïna")) + "</p>"
       + entry.meals.map((meal) => "<p><strong>" + esc(meal.slot) + ": " + esc(meal.title) + '</strong><br><span class="meta">' + (meal.catalanName ? "<strong>Catalan dish:</strong> " + esc(meal.catalanName) + "<br>" : "") + esc(meal.portions) + "</span></p>" + (milkshakeOptions.has(entry.id + ":" + meal.id) ? milkshakeOptionMarkup(meal) : "")).join("");
-    return '<article class="week-day' + (collapsed ? " is-collapsed" : "") + '" data-detail-card="' + esc(detailKey) + '"><div class="weekly-card-visual">' + weeklyMealImageMarkup(entry) + "</div><h3>" + esc(entry.day) + " · " + esc(activityLabel(entry.activity)) + "</h3>" + detailToggleMarkup(detailKey, collapsed) + '<div class="week-day-details" id="' + esc(detailKey) + '-details">' + details + "</div></article>";
+    // Monday is index 0; JS Sunday is 0, so shift.
+    const todayIndex = (new Date().getDay() + 6) % 7;
+    const isToday = entry.index === todayIndex;
+    const useToday = isToday || entry.activity === state.activity
+      ? ""
+      : '<button class="link-button week-day-use" type="button" data-use-day="' + esc(entry.activity) + '">' + esc(T("Use this day today", "Fes servir aquest dia avui")) + "</button>";
+    return '<article class="week-day' + (collapsed ? " is-collapsed" : "") + (isToday ? " is-today" : "") + '" data-detail-card="' + esc(detailKey) + '"><div class="weekly-card-visual">' + weeklyMealImageMarkup(entry) + "</div><h3>" + esc(entry.day) + " · " + esc(activityLabel(entry.activity)) + (isToday ? '<span class="chip chip--today">' + esc(T("Today", "Avui")) + "</span>" : "") + "</h3>" + useToday + detailToggleMarkup(detailKey, collapsed) + '<div class="week-day-details" id="' + esc(detailKey) + '-details">' + details + "</div></article>";
   }
 
   function weeklyPlanEntries() {
@@ -1588,11 +1948,22 @@
     const cards = entries.map((entry) => weeklyDayCard(entry, milkshakeOptions)).join("");
     mount("week", viewShell(
       T("Your seven-day plan", "El teu pla de set dies"),
-      weekLead,
+      weekLead + " " + (() => { const a = weekAdherence(); return a.days ? T(a.logged + " meals logged in the last 7 days.", a.logged + " àpats registrats en els darrers 7 dies.") : ""; })(),
       '<div class="actions on-shell" style="margin:0 0 24px"><button class="button" type="button" id="approve-week">' + esc(T("Create the weekly basket", "Crea la cistella setmanal")) + '</button><button class="button quiet" type="button" data-menu-action="weekly-pdf">' + esc(T("Download the week", "Baixa la setmana")) + '</button><button class="button quiet" type="button" data-menu-action="weekly-email">' + esc(T("Email my week", "Envia’m la setmana")) + '</button><button class="button quiet" type="button" id="edit-week">' + esc(T("Edit my week", "Edita la setmana")) + '</button></div><div class="week-grid">' + cards + "</div>"
     ));
     root.querySelector("#approve-week").onclick = weeklyBasket;
     root.querySelector("#edit-week").onclick = weeklySetup;
+    root.querySelectorAll("[data-use-day]").forEach((button) => button.onclick = () => {
+      failedMealImages.clear();
+      failedDailyMealPlans.clear();
+      state.activity = button.dataset.useDay;
+      state.meals = {};
+      state.mealImages = {};
+      state.dailyMeals = null;
+      state.menuNonce = (state.menuNonce || 0) + 1;
+      save();
+      dashboard();
+    });
     completeQuest("week");
     bindDetailToggles();
     entries.forEach((entry) => { void loadWeeklyMealImage(entry); });
@@ -1632,19 +2003,18 @@
     return String(item.amount);
   }
 
-  function basketEstimateSource(estimate) {
-    return "Average supermarket reference.";
-  }
+  /* The page gets these strings translated by translate() walking the DOM. The
+     PDF and the email are not DOM, so they read the same dictionary directly
+     rather than carrying a second Catalan wording of the same sentence. */
+  const basketEstimateCopy = () => ({
+    title: localise("Estimated weekly basket cost"),
+    source: localise("Average supermarket reference."),
+    total: localise("Estimated total"),
+    note: localise("Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.")
+  });
 
-  function basketEstimateText() {
-    if (!weeklyBasketEstimate) return "";
-    return [
-      "Estimated weekly basket cost",
-      basketEstimateSource(weeklyBasketEstimate),
-      ...weeklyBasketEstimate.items.map((item) => "- " + basketAmountLabel(item) + " " + localiseFood(item.name) + ": " + formatEur(item.price)),
-      "Estimated total: " + formatEur(weeklyBasketEstimate.total),
-      "Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.",
-    ].join("\n");
+  function basketEstimateSource(estimate) {
+    return basketEstimateCopy().source;
   }
 
   function renderBasketEstimate(estimate) {
@@ -1696,13 +2066,52 @@
     loadBasketEstimate(totals);
   }
 
+  /* The week, unflattened. The email needs it structured to lay it out, and
+     weeklyText() is written on top of it so the two can never drift apart. */
+  function weeklySections(kind) {
+    if (kind === "basket") {
+      const items = weeklyBasketItems().map(([name, amount]) => ({ amount: amount + (amount < 20 ? "" : " g"), name: localiseFood(name) }));
+      if (!weeklyBasketEstimate) return { items };
+      return {
+        items,
+        estimate: {
+          source: basketEstimateCopy().source,
+          items: weeklyBasketEstimate.items.map((item) => ({ label: basketAmountLabel(item) + " " + localiseFood(item.name), price: formatEur(item.price) })),
+          total: formatEur(weeklyBasketEstimate.total),
+          note: basketEstimateCopy().note
+        }
+      };
+    }
+    const activities = weeklyActivities();
+    return weekdayNames().map((day, index) => ({
+      day,
+      activity: activityLabel(activities[index]),
+      meals: variedMeals(dailyTarget(state.profile, activities[index]), activities[index], index)
+        .map((meal) => ({ slot: meal.slot, title: meal.title, portions: meal.portions, catalanName: meal.catalanName || "" }))
+    }));
+  }
+
   function weeklyText(kind) {
-    const days = weekdayNames();
-    if (kind === "basket") return weeklyBasketItems().map(([name, amount]) => "- " + amount + (amount < 20 ? "" : "g") + " " + localiseFood(name)).join("\n") + (weeklyBasketEstimate ? "\n\n" + basketEstimateText() : "");
-    return days.map((day, index) => {
-      const target = dailyTarget(state.profile, weeklyActivities()[index]);
-      return day + " - " + activityLabel(weeklyActivities()[index]) + "\n" + variedMeals(target, weeklyActivities()[index], index).map((meal) => meal.slot + ": " + meal.title + (meal.catalanName ? " [Catalan dish: " + meal.catalanName + "]" : "") + " (" + meal.portions + ")").join("\n");
-    }).join("\n\n");
+    const sections = weeklySections(kind);
+    if (kind === "basket") {
+      const lines = sections.items.map((item) => "- " + item.amount + " " + item.name);
+      if (!sections.estimate) return lines.join("\n");
+      const copy = basketEstimateCopy();
+      return lines.concat([
+        "",
+        copy.title,
+        sections.estimate.source,
+        ...sections.estimate.items.map((item) => "- " + item.label + ": " + item.price),
+        copy.total + ": " + sections.estimate.total,
+        sections.estimate.note
+      ]).join("\n");
+    }
+    /* The Catalan dish goes on its own indented line: inside the meal line it
+       read like a debug annotation, and this pastes cleanly into Notes. */
+    return sections.map((day) => [day.day + " - " + day.activity].concat(day.meals.map((meal) =>
+      meal.slot + ": " + meal.title + " (" + meal.portions + ")" +
+      (meal.catalanName ? "\n  " + localise("Catalan dish:") + " " + meal.catalanName : "")
+    )).join("\n")).join("\n\n");
   }
 
   function printWeekly(kind) {
@@ -1741,7 +2150,7 @@
         const response = await fetch("/api/shopify-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, kind, checklist: weeklyText(kind), language, marketingConsent: true })
+          body: JSON.stringify({ email, kind, checklist: weeklyText(kind), sections: weeklySections(kind), language, marketingConsent: true })
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || (isCatalan ? "No s'ha pogut enviar el correu." : "We couldn't send the email."));
@@ -1955,13 +2364,15 @@
     track("basket_created", { scope: "daily", items: items.length });
     root.querySelector("#basket-pdf").onclick = () => printPdf("basket");
     root.querySelector("#back").onclick = dashboard;
-    root.querySelector("#clear").onclick = resetCoach;
+    root.querySelector("#clear").onclick = deleteEverything;
     bindBasketSwitcher();
     completeQuest("basket");
   }
 
   if (state.profile) { syncStreak(); save(); }
-  if (state.profile) (state.needsTraining ? training() : dashboard()); else welcome();
+  if (!state.profile) welcome();
+  else if (state.needsTraining) training();
+  else renderFromHash();
   void checkAccountsEnabled();
   void syncAccount();
 })();
