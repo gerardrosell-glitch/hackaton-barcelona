@@ -174,13 +174,9 @@
       answers[question.key] = question.choices ? value : Number(value);
       index += 1;
       if (index < questions.length) return render();
-      root.innerHTML = coachShell("Your daily meal plan is ready.", "Save it on this device, then tell your Coach about today’s movement.", '<div class="bubble coach">I have what I need. I’ll now create and save your personalised daily meal plan, including meals and your shopping basket.<span class="meta">It stays in this browser and can be deleted with Start over. Nothing is saved to an account.</span></div><div class="actions"><button class="button" id="save-device">Create and save my plan</button></div>');
-      const finish = () => {
-        state = { profile: answers, activity: "rest", meals: {} };
-        save();
-        training();
-      };
-      root.querySelector("#save-device").onclick = finish;
+      state = { profile: answers, activity: "rest", meals: {} };
+      save();
+      training();
     };
     render();
   }
@@ -201,7 +197,7 @@
   }
 
   function methodology() {
-    return '<details class="method"><summary>How this plan is calculated</summary><ul><li><strong>Energy:</strong> a Mifflin-St Jeor resting-energy estimate uses age, height, weight and sex; your selected usual activity, goal and today’s activity then make transparent fixed adjustments.</li><li><strong>Macros:</strong> protein is a general-wellbeing heuristic of 1.2-1.6g/kg; fat is set at 28% of energy; carbohydrates make up the remaining energy. Fibre aims for 25g/day (30g for the male option in this prototype).</li><li><strong>Meals and basket:</strong> the three meals are practical food templates split across the day. They are not a prescription, allergy-safe plan or diagnosis.</li><li><strong>Food and photo data:</strong> FatSecret is only used for food lookup when enabled; LogMeal is only used for a restaurant-photo estimate after its EU DPA is approved. Neither is the source of the core calorie calculation.</li></ul><p class="meta">Sources: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">EFSA Dietary Reference Values</a>. Estimates can be materially wrong for an individual. Seek a qualified clinician for medical conditions, pregnancy, eating-disorder history, kidney disease or diabetes.</p></details>';
+    return '<details class="method"><summary>Where the meal ideas come from</summary><ul><li><strong>Meal ideas:</strong> Quota Vita’s practical meal templates are built from familiar whole foods, balanced-plate patterns and the general macro target calculated below. They are not recipes supplied by FatSecret, LogMeal, a restaurant or a dietitian.</li><li><strong>Energy:</strong> a Mifflin-St Jeor resting-energy estimate uses age, height, weight and sex; your selected usual activity, goal and today’s activity then make transparent fixed adjustments.</li><li><strong>Macros:</strong> protein is a general-wellbeing heuristic of 1.2-1.6g/kg; fat is set at 28% of energy; carbohydrates make up the remaining energy. Fibre aims for 25g/day (30g for the male option in this prototype).</li><li><strong>Food and photo data:</strong> FatSecret is only used for food lookup when enabled; LogMeal is only used for a restaurant-photo estimate after explicit consent. Neither is the source of the core calorie calculation.</li></ul><p class="meta">Sources: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">EFSA Dietary Reference Values</a>. Estimates can be materially wrong for an individual. Seek a qualified clinician for medical conditions, pregnancy, eating-disorder history, kidney disease or diabetes.</p></details>';
   }
 
   function basketItems(plan) {
@@ -229,11 +225,10 @@
     const plan = currentPlan();
     const eaten = totals(plan);
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
-    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">See weekly meals</button><button class="button quiet" id="week-basket">Weekly shopping basket</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
+    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
-    root.querySelector("#week-plan").onclick = weeklyPlan;
-    root.querySelector("#week-basket").onclick = weeklyBasket;
+    root.querySelector("#week-plan").onclick = weeklySetup;
     root.querySelector("#change-training").onclick = training;
     root.querySelector("#start-over").onclick = () => { localStorage.removeItem(storageKey); state = { profile: null, activity: "rest", meals: {} }; welcome(); };
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
@@ -247,16 +242,40 @@
     return '<article class="meal ' + (status || "") + '"><img class="meal-image" src="' + images[meal.id] + '" alt="' + esc(meal.title) + '"><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p><div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">' + label + "</button></div></article>";
   }
 
+  function weeklySetup() {
+    root.innerHTML = coachShell("Let’s plan your week", "First, tell your Coach what you want from this week.", '<div class="bubble coach">What are your goals for the week?<span class="meta">For example: feel more energetic, lose fat steadily, prepare for a 10 km run, or build strength.</span></div><form class="composer chat-input" id="weekly-goal-form"><input id="weekly-goal" placeholder="Write your goal for this week" required><button class="button" type="submit">Continue</button></form><button class="button quiet" id="back">Back to daily plan</button>');
+    root.querySelector("#back").onclick = dashboard;
+    root.querySelector("#weekly-goal-form").onsubmit = (event) => { event.preventDefault(); weeklyTraining(root.querySelector("#weekly-goal").value.trim()); };
+  }
+
+  function weeklyTraining(weeklyGoal) {
+    root.innerHTML = coachShell("Your training week", "Tell me how many strength and running days you plan.", '<div class="bubble coach">How will you train this week?<span class="meta">For example: two strength days and one running day. The remaining days are treated as recovery or light movement.</span></div><form class="composer" id="weekly-training-form"><label class="field">Strength days <select id="strength-days">' + [0, 1, 2, 3, 4, 5, 6, 7].map((n) => '<option value="' + n + '"' + (n === 2 ? " selected" : "") + '>' + n + '</option>').join("") + '</select></label><label class="field">Running days <select id="run-days">' + [0, 1, 2, 3, 4, 5, 6, 7].map((n) => '<option value="' + n + '"' + (n === 1 ? " selected" : "") + '>' + n + '</option>').join("") + '</select></label><div class="actions"><button class="button" type="submit">Create my seven-day meal plan</button></div></form><button class="button quiet" id="back">Back</button>');
+    root.querySelector("#back").onclick = weeklySetup;
+    root.querySelector("#weekly-training-form").onsubmit = (event) => {
+      event.preventDefault(); const strength = Number(root.querySelector("#strength-days").value); const run = Number(root.querySelector("#run-days").value);
+      if (strength + run > 7) return alert("Strength and running days cannot add up to more than seven.");
+      state.weekly = { goal: weeklyGoal, strength, run }; save(); weeklyPlan();
+    };
+  }
+
+  function weeklyActivities({ strength, run }) {
+    const activities = Array(7).fill("rest"); const strengthSlots = [0, 2, 4, 6, 1, 3, 5]; const runSlots = [1, 3, 5, 0, 2, 4, 6];
+    strengthSlots.slice(0, strength).forEach((slot) => { activities[slot] = "strength"; });
+    let remaining = run; for (const slot of runSlots) { if (remaining && activities[slot] === "rest") { activities[slot] = "run"; remaining -= 1; } }
+    return activities;
+  }
+
   function weeklyPlan() {
-    const plan = currentPlan(); const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    root.innerHTML = coachShell("Your weekly meal plan", "Seven practical daily plans using your current calorie and macro target.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day) => '<article class="week-day"><h3>' + day + '</h3><p>' + plan.meals.map((meal) => '<strong>' + meal.slot + ':</strong> ' + esc(meal.title)).join(" · ") + '</p></article>').join("") + '</div><div class="actions"><button class="button" id="weekly-basket">See weekly shopping basket</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
-    root.querySelector("#weekly-basket").onclick = weeklyBasket; root.querySelector("#back").onclick = dashboard;
+    const week = state.weekly; if (!week) return weeklySetup(); const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(week);
+    root.innerHTML = coachShell("Your seven-day meal plan", "Weekly goal: “" + week.goal + "”. Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const dayPlan = { target: dailyTarget(state.profile, activities[index]), meals: mealPlan(dailyTarget(state.profile, activities[index]), activities[index]) }; return '<article class="week-day"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + dayPlan.target.calories + ' kcal</strong> · ' + dayPlan.target.proteinG + 'g protein</p><p>' + dayPlan.meals.map((meal) => '<strong>' + meal.slot + ':</strong> ' + esc(meal.title)).join(" · ") + '</p></article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="adjust-week">Adjust weekly goals</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#adjust-week").onclick = weeklySetup; root.querySelector("#back").onclick = dashboard;
   }
 
   function weeklyBasket() {
-    const items = basketItems(currentPlan());
-    root.innerHTML = coachShell("Your weekly shopping basket", "Quantities for seven days of your current meal plan.", '<div class="bubble coach full-card"><ul class="basket">' + items.map(([amount, name]) => '<li><strong>' + (typeof amount === "number" && amount !== 1 ? amount * 7 + "g" : amount * 7) + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button quiet" id="back">Back to daily plan</button></div></div>');
-    root.querySelector("#back").onclick = dashboard;
+    const activities = weeklyActivities(state.weekly); const totals = new Map();
+    activities.forEach((activity) => basketItems({ target: dailyTarget(state.profile, activity) }).forEach(([amount, name]) => totals.set(name, (totals.get(name) || 0) + Number(amount))));
+    root.innerHTML = coachShell("Your approved weekly shopping basket", "Built from your goal and " + state.weekly.strength + " strength day(s) plus " + state.weekly.run + " running day(s).", '<div class="bubble coach full-card"><ul class="basket">' + [...totals.entries()].map(([name, amount]) => '<li><strong>' + (amount === 7 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
+    root.querySelector("#back").onclick = weeklyPlan;
   }
 
   function checkIn(id, message = "") {
