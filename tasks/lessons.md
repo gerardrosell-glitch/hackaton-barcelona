@@ -15,3 +15,4 @@
 - A gamification action must persist an observable result: show the current reward, the all-time balance, and replace the action once it is complete.
 - When email delivery is part of a Shopify workflow, implement the actual server-side Flow handoff and consent record; do not leave a mail-app redirect in its place.
 - Do not substitute a generic Shopify Flow workaround when an existing Quota Vita xat workflow is available; identify and use its exact trigger contract first.
+- Do not force desktop users into a mobile-style full-screen gesture deck; give desktop a visible, click-first layout and reserve swipe actions for touch devices.

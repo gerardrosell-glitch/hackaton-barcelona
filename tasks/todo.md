@@ -1,8 +1,13 @@
 # Nutrition Coach interaction update
 
-- [ ] Replace the vertical daily-meal list with a viewport-sized horizontal swipe deck.
-- [ ] Keep meal actions usable without conflating a swipe with logging a meal.
-- [ ] Verify touch, pointer, keyboard, and existing automated flows.
+- [x] Keep the active daily-meal deck intact while Fal images arrive.
+- [x] Verify swiping and meal actions remain available during image loading.
+- [x] Automatically request Fal images for all new daily-meal cards.
+- [x] Prevent duplicate image requests and give failed requests a non-blocking fallback.
+- [x] Verify automatic image loading without exposing a generation action.
+- [ ] Use a touch-only Tinder-style phone deck: swipe right to eat and left to skip.
+- [ ] Use a non-swipe desktop meal board with visible actions for all meals.
+- [ ] Verify mobile touch gestures and desktop buttons independently.
 - [x] Add a persistent Start over control to the top navigation.
 - [x] Add visible numeric keyboard shortcuts to quick-reply choices.
 - [x] Ensure numeric shortcuts work for profile and training choices without intercepting typed numeric answers.
@@ -27,3 +32,25 @@
 ## Review
 
 The top control clears only local Coach data and restarts onboarding. Quick replies are native buttons (Tab/Enter works) and also show/use numeric shortcuts.
+
+The daily plan now opens as a full-viewport horizontal deck. Swipe gestures move between meals; meal buttons are retained for logging so an accidental swipe cannot record an outcome. A mobile browser check confirmed the viewport height, left/right navigation, keyboard support in code, and meal logging; `npm test`, syntax validation, and whitespace checks also pass.
+
+Daily meal cards now request their Fal visuals automatically. Requests are deduplicated by day, activity, meal, and title, and each result is saved locally for the active plan. Failed requests show an unobtrusive unavailable state rather than exposing a manual generation action. Browser verification mocked Fal responses and confirmed three automatic requests, successful rendering, failure fallback, and no generation controls.
+
+## Daily meal macro hierarchy — 2026-08-29
+
+- [x] Show protein, carbohydrates, and fat on each daily meal card.
+- [x] Emphasise protein while keeping carbohydrates and fat secondary.
+- [x] Verify rendered markup and the project checks.
+
+### Review
+
+Each daily meal card now displays its protein, carbohydrate, and fat values. Protein is the bold lead macro; carbohydrates and fat follow as secondary text. JavaScript syntax validation, the ten-test project suite, whitespace validation, and a source-level macro markup check all pass.
+
+## Isolated daily macro deployment — 2026-08-29
+
+- [ ] Create a production deploy source containing only the daily macro hierarchy update.
+- [ ] Deploy it to the linked EU Vercel project.
+- [ ] Verify the resulting production URL serves the macro update.
+
+Fal image results now update only their own card placeholder instead of re-rendering the complete daily deck. This preserves the selected meal, current swipe position, and meal controls while images finish loading. A delayed-response browser check confirmed the deck remained intact on meal two and its meal action still worked.

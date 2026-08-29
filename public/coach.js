@@ -6,6 +6,10 @@
   let cameraStream;
   let capturedMealImage;
   let language = localStorage.getItem("quota-vita-coach-language") || "en";
+  let mealDeckIndex = 0;
+  let weeklyBasketEstimate;
+  const pendingMealImages = new Set();
+  const failedMealImages = new Set();
   const chatStyle = document.createElement("style");
   chatStyle.textContent = ".coach-workspace{position:relative;isolation:isolate;min-height:100dvh;overflow:hidden;border-radius:0;padding:clamp(28px,5vw,64px) clamp(18px,8vw,128px);background:#1d6254;color:#fff}.coach-workspace::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(9,46,39,.9),rgba(20,91,77,.72) 48%,rgba(255,106,70,.58))}.coach-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.coach-workspace .stepper{margin:0 auto 20px;max-width:760px}.coach-workspace .eyebrow,.coach-workspace .lead{color:#fff}.coach-workspace h2{max-width:760px;margin:0 auto 5px;color:#fff;font-size:clamp(2rem,4vw,3.5rem);line-height:1.02;text-align:left}.coach-workspace>.eyebrow,.coach-workspace>.lead{max-width:760px;margin-left:auto;margin-right:auto;text-align:left}.coach-workspace>.lead{margin-top:0;margin-bottom:22px;font-size:1rem}.chat{max-width:760px;min-height:440px;margin:0 auto;padding:18px;border:1px solid rgba(255,255,255,.35);border-radius:24px;background:rgba(8,43,36,.44);display:grid;align-content:start;gap:13px;backdrop-filter:blur(10px)}.bubble{max-width:78%;padding:14px 17px;border-radius:19px;line-height:1.45;box-shadow:0 10px 24px rgba(4,37,31,.14)}.bubble.coach{justify-self:start;background:rgba(255,255,255,.97);color:#173e36;border-bottom-left-radius:5px}.bubble.user{justify-self:end;background:#123e35;color:#fff;border:1px solid rgba(255,255,255,.35);border-bottom-right-radius:5px}.bubble .meta{display:block;margin-top:6px;color:#55736d;font-size:.9em}.coach-intro{font-size:1.04rem}.composer{width:100%;box-sizing:border-box;margin:8px 0 0;padding:11px;border:1px solid rgba(255,255,255,.8);border-radius:22px;background:rgba(255,255,255,.98);box-shadow:0 18px 42px rgba(4,37,31,.2)}.composer-label{display:block;padding:2px 7px 9px;color:#41675f;font-weight:700;font-size:.88rem}.quick-replies{display:flex;flex-wrap:wrap;gap:8px}.quick-replies button{border:1px solid #8fb9ab;border-radius:999px;background:#f6fbf8;color:#173e36;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}.quick-replies button:hover{background:#dceee6}.chat-input{display:flex;gap:8px}.chat-input input{min-width:0;flex:1;border:0;background:transparent;padding:12px 10px;color:#173e36;font:inherit;font-size:1rem;outline:none}.chat-input .button{border-radius:15px}.chat-cancel{display:block;margin:16px auto 0;background:transparent!important;border-color:rgba(255,255,255,.8)!important;color:#fff!important}.coach-workspace .privacy{margin:16px auto 0;color:#fff;text-align:center}.coach-workspace .actions{justify-content:center}@media(max-width:600px){.coach-workspace{min-height:100dvh;padding:26px 16px}.coach-workspace h2{font-size:2.25rem}.chat{min-height:0;padding:13px}.bubble{max-width:92%}.chat-input .button{padding:11px 14px}}";
   document.head.append(chatStyle);
@@ -16,10 +20,10 @@
   paletteContrastStyle.textContent = ".coach-workspace{color:#392d23}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#392d23}.coach-workspace .eyebrow{color:#9e4e35}.coach-workspace .lead{color:#584538}.chat{background:rgba(255,249,237,.84);border-color:rgba(112,78,48,.32)}.bubble.coach{background:rgba(255,253,247,.97);color:#392d23}.bubble.user{background:#614633;border-color:#614633;color:#fffdf8}.bubble .meta,.chat-page .privacy,.keyboard-hint{color:#6d5948}.composer{background:rgba(255,253,247,.98);border-color:#c88152}.quick-replies button{background:#fff7e8;border-color:#bf885d;color:#392d23}.quick-replies button:hover{background:#f1d0aa}.quick-replies button:focus-visible,.restart-control:focus-visible{outline-color:#a14e34}.chat-input input{color:#392d23}.chat-input .button,.coach-workspace .button:not(.quiet){background:#614633;border-color:#614633;color:#fffdf8}.chat-cancel{color:#392d23!important;border-color:#9a6544!important;background:rgba(255,249,237,.7)!important}.restart-control{background:#fff9ed;border-color:#a66b48;color:#392d23}.shortcut-key{border-color:#a66b48;color:#7a4730}.week-day{background:rgba(255,253,247,.92);border-color:#d1a171}.meal-header,.meal p,.ledger,.method{color:#392d23}.meta,.ledger span{color:#6d5948}.meal-image-placeholder{display:grid;place-items:center;align-content:center;gap:12px;background:linear-gradient(135deg,#fff7e8,#efd6ab);color:#584538;font-weight:800;text-align:center}.meal-image-placeholder .button{margin:0}";
   document.head.append(paletteContrastStyle);
   const mealDeckStyle = document.createElement("style");
-  mealDeckStyle.textContent = ".meal-feed{display:grid;gap:18px;margin:18px 0}.meal-feed .meal{min-height:min(72dvh,680px);scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;border-left-width:7px}.meal-feed .meal .actions{justify-content:flex-start}.meal-feed .meal .button{min-width:132px}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.meal-feed .meal-image{height:clamp(210px,34vw,320px);object-fit:cover}@media(min-width:720px){.meal-feed{scroll-snap-type:y proximity}.chat-page{max-width:980px}.meal-feed .meal{padding:28px}}";
+  mealDeckStyle.textContent = ".daily-meal-deck{width:100%;padding:clamp(26px,4vw,56px) clamp(18px,6vw,96px);box-sizing:border-box;background:transparent;color:#392d23}.daily-meal-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;max-width:1440px;margin:0 auto}.daily-meal-overview{max-width:1440px;margin:0 auto 20px}.daily-meal-card{min-width:0}.daily-meal-content{height:100%}.daily-meal-card .meal{box-sizing:border-box;height:100%;min-height:0;margin:0;padding:24px;display:flex;flex-direction:column;border-left-width:7px;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-card .meal .actions{justify-content:flex-start;margin-top:auto}.daily-meal-card .meal .button{min-width:0}.daily-meal-card .meal-image{height:190px;object-fit:cover}.meal-deck-controls{display:flex;justify-content:flex-end;max-width:1440px;margin:0 auto 18px}.meal-deck-controls .coach-controls{margin:0}.meal-deck-position,.meal-deck-help{display:none}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.daily-plan-follow-up{width:min(980px,100%);margin:0 auto;padding:26px 18px 64px}.daily-plan-follow-up .bubble{max-width:100%}@media(max-width:719px){.daily-meal-deck{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:0;background:#392d23;color:#392d23;touch-action:pan-y}.daily-meal-track{display:flex;width:100%;max-width:none;height:100%;margin:0;gap:0;will-change:transform;transition:transform .28s cubic-bezier(.22,.8,.25,1)}.daily-meal-overview{display:none}.daily-meal-card{box-sizing:border-box;flex:0 0 100%;width:100%;min-height:100%;padding:76px 14px 54px;display:flex;align-items:center;overflow-y:auto}.daily-meal-content{width:100%}.daily-meal-card .meal{min-height:calc(100dvh - 170px);padding:20px;box-shadow:0 18px 45px rgba(16,10,7,.33)}.daily-meal-card .meal-image{height:min(25dvh,220px)}.meal-deck-controls{position:absolute;inset:12px 12px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;margin:0;color:#fffdf8;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.meal-deck-controls>*{pointer-events:auto}.meal-deck-controls .coach-controls{margin:0;color:inherit}.meal-deck-position{display:block;margin:0;text-shadow:0 1px 8px rgba(0,0,0,.35)}.meal-deck-help{display:block;position:absolute;z-index:2;inset:auto 18px 14px;margin:0;color:#fffdf8;text-align:center;font-size:.76rem;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}}@media(prefers-reduced-motion:reduce){.daily-meal-track{transition:none}}";
   document.head.append(mealDeckStyle);
   const mealInteractionStyle = document.createElement("style");
-  mealInteractionStyle.textContent = ".meal-feed .meal[data-meal-card]{touch-action:pan-y;transition:transform .18s ease,opacity .18s ease}.restaurant-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(57,45,35,.54);overflow:auto}.restaurant-overlay .restaurant-dialog{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border-radius:22px;background:#fff9ed;color:#392d23;box-shadow:0 20px 60px rgba(57,45,35,.35)}.restaurant-overlay .actions{justify-content:flex-start}.restaurant-overlay video{width:100%;max-width:620px;border-radius:14px;background:#392d23}.swipe-hint{margin:0 0 14px;color:#6d5948;font-size:.86rem}@media(max-width:600px){.restaurant-overlay{align-items:end;padding:0}.restaurant-overlay .restaurant-dialog{max-height:92dvh;border-radius:22px 22px 0 0}.swipe-hint{font-size:.8rem}}";
+  mealInteractionStyle.textContent = ".restaurant-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(57,45,35,.54);overflow:auto}.restaurant-overlay .restaurant-dialog{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border-radius:22px;background:#fff9ed;color:#392d23;box-shadow:0 20px 60px rgba(57,45,35,.35)}.restaurant-overlay .actions{justify-content:flex-start}.restaurant-overlay video{width:100%;max-width:620px;border-radius:14px;background:#392d23}.swipe-hint{margin:0 0 14px;color:#6d5948;font-size:.86rem}@media(max-width:600px){.restaurant-overlay{align-items:end;padding:0}.restaurant-overlay .restaurant-dialog{max-height:92dvh;border-radius:22px 22px 0 0}.swipe-hint{font-size:.8rem}}";
   document.head.append(mealInteractionStyle);
   const coachControlsStyle = document.createElement("style");
   coachControlsStyle.textContent = ".coach-controls{display:flex;justify-content:flex-end;align-items:center;gap:12px;max-width:980px;margin:0 auto 24px;color:#392d23;font-size:.78rem;font-weight:800;letter-spacing:.05em}.coach-controls [data-language]{border:0;background:transparent;color:inherit;padding:5px;cursor:pointer;font:inherit}.coach-controls [data-language]:hover{text-decoration:underline}.coach-controls .restart-control{margin:0}@media(max-width:600px){.coach-controls{margin-bottom:18px;gap:7px;font-size:.7rem}.coach-controls .restart-control{font-size:.63rem}}";
@@ -27,6 +31,9 @@
   const emailDeliveryStyle = document.createElement("style");
   emailDeliveryStyle.textContent = ".email-dialog{width:min(580px,100%)}.email-dialog .field{margin:14px 0}.email-dialog input[type=email]{width:100%}.email-dialog .consent-row{display:flex;align-items:flex-start;gap:10px;font-size:.92rem;line-height:1.45}.email-dialog .consent-row input{width:auto;margin-top:4px}.email-dialog a{color:#614633}.email-dialog .status{margin:12px 0 0}";
   document.head.append(emailDeliveryStyle);
+  const basketCostStyle = document.createElement("style");
+  basketCostStyle.textContent = ".basket-costs{margin:22px 0 6px;padding:18px;border:1px solid #d1a171;border-radius:16px;background:#fff8eb}.basket-costs h3{margin:0 0 5px}.basket-costs>p{margin:0 0 12px}.basket-costs ul{display:grid;gap:9px;margin:0;padding:0;list-style:none}.basket-costs li{display:flex;justify-content:space-between;gap:16px;padding-bottom:9px;border-bottom:1px solid rgba(191,136,93,.25)}.basket-costs li span{min-width:0}.basket-costs li small{display:block;margin-top:2px;color:#6d5948}.basket-costs li>strong{white-space:nowrap}.basket-costs-total{display:flex;justify-content:space-between;gap:16px;margin:14px 0 8px;font-size:1.13rem}.basket-costs-disclaimer{color:#6d5948;font-size:.84rem;line-height:1.45}";
+  document.head.append(basketCostStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
@@ -78,7 +85,7 @@
     "Send": "Envia", "Cancel": "Cancel·la", "Choose one reply": "Tria una resposta", "Type your answer…": "Escriu la resposta…", "Cancel and restart": "Cancel·la i torna a començar",
     "Press 1, 2 or 3 on your keyboard to choose.": "Prem 1, 2 o 3 al teclat per triar.",
     "Press 1, 2, 3, 4 or 5 on your keyboard to choose.": "Prem 1, 2, 3, 4 o 5 al teclat per triar.",
-    "Visual for this meal": "Imatge d’aquest àpat", "Generate meal image": "Genera la imatge de l’àpat", "Generating image…": "S’està generant la imatge…",
+    "Visual for this meal": "Imatge d’aquest àpat", "Generate meal image": "Genera la imatge de l’àpat", "Generating image…": "S’està generant la imatge…", "Catalan dish:": "Plat català:", "protein": "proteïna", "carbohydrates": "hidrats de carboni", "fat": "greix",
     "Daily check": "Revisió diària", "Review what you have eaten today and adapt the remaining meals.": "Revisa què has menjat avui i adapta els àpats pendents.",
     "Review the meals still pending": "Revisa els àpats pendents", "meals logged today.": "àpats registrats avui.", "day streak": "dies seguits",
     "Your daily check is complete. Your meals and plan are saved on this device for today.": "La revisió diària està completa. Els àpats i el pla d’avui es desen en aquest dispositiu.",
@@ -131,6 +138,14 @@
     ,"Ask": "Pregunta"
     ,"Thinking…": "Pensant…"
     ,"Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.": "Els missatges s'envien a OpenAI per generar una resposta. Quota Vita només conserva aquesta conversa en aquest dispositiu."
+    ,"Estimated weekly basket cost": "Cost setmanal estimat de la cistella"
+    ,"Checking the latest price estimate…": "Comprovant l’estimació de preu més recent…"
+    ,"Cala-informed estimate": "Estimació basada en Cala"
+    ,"Spain market reference estimate": "Estimació de referència del mercat espanyol"
+    ,"Some prices use Cala; the rest use Spain market references.": "Alguns preus fan servir Cala; la resta fan servir referències del mercat espanyol."
+    ,"Estimated total": "Total estimat"
+    ,"Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.": "Les estimacions de preu cobreixen les quantitats indicades, no són un pressupost de compra. Les promocions, la botiga, la marca, les mides dels envasos i el lliurament poden canviar l’import final."
+    ,"Unable to load the price estimate.": "No s’ha pogut carregar l’estimació de preu."
     ,"Monday": "Dilluns", "Tuesday": "Dimarts", "Wednesday": "Dimecres", "Thursday": "Dijous", "Friday": "Divendres", "Saturday": "Dissabte", "Sunday": "Diumenge"
     ,"Rest day": "Dia de descans", "Strength": "Força", "Run": "Córrer", "Walk": "Caminar"
   };
@@ -147,6 +162,7 @@
   const coachControls = () => '<div class="coach-controls" data-language-control><span><button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button></span><button class="restart-control" type="button" data-global-restart title="' + (language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement") + '">' + (language === "ca" ? "Comença de nou" : "Start over") + "</button></div>";
   const resetCoach = () => {
     if (state.profile) {
+      failedMealImages.clear();
       state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
       save();
       return training();
@@ -185,18 +201,18 @@
     const share = [0.27, 0.38, 0.35];
     const foods = sport
       ? [
-        ["Breakfast", "Oats with Greek yogurt, banana and berries", "70g oats · 250g Greek yogurt · 1 banana · 100g berries", "Start with carbohydrate and protein before the session."],
-        ["Lunch", "Chicken, rice and colourful vegetables", "160g chicken · 100g dry rice · 250g vegetables · 10g olive oil", "Your main recovery meal."],
-        ["Dinner", "Lentil bowl with wholegrain bread", "250g cooked lentils · 2 slices wholegrain bread · salad · ½ avocado", "Steady energy and fibre for tomorrow."]
+        ["Breakfast", "Pa amb tomàquet with Greek yogurt, banana and berries", "2 slices wholegrain pa de pagès · ripe tomato · 250g Greek yogurt · 1 banana · 100g berries", "Start with carbohydrate and protein before the session.", "Pa amb tomàquet"],
+        ["Lunch", "Escalivada with chickpeas and chicken", "160g chicken · 160g cooked chickpeas · roasted pepper, aubergine and onion · 1 slice pa de pagès · 10g olive oil", "Your main recovery meal.", "Escalivada"],
+        ["Dinner", "Llenties estofades amb pa de pagès", "250g cooked lentils · 2 slices wholegrain pa de pagès · salad · ½ avocado", "Steady energy and fibre for tomorrow.", "Llenties estofades"]
       ]
       : [
-        ["Breakfast", "Greek yogurt with oats, fruit and nuts", "250g Greek yogurt · 60g oats · 1 apple · 15g nuts", "Protein, fibre and a satisfying start."],
-        ["Lunch", "Chicken, chickpea and vegetable plate", "150g chicken · 160g chickpeas · 250g vegetables · 10g olive oil", "Build the plate around protein and plants."],
-        ["Dinner", "Salmon with potatoes and greens", "140g salmon · 300g potatoes · 250g greens · 1 slice wholegrain bread", "A simple balanced evening meal."]
+        ["Breakfast", "Pa amb tomàquet with egg, fruit and nuts", "2 slices wholegrain pa de pagès · ripe tomato · 2 eggs · 1 apple · 15g nuts", "Protein, fibre and a satisfying start.", "Pa amb tomàquet"],
+        ["Lunch", "Escalivada with chickpeas and chicken", "150g chicken · 160g chickpeas · 250g escalivada · 10g olive oil", "Build the plate around protein and plants.", "Escalivada"],
+        ["Dinner", "Llenties estofades amb verdures i pa de pagès", "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain pa de pagès · salad", "A simple balanced evening meal.", "Llenties estofades"]
       ];
-    return foods.map(([slot, title, portions, hint], index) => ({
+    return foods.map(([slot, title, portions, hint, catalanName], index) => ({
       id: slot.toLowerCase(),
-      slot, title, portions, hint,
+      slot, title, portions, hint, catalanName,
       calories: Math.round(target.calories * share[index] / 25) * 25,
       proteinG: Math.round(target.proteinG * share[index]),
       carbohydrateG: Math.round(target.carbohydrateG * share[index]),
@@ -261,7 +277,7 @@
       : "Your profile is saved on this device. Your meals and quantities will adapt to today’s movement.";
     root.innerHTML = coachShell("Are you going to train today?", savedProfileLead, '<div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">Choose one reply</span><p class="keyboard-hint">Press 1, 2, 3, 4 or 5 on your keyboard to choose.</p><div class="quick-replies">' + choiceButtons(choices, "data-choice") + '</div></div><button class="button quiet" id="back">Back</button>');
     root.querySelector("#back").onclick = profile;
-    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { state.activity = button.dataset.choice; state.needsTraining = false; state.meals = {}; save(); dashboard(); });
+    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { failedMealImages.clear(); state.activity = button.dataset.choice; state.needsTraining = false; state.meals = {}; state.mealImages = {}; save(); dashboard(); });
   }
 
   function totals(plan) {
@@ -270,7 +286,7 @@
   }
 
   function methodology() {
-    return '<details class="method"><summary>Where the meal ideas come from</summary><ul><li><strong>Meal ideas:</strong> Quota Vita’s practical meal templates are built from familiar whole foods, balanced-plate patterns and the general macro target calculated below. They are not recipes supplied by FatSecret, LogMeal, a restaurant or a dietitian.</li><li><strong>Energy:</strong> a Mifflin-St Jeor resting-energy estimate uses age, height, weight and sex; your selected usual activity, goal and today’s activity then make transparent fixed adjustments.</li><li><strong>Macros:</strong> protein is a general-wellbeing heuristic of 1.2-1.6g/kg; fat is set at 28% of energy; carbohydrates make up the remaining energy. Fibre aims for 25g/day (30g for the male option in this prototype).</li><li><strong>Food and photo data:</strong> FatSecret is only used for food lookup when enabled; LogMeal is only used for a restaurant-photo estimate after explicit consent. Neither is the source of the core calorie calculation.</li></ul><p class="meta">Sources: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">EFSA Dietary Reference Values</a>. Estimates can be materially wrong for an individual. Seek a qualified clinician for medical conditions, pregnancy, eating-disorder history, kidney disease or diabetes.</p></details>';
+    return '<details class="method"><summary>Where the meal ideas come from</summary><ul><li><strong>Meal ideas:</strong> Quota Vita’s practical meal templates are built from familiar whole foods, balanced-plate patterns and the general macro target calculated below. They are not recipes supplied by FatSecret, LogMeal, a restaurant or a dietitian.</li><li><strong>Catalan meals:</strong> Named Catalan dishes and their core ingredients are checked against Cala’s verified knowledge before being prioritised in the Coach. Portion sizes remain general-wellbeing templates, not traditional recipe instructions.</li><li><strong>Energy:</strong> a Mifflin-St Jeor resting-energy estimate uses age, height, weight and sex; your selected usual activity, goal and today’s activity then make transparent fixed adjustments.</li><li><strong>Macros:</strong> protein is a general-wellbeing heuristic of 1.2-1.6g/kg; fat is set at 28% of energy; carbohydrates make up the remaining energy. Fibre aims for 25g/day (30g for the male option in this prototype).</li><li><strong>Food and photo data:</strong> FatSecret is only used for food lookup when enabled; LogMeal is only used for a restaurant-photo estimate after explicit consent. Neither is the source of the core calorie calculation.</li></ul><p class="meta">Sources: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">EFSA Dietary Reference Values</a>. Estimates can be materially wrong for an individual. Seek a qualified clinician for medical conditions, pregnancy, eating-disorder history, kidney disease or diabetes.</p></details>';
   }
 
   function basketItems(plan) {
@@ -286,7 +302,7 @@
     const title = isBasket ? "One-day buying basket" : "Daily meal plan";
     const content = isBasket
       ? "<ul>" + basketItems(plan).map(([amount, name]) => "<li><strong>" + amount + (typeof amount === "number" && amount !== 1 ? "g" : "") + "</strong> " + esc(name) + "</li>").join("") + "</ul>"
-      : plan.meals.map((meal) => "<section><h2>" + esc(meal.slot) + ": " + esc(meal.title) + "</h2><p>" + esc(meal.portions) + "</p><p>" + meal.calories + " kcal · " + meal.proteinG + "g protein · " + meal.carbohydrateG + "g carbohydrates · " + meal.fatG + "g fat</p></section>").join("");
+      : plan.meals.map((meal) => "<section><h2>" + esc(meal.slot) + ": " + esc(meal.title) + "</h2>" + (meal.catalanName ? "<p><strong>Catalan dish:</strong> " + esc(meal.catalanName) + "</p>" : "") + "<p>" + esc(meal.portions) + "</p><p>" + meal.calories + " kcal · " + meal.proteinG + "g protein · " + meal.carbohydrateG + "g carbohydrates · " + meal.fatG + "g fat</p></section>").join("");
     const popup = window.open("", "_blank");
     if (!popup) return alert("Allow pop-ups to download your PDF.");
     popup.document.write("<!doctype html><title>" + title + "</title><style>body{max-width:760px;margin:48px auto;color:#183d39;font:16px/1.5 system-ui}h1,h2{font-family:Georgia,serif}h1{font-size:42px}h2{font-size:23px;border-top:1px solid #c9d7c7;padding-top:18px}li{margin:8px 0}.meta{color:#5c756f;font-size:13px;margin-top:32px}@page{margin:18mm}</style><h1>Quota Vita / " + title + "</h1><p>" + esc(activityLabels[state.activity]) + " · " + plan.target.calories + " kcal · " + plan.target.proteinG + "g protein · " + plan.target.carbohydrateG + "g carbohydrates · " + plan.target.fatG + "g fat</p>" + content + '<p class="meta">General wellbeing estimate. Method: Mifflin-St Jeor energy estimate plus transparent activity and goal adjustments. EFSA DRVs inform macro and fibre context. Not medical advice.</p>');
@@ -335,7 +351,9 @@
     const plan = currentPlan();
     const eaten = totals(plan);
     const left = { calories: Math.max(0, plan.target.calories - eaten.calories), proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG), carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG) };
-    root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", "Scroll through your meals, then choose what actually happened.", '<div class="bubble coach full-card"><div class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></div><section class="meal-feed">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section>' + liveCoachMarkup() + '<div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
+    mealDeckIndex = Math.min(mealDeckIndex, plan.meals.length - 1);
+    const remaining = '<div class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></div>';
+    root.innerHTML = '<section class="coach-workspace daily-plan-workspace"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls() + '</div><div class="daily-meal-overview">' + remaining + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up">' + liveCoachMarkup() + '<div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
     root.querySelector("#daily-check").onclick = dailyCheck;
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
@@ -346,26 +364,61 @@
     root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.confirmMeal, "eaten"); dashboard(); });
     root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.skipMeal, "skipped"); dashboard(); });
     root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal, true); });
-    root.querySelectorAll("[data-generate-meal]").forEach((button) => button.onclick = () => generateMealImage(button.dataset.generateMeal));
     root.querySelector("#live-coach-form").onsubmit = (event) => { event.preventDefault(); const input = root.querySelector("#live-coach-input"); const message = input.value.trim(); if (message) askLiveCoach(message); };
     enableMealSwipe(plan);
+    loadMealImages(plan);
   }
 
   function enableMealSwipe(plan) {
-    root.querySelectorAll("[data-meal-card]").forEach((card) => {
-      let startX = null;
-      card.addEventListener("pointerdown", (event) => { if (!event.target.closest("button, input, label")) startX = event.clientX; });
-      card.addEventListener("pointermove", (event) => { if (startX === null) return; const offset = Math.max(-100, Math.min(100, event.clientX - startX)); card.style.transform = "translateX(" + offset + "px) rotate(" + (offset / 24) + "deg)"; });
-      card.addEventListener("pointerup", (event) => {
-        if (startX === null) return;
-        const offset = event.clientX - startX;
-        const id = card.dataset.mealCard;
-        startX = null;
-        card.style.transform = "";
-        if (offset > 80) { recordMeal(id, "eaten"); dashboard(); }
-        if (offset < -80) restaurant(id, plan.meals.find((meal) => meal.id === id), true);
-      });
-      card.addEventListener("pointercancel", () => { startX = null; card.style.transform = ""; });
+    if (!window.matchMedia("(max-width: 719px)").matches) return;
+    const deck = root.querySelector(".daily-meal-deck");
+    const track = root.querySelector(".daily-meal-track");
+    const position = root.querySelector(".meal-deck-position");
+    if (!deck || !track || !position) return;
+    let pointer;
+    const renderPosition = () => { position.textContent = "Meal " + (mealDeckIndex + 1) + " of " + plan.meals.length; };
+    const moveTo = (nextIndex, immediate = false) => {
+      mealDeckIndex = Math.max(0, Math.min(plan.meals.length - 1, nextIndex));
+      track.style.transition = immediate ? "none" : "";
+      track.style.transform = "translate3d(" + (-mealDeckIndex * 100) + "%, 0, 0)";
+      renderPosition();
+      if (immediate) requestAnimationFrame(() => { track.style.transition = ""; });
+    };
+    const releasePointer = () => { if (pointer?.id !== undefined && deck.hasPointerCapture(pointer.id)) deck.releasePointerCapture(pointer.id); pointer = null; };
+    moveTo(mealDeckIndex, true);
+    deck.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button, input, label, a")) return;
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
+      deck.setPointerCapture(event.pointerId);
+    });
+    deck.addEventListener("pointermove", (event) => {
+      if (!pointer || event.pointerId !== pointer.id) return;
+      const offset = event.clientX - pointer.x;
+      if (!pointer.dragging && Math.abs(offset) > Math.abs(event.clientY - pointer.y) && Math.abs(offset) > 6) pointer.dragging = true;
+      if (!pointer.dragging) return;
+      const width = deck.clientWidth || window.innerWidth;
+      const limitedOffset = Math.max(-width * .35, Math.min(width * .35, offset));
+      track.style.transition = "none";
+      track.style.transform = "translate3d(calc(" + (-mealDeckIndex * 100) + "% + " + limitedOffset + "px), 0, 0)";
+    });
+    deck.addEventListener("pointerup", (event) => {
+      if (!pointer || event.pointerId !== pointer.id) return;
+      const offset = event.clientX - pointer.x;
+      const threshold = Math.max(64, deck.clientWidth * .22);
+      const activeMeal = plan.meals[mealDeckIndex];
+      const wasDragging = pointer.dragging;
+      releasePointer();
+      if (wasDragging && Math.abs(offset) >= threshold && activeMeal) {
+        recordMeal(activeMeal.id, offset > 0 ? "eaten" : "skipped");
+        mealDeckIndex = Math.min(mealDeckIndex + 1, plan.meals.length - 1);
+        return dashboard();
+      }
+      moveTo(mealDeckIndex);
+    });
+    deck.addEventListener("pointercancel", () => { releasePointer(); moveTo(mealDeckIndex); });
+    deck.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") { event.preventDefault(); moveTo(mealDeckIndex + 1); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); moveTo(mealDeckIndex - 1); }
     });
   }
 
@@ -420,29 +473,59 @@
     const imageUrl = state.mealImages?.[meal.id];
     const image = imageUrl
       ? '<img class="meal-image" src="' + esc(imageUrl) + '" alt="' + esc(meal.title) + '">'
-      : '<div class="meal-image meal-image-placeholder"><span>Visual for this meal</span><button class="button quiet" data-generate-meal="' + esc(meal.id) + '">Generate meal image</button></div>';
+      : '<div class="meal-image meal-image-placeholder" data-meal-image-placeholder="' + esc(meal.id) + '" role="status"><span>' + (failedMealImages.has(mealImageKey(meal)) ? "Meal image is unavailable right now." : "Creating your meal image…") + '</span></div>';
     const actions = status
       ? '<div class="actions"><button class="button quiet" data-meal="' + esc(meal.id) + '">Review this meal</button></div>'
       : '<div class="actions"><button class="button" data-confirm-meal="' + esc(meal.id) + '">I’ll eat this</button><button class="button quiet" data-restaurant-meal="' + esc(meal.id) + '">Restaurant meal</button><button class="button quiet" data-skip-meal="' + esc(meal.id) + '">Skip for now</button></div>';
-    return '<article class="meal ' + (status || "") + '" data-meal-card="' + esc(meal.id) + '">' + image + '<span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div><span class="meta">' + meal.calories + " kcal<br>" + meal.proteinG + "g protein</span></div><p>" + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + actions + "</article>";
+    const catalanDish = meal.catalanName ? '<p class="meta"><strong>Catalan dish:</strong> ' + esc(meal.catalanName) + '</p>' : "";
+    const macroSummary = '<span class="meta">' + meal.calories + " kcal<br><strong>" + meal.proteinG + 'g <span>protein</span></strong><br><span>' + meal.carbohydrateG + 'g <span>carbohydrates</span> · ' + meal.fatG + 'g <span>fat</span></span></span>';
+    return '<article class="meal ' + (status || "") + '" data-meal-card="' + esc(meal.id) + '">' + image + '<span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div>' + macroSummary + "</div>" + catalanDish + '<p>' + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + actions + "</article>";
   }
 
-  async function generateMealImage(mealId) {
-    const meal = currentPlan().meals.find((item) => item.id === mealId);
-    const button = root.querySelector('[data-generate-meal="' + mealId + '"]');
-    if (!meal || !button) return;
-    button.disabled = true;
-    button.textContent = "Generating image…";
+  function loadMealImages(plan) {
+    plan.meals.forEach((meal) => { void loadMealImage(meal); });
+  }
+
+  function mealImageKey(meal) {
+    return [state.planDate, state.activity, meal.id, meal.title].join("|");
+  }
+
+  function updateMealImagePlaceholder(meal, imageUrl) {
+    const placeholders = root.querySelectorAll('[data-meal-image-placeholder="' + meal.id + '"]');
+    placeholders.forEach((placeholder) => {
+      if (!imageUrl) {
+        placeholder.textContent = "Meal image is unavailable right now.";
+        return;
+      }
+      const image = document.createElement("img");
+      image.className = "meal-image";
+      image.src = imageUrl;
+      image.alt = meal.title;
+      placeholder.replaceWith(image);
+    });
+  }
+
+  async function loadMealImage(meal) {
+    const imageKey = mealImageKey(meal);
+    if (state.mealImages?.[meal.id] || pendingMealImages.has(imageKey) || failedMealImages.has(imageKey)) return;
+    pendingMealImages.add(imageKey);
     try {
       const response = await fetch("/api/meal-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: meal.title }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Meal-image generation is unavailable.");
-      state.mealImages = { ...(state.mealImages || {}), [mealId]: data.imageUrl };
+      const currentMeal = currentPlan().meals.find((item) => item.id === meal.id);
+      if (!currentMeal || currentMeal.title !== meal.title) return;
+      state.mealImages = { ...(state.mealImages || {}), [meal.id]: data.imageUrl };
       save();
-      dashboard();
-    } catch (error) {
-      button.disabled = false;
-      button.textContent = error.message || "Try generating the image again";
+      updateMealImagePlaceholder(meal, data.imageUrl);
+    } catch {
+      const currentMeal = currentPlan().meals.find((item) => item.id === meal.id);
+      if (currentMeal?.title === meal.title) {
+        failedMealImages.add(imageKey);
+        updateMealImagePlaceholder(meal);
+      }
+    } finally {
+      pendingMealImages.delete(imageKey);
     }
   }
 
@@ -474,21 +557,21 @@
 
   function variedMeals(target, activity, dayIndex) {
     const menus = [
-      [["Breakfast", "Pa amb tomàquet with egg and fruit", "2 slices wholegrain pa de pagès · 2 eggs · tomato · 1 orange · 10g olive oil"], ["Lunch", "Amanida de cigrons with escalivada", "160g cooked chickpeas · roasted pepper, aubergine and onion · 10g olive oil"], ["Dinner", "Suquet de peix with potatoes and greens", "160g white fish · 300g potatoes · tomato, garlic and 250g greens"]],
-      [["Breakfast", "Greek yogurt with oats, walnuts and pear", "250g Greek yogurt · 60g oats · 1 pear · 15g walnuts"], ["Lunch", "Llenties estofades amb verdures", "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain bread"], ["Dinner", "Pollastre a la planxa with escalivada and brown rice", "150g chicken · 80g dry brown rice · 250g escalivada"]],
-      [["Breakfast", "Pa amb tomàquet with fresh cheese and fruit", "2 slices wholegrain bread · tomato · 80g fresh cheese · 1 apple · 10g olive oil"], ["Lunch", "Esqueixada-style cod and white bean salad", "140g cod · 180g cooked white beans · tomato, pepper and olives"], ["Dinner", "Truita de verdures with roasted sweet potato", "3 eggs · spinach and mushrooms · 300g sweet potato · salad"]],
-      [["Breakfast", "Apple-cinnamon porridge with yogurt", "70g oats · 1 apple · 200g Greek yogurt · cinnamon"], ["Lunch", "Arròs integral amb verdures and turkey", "80g dry brown rice · 150g turkey · 250g seasonal vegetables"], ["Dinner", "Bacallà al forn with potatoes and green beans", "160g cod · 300g potatoes · 250g green beans · 10g olive oil"]],
-      [["Breakfast", "Yogurt bowl with berries and almonds", "250g Greek yogurt · 50g oats · 100g berries · 15g almonds"], ["Lunch", "Mongetes amb verdures and chicken", "180g cooked white beans · 150g chicken · tomato, spinach and onion"], ["Dinner", "Cigrons amb espinacs i pa amb tomàquet", "250g cooked chickpeas · spinach and tomato · 2 slices wholegrain bread"]],
-      [["Breakfast", "Vegetable omelette and pa amb tomàquet", "3 eggs · spinach and mushrooms · 2 slices wholegrain bread · tomato"], ["Lunch", "Salmó with potato and leafy salad", "140g salmon · 300g potatoes · large leafy salad · 10g olive oil"], ["Dinner", "Pasta integral amb llenties and tomato", "250g cooked lentils · 80g dry wholegrain pasta · tomato sauce and vegetables"]],
-      [["Breakfast", "Oats with banana, yogurt and hazelnuts", "60g oats · 200g Greek yogurt · 1 banana · 15g hazelnuts"], ["Lunch", "Amanida mediterrània de tonyina i mongetes", "1 tuna can · 180g cooked white beans · tomato, cucumber and olives"], ["Dinner", "Crema de verdures with tofu and pa de pagès", "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil"]]
+      [["Breakfast", "Pa amb tomàquet with egg and fruit", "2 slices wholegrain pa de pagès · 2 eggs · tomato · 1 orange · 10g olive oil", "Pa amb tomàquet"], ["Lunch", "Escalivada with chickpeas", "160g cooked chickpeas · roasted pepper, aubergine and onion · 10g olive oil", "Escalivada"], ["Dinner", "Suquet de peix with potatoes and greens", "160g white fish · 300g potatoes · tomato, garlic and 250g greens", "Suquet de peix"]],
+      [["Breakfast", "Greek yogurt with oats, walnuts and pear", "250g Greek yogurt · 60g oats · 1 pear · 15g walnuts"], ["Lunch", "Llenties estofades amb verdures", "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain bread", "Llenties estofades"], ["Dinner", "Pollastre a la planxa with escalivada and brown rice", "150g chicken · 80g dry brown rice · 250g escalivada", "Pollastre a la planxa amb escalivada"]],
+      [["Breakfast", "Pa amb tomàquet with fresh cheese and fruit", "2 slices wholegrain bread · tomato · 80g fresh cheese · 1 apple · 10g olive oil", "Pa amb tomàquet"], ["Lunch", "Esqueixada-style cod and white bean salad", "140g cod · 180g cooked white beans · tomato, pepper and olives", "Esqueixada de bacallà"], ["Dinner", "Truita de verdures with roasted sweet potato", "3 eggs · spinach and mushrooms · 300g sweet potato · salad", "Truita de verdures"]],
+      [["Breakfast", "Apple-cinnamon porridge with yogurt", "70g oats · 1 apple · 200g Greek yogurt · cinnamon"], ["Lunch", "Arròs integral amb verdures and turkey", "80g dry brown rice · 150g turkey · 250g seasonal vegetables", "Arròs amb verdures"], ["Dinner", "Bacallà al forn with potatoes and green beans", "160g cod · 300g potatoes · 250g green beans · 10g olive oil", "Bacallà al forn"]],
+      [["Breakfast", "Yogurt bowl with berries and almonds", "250g Greek yogurt · 50g oats · 100g berries · 15g almonds"], ["Lunch", "Mongetes amb verdures and chicken", "180g cooked white beans · 150g chicken · tomato, spinach and onion", "Mongetes amb verdures"], ["Dinner", "Cigrons amb espinacs i pa amb tomàquet", "250g cooked chickpeas · spinach and tomato · 2 slices wholegrain bread", "Cigrons amb espinacs"]],
+      [["Breakfast", "Vegetable omelette and pa amb tomàquet", "3 eggs · spinach and mushrooms · 2 slices wholegrain bread · tomato", "Truita de verdures amb pa amb tomàquet"], ["Lunch", "Salmó with potato and leafy salad", "140g salmon · 300g potatoes · large leafy salad · 10g olive oil"], ["Dinner", "Pasta integral amb llenties and tomato", "250g cooked lentils · 80g dry wholegrain pasta · tomato sauce and vegetables"]],
+      [["Breakfast", "Oats with banana, yogurt and hazelnuts", "60g oats · 200g Greek yogurt · 1 banana · 15g hazelnuts"], ["Lunch", "Amanida mediterrània de tonyina i mongetes", "1 tuna can · 180g cooked white beans · tomato, cucumber and olives"], ["Dinner", "Crema de verdures with tofu and pa de pagès", "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil", "Crema de verdures amb pa de pagès"]]
     ][dayIndex];
-    return mealPlan(target, activity).map((meal, index) => ({ ...meal, title: menus[index][1], portions: menus[index][2] }));
+    return mealPlan(target, activity).map((meal, index) => ({ ...meal, title: menus[index][1], portions: menus[index][2], catalanName: menus[index][3] }));
   }
 
   function weeklyPlan() {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(); const activityExplanation = { sedentary: "mostly sitting, with gentle movement built in", light: "light activity (1–2 activity days/week)", moderate: "regular training (3–4 training days/week)", high: "frequent training (5+ training days/week)" }[state.profile.activity];
     const images = ["https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80"];
-    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="weekly-pdf">Download weekly plan PDF</button><button class="button quiet" id="weekly-email">Send by email</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + (meal.catalanName ? '<strong>Catalan dish:</strong> ' + esc(meal.catalanName) + '<br>' : '') + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="weekly-pdf">Download weekly plan PDF</button><button class="button quiet" id="weekly-email">Send by email</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
     root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#weekly-pdf").onclick = () => printWeekly("plan"); root.querySelector("#weekly-email").onclick = () => emailWeekly("plan"); root.querySelector("#back").onclick = dashboard;
   }
 
@@ -498,18 +581,73 @@
     return baseItems.map(([amount, name]) => [name, amount < 20 ? amount : Math.round(amount * scale / 10) * 10]);
   }
 
+  function formatEur(value) {
+    return new Intl.NumberFormat(language === "ca" ? "ca-ES" : "en-GB", { style: "currency", currency: "EUR" }).format(Number(value));
+  }
+
+  function basketAmountLabel(item) {
+    if (item.unit === "g") return item.amount + "g";
+    if (item.unit === "slice") return item.amount + " slices";
+    return String(item.amount);
+  }
+
+  function basketEstimateSource(estimate) {
+    if (estimate.source === "cala") return "Cala-informed estimate";
+    if (estimate.source === "mixed") return "Some prices use Cala; the rest use Spain market references.";
+    return "Spain market reference estimate";
+  }
+
+  function basketEstimateText() {
+    if (!weeklyBasketEstimate) return "";
+    return [
+      "Estimated weekly basket cost — " + basketEstimateSource(weeklyBasketEstimate),
+      ...weeklyBasketEstimate.items.map((item) => "- " + basketAmountLabel(item) + " " + item.name + ": " + formatEur(item.price)),
+      "Estimated total: " + formatEur(weeklyBasketEstimate.total),
+      "Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.",
+    ].join("\n");
+  }
+
+  function renderBasketEstimate(estimate) {
+    const mount = root.querySelector("#weekly-cost-estimate");
+    if (!mount || !Array.isArray(estimate.items) || !Number.isFinite(Number(estimate.total))) return;
+    weeklyBasketEstimate = estimate;
+    mount.innerHTML = '<section class="basket-costs"><h3>Estimated weekly basket cost</h3><p class="meta">' + esc(basketEstimateSource(estimate)) + '</p><ul>' + estimate.items.map((item) => '<li><span><strong>' + esc(basketAmountLabel(item)) + '</strong> ' + esc(item.name) + '<small>' + (item.source === "cala" ? "Cala" : "Spain market reference") + '</small></span><strong>' + esc(formatEur(item.price)) + '</strong></li>').join("") + '</ul><p class="basket-costs-total"><strong>Estimated total</strong><strong>' + esc(formatEur(estimate.total)) + '</strong></p><p class="basket-costs-disclaimer">Price estimates cover the listed quantities, not a checkout quote. Promotions, store, brand, pack sizes and delivery can change the final amount.</p></section>';
+    root.querySelector("#weekly-basket-pdf").disabled = false;
+    root.querySelector("#weekly-basket-email").disabled = false;
+  }
+
+  async function loadBasketEstimate(totals) {
+    try {
+      const response = await fetch("/api/basket-prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: totals.map(([name, amount]) => ({ name, amount })) }),
+      });
+      const estimate = await response.json();
+      if (!response.ok) throw new Error(estimate.error || "Unable to load the price estimate.");
+      renderBasketEstimate(estimate);
+    } catch {
+      const mount = root.querySelector("#weekly-cost-estimate");
+      if (mount) mount.innerHTML = note("Unable to load the price estimate.", true);
+      root.querySelector("#weekly-basket-pdf").disabled = false;
+      root.querySelector("#weekly-basket-email").disabled = false;
+    }
+  }
+
   function weeklyBasket() {
     const totals = weeklyBasketItems();
-    root.innerHTML = coachShell("Your approved weekly shopping basket", "A varied basket matching the seven specific daily menus and your first-chat training pattern.", '<div class="bubble coach full-card"><ul class="basket">' + totals.map(([name, amount]) => '<li><strong>' + (amount < 20 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button" id="weekly-basket-pdf">Download weekly basket PDF</button><button class="button quiet" id="weekly-basket-email">Send by email</button><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
+    weeklyBasketEstimate = undefined;
+    root.innerHTML = coachShell("Your approved weekly shopping basket", "A varied basket matching the seven specific daily menus and your first-chat training pattern.", '<div class="bubble coach full-card"><ul class="basket">' + totals.map(([name, amount]) => '<li><strong>' + (amount < 20 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><section id="weekly-cost-estimate" aria-live="polite">' + note("Checking the latest price estimate…") + '</section><div class="actions"><button class="button" id="weekly-basket-pdf" disabled>Download weekly basket PDF</button><button class="button quiet" id="weekly-basket-email" disabled>Send by email</button><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
     root.querySelector("#weekly-basket-pdf").onclick = () => printWeekly("basket"); root.querySelector("#weekly-basket-email").onclick = () => emailWeekly("basket"); root.querySelector("#back").onclick = weeklyPlan;
+    loadBasketEstimate(totals);
   }
 
   function weeklyText(kind) {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    if (kind === "basket") return weeklyBasketItems().map(([name, amount]) => "- " + amount + (amount < 20 ? "" : "g") + " " + name).join("\n");
+    if (kind === "basket") return weeklyBasketItems().map(([name, amount]) => "- " + amount + (amount < 20 ? "" : "g") + " " + name).join("\n") + (weeklyBasketEstimate ? "\n\n" + basketEstimateText() : "");
     return days.map((day, index) => {
       const target = dailyTarget(state.profile, weeklyActivities()[index]);
-      return day + " - " + activityLabels[weeklyActivities()[index]] + "\n" + variedMeals(target, weeklyActivities()[index], index).map((meal) => meal.slot + ": " + meal.title + " (" + meal.portions + ")").join("\n");
+      return day + " - " + activityLabels[weeklyActivities()[index]] + "\n" + variedMeals(target, weeklyActivities()[index], index).map((meal) => meal.slot + ": " + meal.title + (meal.catalanName ? " [Catalan dish: " + meal.catalanName + "]" : "") + " (" + meal.portions + ")").join("\n");
     }).join("\n\n");
   }
 
