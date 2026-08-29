@@ -1607,13 +1607,18 @@
     else if (previous.pointsAwarded) details.pointsAwarded = true;
     state.meals[id] = { ...previous, ...details, status };
     save();
-    if (eligible && !previous.pointsAwarded) {
-      awardXp(10, T("Meal logged", "Àpat registrat"));
+    const day = todayGame();
+    if (!day.paid) day.paid = {};
+    if (eligible && day.paid[id] !== "logged") {
+      // Correcting a skip to "I ate it" tops up the difference; it never pays twice.
+      const topUp = day.paid[id] === "skipped" ? 7 : 10;
+      day.paid[id] = "logged";
+      awardXp(topUp, T("Meal logged", "Àpat registrat"));
       if (status === "restaurant") awardBadge("scanner");
-    } else if (status === "skipped" && !previous.skipLogged) {
+    } else if (status === "skipped" && !day.paid[id]) {
       // Recording what actually happened is the habit worth rewarding, even
       // when the honest answer is "I did not eat it".
-      state.meals[id].skipLogged = true;
+      day.paid[id] = "skipped";
       awardXp(3, T("Logged honestly", "Registrat amb sinceritat"));
     }
     checkMealQuests();
