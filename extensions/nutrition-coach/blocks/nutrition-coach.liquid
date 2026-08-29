@@ -1,29 +1,25 @@
 {{ 'nutrition-coach.css' | asset_url | stylesheet_tag }}
-<script src="{{ 'nutrition-coach.js' | asset_url }}" defer="defer"></script>
 
-<section
-  class="qv-nutrition-coach"
-  data-nutrition-coach
-  data-proxy-base="{{ block.settings.proxy_base | escape }}"
-  data-customer="{% if customer %}{{ customer.id }}{% endif %}"
-  aria-label="Quota Vita Nutrition Coach"
->
-  <div class="qv-nutrition-coach__loading">Preparing your daily plate…</div>
+<section class="qv-nutrition-coach" aria-label="Quota Vita Nutrition Coach">
+  <div class="qv-nutrition-coach__embed-shell">
+    <iframe
+      class="qv-nutrition-coach__embed"
+      src="https://coach.quotavita.com"
+      title="Quota Vita daily nutrition coach"
+      loading="lazy"
+      allow="camera"
+    ></iframe>
+  </div>
+  <p class="qv-nutrition-coach__privacy">
+    Your anonymous plan stays in this browser. Sign in from the Coach only when you choose to save a plan.
+  </p>
 </section>
 
 {% schema %}
 {
   "name": "Nutrition Coach",
   "target": "section",
-  "javascript": "nutrition-coach.js",
   "stylesheet": "nutrition-coach.css",
-  "settings": [
-    {
-      "type": "text",
-      "id": "proxy_base",
-      "label": "App proxy path",
-      "default": "/apps/nutrition-coach"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}
