@@ -155,7 +155,7 @@
       root.innerHTML = '<section class="coach-workspace"><video class="coach-video" autoplay muted loop playsinline aria-hidden="true"><source src="https://cdn.shopify.com/videos/c/o/v/d73f2a51730245db9f2b5066a1638686.mp4" type="video/mp4"></video>' + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
       root.querySelector("#cancel").onclick = welcome;
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
-      root.onkeydown = (event) => {
+      document.onkeydown = (event) => {
         if (event.target.matches("input,textarea")) return;
         const choice = Number(event.key) - 1;
         const choices = [...root.querySelectorAll("[data-answer]")];
