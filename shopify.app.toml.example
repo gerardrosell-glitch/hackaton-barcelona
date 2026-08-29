@@ -5,7 +5,7 @@ application_url = "https://REPLACE_WITH_EU_HOSTED_APP_URL"
 embedded = false
 
 [access_scopes]
-scopes = "write_app_proxy"
+scopes = "write_app_proxy,read_customers,write_customers"
 
 [auth]
 redirect_urls = ["https://REPLACE_WITH_EU_HOSTED_APP_URL/auth/callback"]

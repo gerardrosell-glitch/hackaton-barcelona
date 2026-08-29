@@ -18,6 +18,7 @@
 - [x] Keep restaurant logging inside the daily meal deck and add left/right swipe meal actions.
 - [x] Keep the active onboarding question at the top of the chat; retain prior answers without displaying them.
 - [x] Persist and display daily plus total points, with one clear final-check reward.
+- [x] Replace mail-app handoff with a consented server-side Shopify Flow email request for weekly plans and baskets.
 
 ## Review
 

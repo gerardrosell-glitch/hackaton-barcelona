@@ -24,6 +24,9 @@
   const coachControlsStyle = document.createElement("style");
   coachControlsStyle.textContent = ".coach-controls{display:flex;justify-content:flex-end;align-items:center;gap:12px;max-width:980px;margin:0 auto 24px;color:#392d23;font-size:.78rem;font-weight:800;letter-spacing:.05em}.coach-controls [data-language]{border:0;background:transparent;color:inherit;padding:5px;cursor:pointer;font:inherit}.coach-controls [data-language]:hover{text-decoration:underline}.coach-controls .restart-control{margin:0}@media(max-width:600px){.coach-controls{margin-bottom:18px;gap:7px;font-size:.7rem}.coach-controls .restart-control{font-size:.63rem}}";
   document.head.append(coachControlsStyle);
+  const emailDeliveryStyle = document.createElement("style");
+  emailDeliveryStyle.textContent = ".email-dialog{width:min(580px,100%)}.email-dialog .field{margin:14px 0}.email-dialog input[type=email]{width:100%}.email-dialog .consent-row{display:flex;align-items:flex-start;gap:10px;font-size:.92rem;line-height:1.45}.email-dialog .consent-row input{width:auto;margin-top:4px}.email-dialog a{color:#614633}.email-dialog .status{margin:12px 0 0}";
+  document.head.append(emailDeliveryStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
@@ -81,7 +84,7 @@
     "Your daily check is complete. Your meals and plan are saved on this device for today.": "La revisió diària està completa. Els àpats i el pla d’avui es desen en aquest dispositiu.",
     "Complete today’s check (+10)": "Completa la revisió d’avui (+10)", "Daily check completed · +10": "Revisió diària completada · +10", "Back to daily plan": "Torna al pla diari",
     "Download weekly plan PDF": "Descarrega el PDF del pla setmanal", "Download weekly basket PDF": "Descarrega el PDF de la cistella setmanal",
-    "Email via my mail app": "Envia per la meva app de correu", "Email address": "Adreça electrònica",
+    "Send by email": "Envia per correu electrònic", "Email address": "Adreça electrònica",
     "I have what I need. Would you like to keep this plan on this device?": "Ja tinc el que necessito. Vols conservar aquest pla en aquest dispositiu?",
     "It stays in this browser and can be deleted with Start over. Nothing is saved to an account.": "Es queda en aquest navegador i es pot eliminar amb «Comença de nou». No es desa en cap compte.",
     "Create and save my plan": "Crea i desa el meu pla", "Create a one-time plan": "Crea un pla puntual",
@@ -485,7 +488,7 @@
   function weeklyPlan() {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(); const activityExplanation = { sedentary: "mostly sitting, with gentle movement built in", light: "light activity (1–2 activity days/week)", moderate: "regular training (3–4 training days/week)", high: "frequent training (5+ training days/week)" }[state.profile.activity];
     const images = ["https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80"];
-    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="weekly-pdf">Download weekly plan PDF</button><button class="button quiet" id="weekly-email">Email via my mail app</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="weekly-pdf">Download weekly plan PDF</button><button class="button quiet" id="weekly-email">Send by email</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
     root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#weekly-pdf").onclick = () => printWeekly("plan"); root.querySelector("#weekly-email").onclick = () => emailWeekly("plan"); root.querySelector("#back").onclick = dashboard;
   }
 
@@ -497,7 +500,7 @@
 
   function weeklyBasket() {
     const totals = weeklyBasketItems();
-    root.innerHTML = coachShell("Your approved weekly shopping basket", "A varied basket matching the seven specific daily menus and your first-chat training pattern.", '<div class="bubble coach full-card"><ul class="basket">' + totals.map(([name, amount]) => '<li><strong>' + (amount < 20 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button" id="weekly-basket-pdf">Download weekly basket PDF</button><button class="button quiet" id="weekly-basket-email">Email via my mail app</button><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
+    root.innerHTML = coachShell("Your approved weekly shopping basket", "A varied basket matching the seven specific daily menus and your first-chat training pattern.", '<div class="bubble coach full-card"><ul class="basket">' + totals.map(([name, amount]) => '<li><strong>' + (amount < 20 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button" id="weekly-basket-pdf">Download weekly basket PDF</button><button class="button quiet" id="weekly-basket-email">Send by email</button><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
     root.querySelector("#weekly-basket-pdf").onclick = () => printWeekly("basket"); root.querySelector("#weekly-basket-email").onclick = () => emailWeekly("basket"); root.querySelector("#back").onclick = weeklyPlan;
   }
 
@@ -520,11 +523,49 @@
   }
 
   function emailWeekly(kind) {
-    const address = window.prompt("Email address", state.email || "");
-    if (!address) return;
-    state.email = address.trim(); save();
-    const title = kind === "basket" ? "My Quota Vita weekly shopping basket" : "My Quota Vita seven-day meal plan";
-    window.location.href = "mailto:" + encodeURIComponent(state.email) + "?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(weeklyText(kind) + "\n\nGeneral wellbeing guidance only. Not medical advice.");
+    const isCatalan = language === "ca";
+    const title = kind === "basket" ? (isCatalan ? "Envia la meva cistella setmanal" : "Email my weekly basket") : (isCatalan ? "Envia el meu pla setmanal" : "Email my weekly plan");
+    const explanation = isCatalan
+      ? "L'enviarem directament des del flux de Shopify de Quota Vita."
+      : "Quota Vita will send it directly through its Shopify workflow.";
+    const consent = isCatalan
+      ? "Accepto la Política de privacitat i autoritzo Quota Vita a conservar el meu correu electrònic i a enviar-me el meu pla, la meva cistella i comunicacions del Coach."
+      : "I agree to the Privacy Policy and authorise Quota Vita to keep my email and send my plan, basket and Coach communications.";
+    const send = isCatalan ? "Envia'm el correu" : "Send my email";
+    const close = isCatalan ? "Tanca" : "Close";
+    const overlay = document.createElement("div");
+    overlay.className = "restaurant-overlay";
+    overlay.innerHTML = '<section class="restaurant-dialog email-dialog" role="dialog" aria-modal="true" aria-labelledby="email-title"><h3 id="email-title">' + esc(title) + '</h3><p class="meta">' + esc(explanation) + '</p><form id="shopify-email-form"><label class="field">' + (isCatalan ? "Adreça electrònica" : "Email address") + '<input id="shopify-email-address" required type="email" autocomplete="email" value="' + esc(state.email || "") + '"></label><label class="consent-row"><input id="shopify-email-consent" required type="checkbox"><span>' + consent + ' <a href="https://quotavita.com/policies/privacy-policy" target="_blank" rel="noopener">' + (isCatalan ? "Política de privacitat" : "Privacy Policy") + '</a>.</span></label><div class="actions"><button class="button" type="submit">' + esc(send) + '</button><button class="button quiet" type="button" id="shopify-email-close">' + esc(close) + '</button></div><div id="shopify-email-feedback" aria-live="polite"></div></form></section>';
+    document.body.append(overlay);
+    const closeDialog = () => overlay.remove();
+    overlay.querySelector("#shopify-email-close").onclick = closeDialog;
+    overlay.addEventListener("click", (event) => { if (event.target === overlay) closeDialog(); });
+    const address = overlay.querySelector("#shopify-email-address");
+    address.focus();
+    overlay.querySelector("#shopify-email-form").onsubmit = async (event) => {
+      event.preventDefault();
+      const button = overlay.querySelector('[type="submit"]');
+      const feedback = overlay.querySelector("#shopify-email-feedback");
+      const email = address.value.trim();
+      button.disabled = true;
+      feedback.innerHTML = note(isCatalan ? "S'està enviant…" : "Sending…");
+      try {
+        const response = await fetch("/api/shopify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, kind, checklist: weeklyText(kind), language, marketingConsent: true })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || (isCatalan ? "No s'ha pogut enviar el correu." : "We couldn't send the email."));
+        state.email = email;
+        save();
+        feedback.innerHTML = note(isCatalan ? "Fet. Rebràs el correu de Quota Vita aviat." : "Done. Your Quota Vita email is on its way.");
+        button.remove();
+      } catch (error) {
+        feedback.innerHTML = note(error.message, true);
+        button.disabled = false;
+      }
+    };
   }
 
   function checkIn(id, message = "") {

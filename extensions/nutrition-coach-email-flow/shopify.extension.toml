@@ -1,0 +1,29 @@
+api_version = "2025-10"
+
+[[extensions]]
+name = "Nutrition Coach email requested"
+type = "flow_trigger"
+handle = "nutrition-coach-email-requested"
+uid = "1df2d30f-d6cd-77ea-a614-a1945e89d890599369a9"
+description = "Starts a Shopify email workflow when a customer asks the Nutrition Coach to send a weekly plan or shopping basket."
+
+[settings]
+
+[[settings.fields]]
+type = "customer_reference"
+
+[[settings.fields]]
+type = "single_line_text_field"
+key = "Email type"
+
+[[settings.fields]]
+type = "single_line_text_field"
+key = "Checklist"
+
+[[settings.fields]]
+type = "single_line_text_field"
+key = "Language"
+
+[[settings.fields]]
+type = "boolean"
+key = "Consent recorded"
