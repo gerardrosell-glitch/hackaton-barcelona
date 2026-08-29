@@ -31,7 +31,9 @@ async function profile(customerId) {
 
 export default async function handler(request, response) {
   try {
-    const route = Array.isArray(request.query.path) ? request.query.path[0] : request.query.path;
+    // Vercel's catch-all query key differs between local and production
+    // runtimes, so derive the endpoint from the request path instead.
+    const route = new URL(request.url, "https://nutrition-coach.local").pathname.split("/").filter(Boolean).at(-1);
     if (!allowedRoutes.has(route)) return json(response, 404, { error: "Route not found." });
     const { customerId, shop } = proxyIdentity(request);
     const body = parseBody(request);
