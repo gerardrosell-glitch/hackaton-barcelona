@@ -18,6 +18,9 @@
   const mealDeckStyle = document.createElement("style");
   mealDeckStyle.textContent = ".meal-feed{display:grid;gap:18px;margin:18px 0}.meal-feed .meal{min-height:min(72dvh,680px);scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;border-left-width:7px}.meal-feed .meal .actions{justify-content:flex-start}.meal-feed .meal .button{min-width:132px}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.meal-feed .meal-image{height:clamp(210px,34vw,320px);object-fit:cover}@media(min-width:720px){.meal-feed{scroll-snap-type:y proximity}.chat-page{max-width:980px}.meal-feed .meal{padding:28px}}";
   document.head.append(mealDeckStyle);
+  const coachControlsStyle = document.createElement("style");
+  coachControlsStyle.textContent = ".coach-controls{display:flex;justify-content:flex-end;align-items:center;gap:12px;max-width:980px;margin:0 auto 24px;color:#392d23;font-size:.78rem;font-weight:800;letter-spacing:.05em}.coach-controls [data-language]{border:0;background:transparent;color:inherit;padding:5px;cursor:pointer;font:inherit}.coach-controls [data-language]:hover{text-decoration:underline}.coach-controls .restart-control{margin:0}@media(max-width:600px){.coach-controls{margin-bottom:18px;gap:7px;font-size:.7rem}.coach-controls .restart-control{font-size:.63rem}}";
+  document.head.append(coachControlsStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
@@ -135,18 +138,7 @@
       if (catalan[text]) node.nodeValue = node.nodeValue.replace(text, catalan[text]);
     }
   };
-  const languageControl = document.createElement("span");
-  languageControl.dataset.languageControl = "true";
-  languageControl.innerHTML = '<button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button>';
-  document.querySelector(".masthead").append(languageControl);
-  languageControl.querySelectorAll("[data-language]").forEach((button) => button.onclick = () => { language = button.dataset.language; localStorage.setItem("quota-vita-coach-language", language); location.reload(); });
-  const restartControl = document.createElement("button");
-  restartControl.className = "restart-control";
-  restartControl.type = "button";
-  restartControl.textContent = language === "ca" ? "Comença de nou" : "Start over";
-  restartControl.setAttribute("aria-label", language === "ca" ? "Comença un nou dia amb el perfil desat" : "Start a new day with the saved profile");
-  restartControl.title = language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement";
-  document.querySelector(".masthead").append(restartControl);
+  const coachControls = () => '<div class="coach-controls" data-language-control><span><button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button></span><button class="restart-control" type="button" data-global-restart title="' + (language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement") + '">' + (language === "ca" ? "Comença de nou" : "Start over") + "</button></div>";
   const resetCoach = () => {
     if (state.profile) {
       state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
@@ -157,7 +149,11 @@
     state = { profile: null, activity: "rest", meals: {}, mealImages: {} };
     welcome();
   };
-  restartControl.onclick = resetCoach;
+  document.addEventListener("click", (event) => {
+    const languageButton = event.target.closest("[data-language]");
+    if (languageButton) { language = languageButton.dataset.language; localStorage.setItem("quota-vita-coach-language", language); location.reload(); }
+    if (event.target.closest("[data-global-restart]")) resetCoach();
+  });
   document.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey || event.target.matches("input, textarea, select, [contenteditable='true']")) return;
     const index = Number(event.key) - 1;
@@ -229,7 +225,7 @@
         ? '<div class="composer"><span class="composer-label">Choose one reply</span><p class="keyboard-hint">Press 1, 2 or 3 on your keyboard to choose.</p><div class="quick-replies">' + choiceButtons(question.choices, "data-answer") + "</div></div>"
         : '<form class="composer chat-input" id="chat-form"><input id="chat-answer" aria-label="' + esc(question.label) + '" placeholder="' + (language === "ca" ? "Escriu la resposta…" : "Type your answer…") + '" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" type="submit">Send</button></form>';
       const intro = index === 0 ? '<div class="bubble coach coach-intro">Hi, I’m your Quota Vita Coach. I’ll create today’s calories and macro targets, three meal ideas, and an exact one-day shopping basket.<span class="meta">I’ll tailor it to your body, usual activity, goal and today’s training—not give you a generic diet.</span></div>' : "";
-      root.innerHTML = '<section class="coach-workspace">' + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
+      root.innerHTML = '<section class="coach-workspace">' + coachControls() + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build your daily meal plan.</h2><p class="lead">Personal calories and macros, three meals and a one-day shopping basket.</p><section class="chat" aria-live="polite">' + intro + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
       root.querySelector("#cancel").onclick = welcome;
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
       const form = root.querySelector("#chat-form");
@@ -250,7 +246,7 @@
   }
 
   function coachShell(title, lead, content) {
-    return '<section class="coach-workspace"><p class="eyebrow">Your Coach</p><h2>' + esc(title) + '</h2><p class="lead">' + esc(lead) + '</p><section class="chat chat-page" aria-live="polite">' + content + '</section></section>';
+    return '<section class="coach-workspace">' + coachControls() + '<p class="eyebrow">Your Coach</p><h2>' + esc(title) + '</h2><p class="lead">' + esc(lead) + '</p><section class="chat chat-page" aria-live="polite">' + content + '</section></section>';
   }
 
   function training() {

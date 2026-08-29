@@ -8,3 +8,4 @@
 - Do not auto-scroll a form field into view when it hides the title or prior conversation; focus inputs without changing the user's viewport.
 - A label such as “proposal” is not an action. For a daily meal plan, use explicit outcomes (eat, restaurant, skip) and show one meal at a time in the flow.
 - Keep user-provided health details local by default; a live AI Coach needs a clear disclosure and server-side credentials, with a general-wellbeing safety boundary.
+- When removing a layout container, first remove or relocate every script dependency on that container; otherwise one null DOM lookup can blank the entire application.
