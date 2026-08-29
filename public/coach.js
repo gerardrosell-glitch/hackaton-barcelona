@@ -8,9 +8,15 @@
   let language = localStorage.getItem("quota-vita-coach-language") || "en";
   let mealDeckIndex = 0;
   let mobileCoachOpen = false;
+  let mobilePlanOpen = false;
   let weeklyBasketEstimate;
   const pendingMealImages = new Set();
   const failedMealImages = new Set();
+  const pendingWeeklyMealImages = new Set();
+  const failedWeeklyMealImages = new Set();
+  const pendingDailyMealPlans = new Set();
+  const failedDailyMealPlans = new Set();
+  const expandedPlanDetails = new Set();
   const chatStyle = document.createElement("style");
   chatStyle.textContent = ".coach-workspace{position:relative;isolation:isolate;min-height:100dvh;overflow:hidden;border-radius:0;padding:clamp(28px,5vw,64px) clamp(18px,8vw,128px);background:#1d6254;color:#fff}.coach-workspace::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(9,46,39,.9),rgba(20,91,77,.72) 48%,rgba(255,106,70,.58))}.coach-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.coach-workspace .stepper{margin:0 auto 20px;max-width:760px}.coach-workspace .eyebrow,.coach-workspace .lead{color:#fff}.coach-workspace h2{max-width:760px;margin:0 auto 5px;color:#fff;font-size:clamp(2rem,4vw,3.5rem);line-height:1.02;text-align:left}.coach-workspace>.eyebrow,.coach-workspace>.lead{max-width:760px;margin-left:auto;margin-right:auto;text-align:left}.coach-workspace>.lead{margin-top:0;margin-bottom:22px;font-size:1rem}.chat{max-width:760px;min-height:440px;margin:0 auto;padding:18px;border:1px solid rgba(255,255,255,.35);border-radius:24px;background:rgba(8,43,36,.44);display:grid;align-content:start;gap:13px;backdrop-filter:blur(10px)}.bubble{max-width:78%;padding:14px 17px;border-radius:19px;line-height:1.45;box-shadow:0 10px 24px rgba(4,37,31,.14)}.bubble.coach{justify-self:start;background:rgba(255,255,255,.97);color:#173e36;border-bottom-left-radius:5px}.bubble.user{justify-self:end;background:#123e35;color:#fff;border:1px solid rgba(255,255,255,.35);border-bottom-right-radius:5px}.bubble .meta{display:block;margin-top:6px;color:#55736d;font-size:.9em}.coach-intro{font-size:1.04rem}.composer{width:100%;box-sizing:border-box;margin:8px 0 0;padding:11px;border:1px solid rgba(255,255,255,.8);border-radius:22px;background:rgba(255,255,255,.98);box-shadow:0 18px 42px rgba(4,37,31,.2)}.composer-label{display:block;padding:2px 7px 9px;color:#41675f;font-weight:700;font-size:.88rem}.quick-replies{display:flex;flex-wrap:wrap;gap:8px}.quick-replies button{border:1px solid #8fb9ab;border-radius:999px;background:#f6fbf8;color:#173e36;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}.quick-replies button:hover{background:#dceee6}.chat-input{display:flex;gap:8px}.chat-input input{min-width:0;flex:1;border:0;background:transparent;padding:12px 10px;color:#173e36;font:inherit;font-size:1rem;outline:none}.chat-input .button{border-radius:15px}.chat-cancel{display:block;margin:16px auto 0;background:transparent!important;border-color:rgba(255,255,255,.8)!important;color:#fff!important}.coach-workspace .privacy{margin:16px auto 0;color:#fff;text-align:center}.coach-workspace .actions{justify-content:center}@media(max-width:600px){.coach-workspace{min-height:100dvh;padding:26px 16px}.coach-workspace h2{font-size:2.25rem}.chat{min-height:0;padding:13px}.bubble{max-width:92%}.chat-input .button{padding:11px 14px}}";
   document.head.append(chatStyle);
@@ -21,10 +27,22 @@
   paletteContrastStyle.textContent = ".coach-workspace{color:#392d23}.coach-workspace .eyebrow,.coach-workspace .lead,.coach-workspace h2,.coach-workspace .privacy{color:#392d23}.coach-workspace .eyebrow{color:#9e4e35}.coach-workspace .lead{color:#584538}.chat{background:rgba(255,249,237,.84);border-color:rgba(112,78,48,.32)}.bubble.coach{background:rgba(255,253,247,.97);color:#392d23}.bubble.user{background:#614633;border-color:#614633;color:#fffdf8}.bubble .meta,.chat-page .privacy,.keyboard-hint{color:#6d5948}.composer{background:rgba(255,253,247,.98);border-color:#c88152}.quick-replies button{background:#fff7e8;border-color:#bf885d;color:#392d23}.quick-replies button:hover{background:#f1d0aa}.quick-replies button:focus-visible,.restart-control:focus-visible{outline-color:#a14e34}.chat-input input{color:#392d23}.chat-input .button,.coach-workspace .button:not(.quiet){background:#614633;border-color:#614633;color:#fffdf8}.chat-cancel{color:#392d23!important;border-color:#9a6544!important;background:rgba(255,249,237,.7)!important}.restart-control{background:#fff9ed;border-color:#a66b48;color:#392d23}.shortcut-key{border-color:#a66b48;color:#7a4730}.week-day{background:rgba(255,253,247,.92);border-color:#d1a171}.meal-header,.meal p,.ledger,.method{color:#392d23}.meta,.ledger span{color:#6d5948}.meal-image-placeholder{display:grid;place-items:center;align-content:center;gap:12px;background:linear-gradient(135deg,#fff7e8,#efd6ab);color:#584538;font-weight:800;text-align:center}.meal-image-placeholder .button{margin:0}";
   document.head.append(paletteContrastStyle);
   const mealDeckStyle = document.createElement("style");
-  mealDeckStyle.textContent = ".daily-plan-workspace{padding:0!important}.daily-meal-deck{width:100%;min-height:100dvh;padding:clamp(12px,1.5vw,28px) clamp(20px,5.25vw,160px) clamp(48px,6vw,112px);box-sizing:border-box;background:transparent;color:#392d23}.daily-meal-track{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:clamp(16px,1.25vw,32px);width:100%;max-width:none;margin:0;align-items:stretch}.daily-meal-overview{width:100%;max-width:none;margin:0 0 clamp(16px,1.25vw,28px)}.daily-meal-card{min-width:0;container-type:inline-size}.daily-meal-content{height:100%}.daily-meal-card .meal{box-sizing:border-box;height:100%;min-height:0;margin:0;padding:clamp(18px,1.3vw,30px);display:flex;flex-direction:column;border-left-width:7px;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-card .meal .actions{justify-content:flex-start;margin-top:auto}.daily-meal-card .meal .button{min-width:0}.daily-meal-card .meal-image{height:clamp(170px,min(52cqw,34dvh),340px);object-fit:cover}.daily-meal-card h3{font-size:clamp(1.5rem,3cqw,2.2rem);line-height:1.04}.meal-deck-controls{display:flex;justify-content:flex-end;width:100%;max-width:none;margin:0 0 clamp(16px,1.25vw,28px)}.meal-deck-controls .coach-controls{margin:0}.meal-deck-position,.meal-deck-help{display:none}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.daily-plan-follow-up{width:min(980px,100%);margin:0 auto;padding:26px 18px 64px}.daily-plan-follow-up .bubble{max-width:100%}@media(min-width:720px) and (max-width:1050px){.daily-meal-deck{padding-inline:clamp(20px,4vw,48px)}.daily-meal-overview{grid-template-columns:minmax(220px,.36fr) minmax(0,1fr)}}@media(max-width:719px){.daily-meal-deck{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:0;background:#392d23;color:#392d23;touch-action:pan-y}.daily-meal-track{display:flex;width:100%;max-width:none;height:100%;margin:0;gap:0;will-change:transform;transition:transform .28s cubic-bezier(.22,.8,.25,1)}.daily-meal-overview{display:none!important}.daily-meal-card{box-sizing:border-box;flex:0 0 100%;width:100%;min-height:100%;padding:76px 14px 54px;display:flex;align-items:center;overflow-y:auto}.daily-meal-content{width:100%}.daily-meal-card .meal{min-height:calc(100dvh - 170px);padding:20px;box-shadow:0 18px 45px rgba(16,10,7,.33)}.daily-meal-card .meal-image{height:min(25dvh,220px)}.daily-meal-card h3{font-size:1.5rem}.meal-deck-controls{position:absolute;inset:12px 12px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;margin:0;color:#fffdf8;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.meal-deck-controls>*{pointer-events:auto}.meal-deck-controls .coach-controls{margin:0;color:inherit}.meal-deck-position{display:block;margin:0;text-shadow:0 1px 8px rgba(0,0,0,.35)}.meal-deck-help{display:block;position:absolute;z-index:2;inset:auto 18px 14px;margin:0;color:#fffdf8;text-align:center;font-size:.76rem;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}}@media(prefers-reduced-motion:reduce){.daily-meal-track{transition:none}}";
+  mealDeckStyle.textContent = ".daily-plan-workspace{padding:0!important}.daily-meal-deck{width:100%;min-height:100dvh;padding:clamp(8px,.8vw,16px) clamp(20px,5.25vw,160px) clamp(48px,6vw,112px);box-sizing:border-box;background:transparent;color:#392d23}.daily-meal-track{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:clamp(16px,1.25vw,32px);width:100%;max-width:none;margin:0;align-items:stretch}.daily-meal-overview{width:100%;max-width:none;margin:0 0 clamp(12px,.9vw,18px)}.daily-meal-card{min-width:0;container-type:inline-size}.daily-meal-content{height:100%}.daily-meal-card .meal{box-sizing:border-box;height:100%;min-height:0;margin:0;padding:clamp(18px,1.3vw,30px);display:flex;flex-direction:column;border-left-width:7px;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-card .meal .actions{justify-content:flex-start;margin-top:auto}.daily-meal-card .meal .button{min-width:0}.daily-meal-card .meal-image{height:clamp(170px,min(52cqw,34dvh),340px);object-fit:cover}.daily-meal-card h3{font-size:clamp(1.5rem,3cqw,2.2rem);line-height:1.04}.meal-deck-controls{display:none}.meal-deck-controls .coach-controls{margin:0}.meal-deck-position,.meal-deck-help{display:none}.meal-status{display:inline-block;margin:0 0 12px;color:#9e4e35;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem}.daily-plan-follow-up{width:min(980px,100%);margin:0 auto;padding:26px 18px 64px}.daily-plan-follow-up .bubble{max-width:100%}@media(min-width:720px) and (max-width:1050px){.daily-meal-deck{padding-inline:clamp(20px,4vw,48px)}.daily-meal-overview{grid-template-columns:minmax(220px,.36fr) minmax(0,1fr)}}@media(max-width:719px){.daily-meal-deck{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:0;background:#392d23;color:#392d23;touch-action:pan-y}.daily-meal-track{display:flex;width:100%;max-width:none;height:100%;margin:0;gap:0;will-change:transform;transition:transform .28s cubic-bezier(.22,.8,.25,1)}.daily-meal-overview{display:none!important}.daily-meal-card{box-sizing:border-box;flex:0 0 100%;width:100%;min-height:100%;padding:76px 14px 54px;display:flex;align-items:center;overflow-y:auto}.daily-meal-content{width:100%}.daily-meal-card .meal{min-height:calc(100dvh - 170px);padding:20px;box-shadow:0 18px 45px rgba(16,10,7,.33)}.daily-meal-card .meal-image{height:min(25dvh,220px)}.daily-meal-card h3{font-size:1.5rem}.meal-deck-controls{position:absolute;inset:12px 12px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;margin:0;color:#fffdf8;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.meal-deck-controls>*{pointer-events:auto}.meal-deck-controls .coach-controls{margin:0;color:inherit}.meal-deck-position{display:block;margin:0;text-shadow:0 1px 8px rgba(0,0,0,.35)}.meal-deck-help{display:block;position:absolute;z-index:2;inset:auto 18px 14px;margin:0;color:#fffdf8;text-align:center;font-size:.76rem;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}}@media(prefers-reduced-motion:reduce){.daily-meal-track{transition:none}}";
   document.head.append(mealDeckStyle);
+  const planActionStyle = document.createElement("style");
+  planActionStyle.textContent = ".coach-controls--daily{width:100%;max-width:none;margin:0;flex-wrap:wrap;justify-content:flex-start}.coach-controls--daily .restart-control{margin-left:auto}.plan-top-actions{display:flex;align-items:center;gap:5px;min-width:0}.plan-top-scope{color:#9e4e35;font-size:.67rem;font-weight:900;letter-spacing:.1em;line-height:1;text-transform:uppercase}.plan-top-action{display:inline-flex;align-items:center;justify-content:center;min-height:32px;border:1px solid #a66b48;background:#fff9ed;color:#275e50;padding:6px 9px;font:inherit;font-size:.68rem;font-weight:800;letter-spacing:.01em;line-height:1;text-align:center;white-space:nowrap;cursor:pointer}.plan-top-action:hover{background:#f1d0aa}.plan-top-action:focus-visible{outline:3px solid #a14e34;outline-offset:2px}.plan-top-action.primary{border-color:#614633;background:#614633;color:#fffdf8}.daily-plan-mobile-actions{display:none!important}.daily-meal-card .meal .actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;box-sizing:border-box;align-items:stretch;margin-top:auto;padding-top:12px;flex-shrink:0}.daily-meal-card .meal .actions .button{display:inline-flex;align-items:center;justify-content:center;width:100%;min-width:0;box-sizing:border-box;min-height:48px;padding:9px 8px;line-height:1.15;text-align:center}.daily-meal-card .meal .actions .button:only-child{grid-column:1/-1}@media(max-width:719px){.daily-meal-deck{touch-action:pan-y}.daily-meal-card{padding-top:124px}.daily-meal-card .meal{min-width:0}.meal-deck-controls{align-items:flex-start}.meal-deck-controls .coach-controls--daily{flex:1;width:auto;gap:5px}.meal-deck-controls .coach-controls--daily .restart-control{margin-left:0}.meal-deck-controls .plan-top-actions{order:5;flex:0 0 100%;width:100%;justify-content:flex-start;overflow-x:auto;padding:2px 0 1px;scrollbar-width:none}.meal-deck-controls .plan-top-actions::-webkit-scrollbar{display:none}.meal-deck-controls .plan-top-scope{font-size:.58rem}.meal-deck-controls .plan-top-action{min-height:29px;padding:5px 7px;font-size:.6rem}.daily-meal-card .meal .actions{gap:7px}.daily-meal-card .meal .actions .button{min-height:50px;padding:8px 5px;font-size:clamp(.68rem,3.2vw,.84rem);overflow-wrap:anywhere}}";
+  document.head.append(planActionStyle);
+  const milkshakeOptionStyle = document.createElement("style");
+  milkshakeOptionStyle.textContent = ".milkshake-option{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:baseline;margin:12px 0 0!important;padding:8px 10px;border:1px solid #d1a171;border-radius:10px;background:#fff4df;color:#584538!important;font-size:.82rem;line-height:1.25}.milkshake-option strong{color:#9e4e35}.milkshake-detail{font-weight:700}.week-day .milkshake-option{margin-top:auto!important;font-size:clamp(.74rem,4.2cqw,.88rem)}@media(max-width:719px){.milkshake-option{margin-top:10px!important;padding:7px 9px;font-size:.76rem}}";
+  document.head.append(milkshakeOptionStyle);
+  const compactCardStyle = document.createElement("style");
+  compactCardStyle.textContent = ".card-detail-toggle{display:none;align-items:center;justify-content:center;gap:6px;width:max-content;max-width:100%;margin:10px 0 0;border:1px solid #a66b48;background:#fff9ed;color:#275e50;padding:6px 9px;font:inherit;font-size:.72rem;font-weight:800;line-height:1;cursor:pointer}.card-detail-toggle:hover{background:#f1d0aa}.card-detail-toggle:focus-visible{outline:3px solid #a14e34;outline-offset:2px}.compact-plan-view .card-detail-toggle{display:inline-flex}.compact-plan-view .meal.is-collapsed,.compact-plan-view .week-day.is-collapsed{height:auto;min-height:0}.compact-plan-view .meal.is-collapsed .meal-visual,.compact-plan-view .meal.is-collapsed .meal-status,.compact-plan-view .meal.is-collapsed .meal-header>.meta,.compact-plan-view .meal.is-collapsed .meal-header .eyebrow,.compact-plan-view .meal.is-collapsed .meal-details,.compact-plan-view .week-day.is-collapsed .weekly-card-visual,.compact-plan-view .week-day.is-collapsed .week-day-details{display:none}.compact-plan-view .meal.is-collapsed .meal-header{display:block}.compact-plan-view .meal.is-collapsed .meal-header h3{margin:0}.compact-plan-view .week-day.is-collapsed h3{margin:0}.compact-plan-view .week-day.is-collapsed{padding:clamp(12px,1.15vw,20px)}@media(max-width:719px){.compact-plan-view .daily-meal-card .meal.is-collapsed{min-height:0;height:auto}.compact-plan-view .daily-meal-card{align-items:flex-start}.compact-plan-view .card-detail-toggle{margin-top:12px}}";
+  document.head.append(compactCardStyle);
+  const weeklyPlanStyle = document.createElement("style");
+  weeklyPlanStyle.textContent = ".weekly-plan-workspace{padding:clamp(10px,1.4vw,28px) clamp(18px,5vw,96px)!important}.weekly-plan-workspace .coach-controls,.weekly-plan-heading,.weekly-plan-page{width:min(100%,1920px);max-width:none!important;margin-left:auto;margin-right:auto}.weekly-plan-workspace .coach-controls{margin-bottom:clamp(6px,.7vw,12px)}.weekly-plan-heading{margin:0 0 clamp(10px,1vw,18px)}.weekly-plan-workspace h2{max-width:none;margin:0 0 4px;font-size:clamp(2.15rem,4.2vw,4.4rem)}.weekly-plan-workspace>.lead{max-width:980px;margin:0}.weekly-plan-page{min-height:0;padding:clamp(10px,1.2vw,18px);border-radius:22px}.weekly-plan-page .full-card{width:100%;max-width:none;padding:0;background:transparent;box-shadow:none}.weekly-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:clamp(12px,1.1vw,20px);width:100%}.week-day{container-type:inline-size;display:flex;flex-direction:column;height:100%;box-sizing:border-box;padding:clamp(12px,1.15vw,20px);border-width:1px;border-radius:16px;box-shadow:0 12px 28px rgba(58,42,27,.1)}.week-day .weekly-meal-image{height:clamp(132px,56cqw,230px);margin-bottom:14px;object-fit:cover}.week-day h3{font-size:clamp(1.05rem,6.2cqw,1.45rem);line-height:1.12}.week-day p{margin:.35rem 0;font-size:clamp(.78rem,4.7cqw,.96rem);line-height:1.38}.week-day p:last-child{margin-bottom:0}.weekly-plan-page>.bubble>.actions{margin:clamp(18px,2vw,30px) 0 0;justify-content:flex-start}@media(min-width:1500px){.weekly-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}@media(max-width:719px){.weekly-plan-workspace{padding:12px 14px 22px!important}.weekly-plan-page{padding:10px;border-radius:16px}.weekly-grid{grid-template-columns:1fr;gap:12px}.week-day .weekly-meal-image{height:min(56vw,260px)}}";
+  document.head.append(weeklyPlanStyle);
   const liveCoachPanelStyle = document.createElement("style");
-  liveCoachPanelStyle.textContent = ".daily-meal-overview{display:grid;grid-template-columns:minmax(250px,.42fr) minmax(0,1fr);align-items:stretch;border-top:6px solid #e6bf67;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-overview .ledger{position:static;margin:0;padding:18px;border-top:0;border-right:1px solid #dfcba8;background:transparent}.daily-meal-overview .live-coach{min-width:0;padding:15px 20px}.daily-meal-overview .live-coach .eyebrow{margin:0 0 7px}.daily-meal-overview .live-coach-thread{display:grid;gap:6px;max-height:86px;overflow:auto}.daily-meal-overview .live-coach .bubble{max-width:100%;padding:9px 12px;border-radius:12px;box-shadow:none}.daily-meal-overview .live-coach .bubble .meta{display:none}.daily-meal-overview .live-coach .composer{margin:10px 0 0;padding:6px 10px;border-radius:14px;box-shadow:none}.daily-meal-overview .live-coach .chat-input input{padding:8px 7px}.daily-meal-overview .live-coach .chat-input .button{padding:9px 14px}.daily-meal-overview .live-coach>.meta{display:none}.daily-plan-follow-up .live-coach{display:none}";
+  liveCoachPanelStyle.textContent = ".daily-meal-overview{display:grid;grid-template-columns:minmax(250px,.42fr) minmax(0,1fr);align-items:stretch;border-top:6px solid #e6bf67;background:#fffdf7;box-shadow:0 16px 38px rgba(58,42,27,.18)}.daily-meal-overview .ledger{position:static;margin:0;padding:18px;border-top:0;border-right:1px solid #dfcba8;background:transparent}.daily-meal-overview .live-coach{min-width:0;padding:15px 20px}.daily-meal-overview .live-coach-heading{display:flex;align-items:center;gap:12px;margin:0 0 7px}.daily-meal-overview .live-coach-heading .eyebrow{flex:0 0 auto;margin:0}.daily-meal-overview .live-coach-heading .coach-controls{flex:1;width:auto;max-width:none;margin:0}.daily-meal-overview .live-coach-heading .plan-top-actions{justify-content:flex-end}.daily-meal-overview .live-coach-heading .plan-top-action{min-height:30px;padding:5px 7px;font-size:.63rem}.daily-meal-overview .live-coach-thread{display:grid;gap:6px;max-height:86px;overflow:auto}.daily-meal-overview .live-coach .bubble{max-width:100%;padding:9px 12px;border-radius:12px;box-shadow:none}.daily-meal-overview .live-coach .bubble .meta{display:none}.daily-meal-overview .live-coach .composer{margin:10px 0 0;padding:6px 10px;border-radius:14px;box-shadow:none}.daily-meal-overview .live-coach .chat-input input{padding:8px 7px}.daily-meal-overview .live-coach .chat-input .button{padding:9px 14px}.daily-meal-overview .live-coach>.meta{display:none}.daily-plan-follow-up .live-coach{display:none}@media(max-width:1050px){.daily-meal-overview .live-coach-heading{align-items:flex-start;flex-direction:column}.daily-meal-overview .live-coach-heading .coach-controls{width:100%;justify-content:flex-start}.daily-meal-overview .live-coach-heading .plan-top-actions{justify-content:flex-start}}";
   document.head.append(liveCoachPanelStyle);
   const mobileCoachStyle = document.createElement("style");
   mobileCoachStyle.textContent = ".mobile-coach-toggle,.mobile-coach-drawer{display:none}@media(max-width:719px){.mobile-coach-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,253,247,.82);border-radius:999px;background:rgba(57,45,35,.72);color:#fffdf8;padding:7px 10px;font:inherit;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}.mobile-coach-drawer:not([hidden]){position:absolute;z-index:4;inset:58px 12px 12px;display:flex;flex-direction:column;min-height:0;padding:16px;border:1px solid rgba(255,253,247,.72);border-radius:18px;background:#fffdf7;color:#392d23;box-shadow:0 18px 48px rgba(16,10,7,.45)}.mobile-coach-drawer-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 10px}.mobile-coach-drawer-header .eyebrow{margin:0}.mobile-coach-close{border:0;background:transparent;color:#614633;padding:6px;font:inherit;font-size:.76rem;font-weight:800;cursor:pointer}.mobile-coach-drawer .live-coach{display:flex;flex:1;min-height:0;flex-direction:column}.mobile-coach-drawer .live-coach>.eyebrow{display:none}.mobile-coach-drawer .live-coach-thread{display:grid;flex:1;align-content:start;gap:8px;min-height:0;overflow:auto}.mobile-coach-drawer .live-coach .bubble{max-width:100%;padding:10px 12px}.mobile-coach-drawer .live-coach .composer{flex:0 0 auto;margin:10px 0 0;padding:6px 10px}.mobile-coach-drawer .live-coach>.meta{display:none}.meal-deck-controls .coach-controls{gap:7px}.meal-deck-controls .restart-control{padding:7px 8px}}@media(max-width:420px){.meal-deck-controls{inset:10px 8px auto;font-size:.6rem}.meal-deck-controls .coach-controls{gap:3px}.meal-deck-controls .coach-controls [data-language]{padding:3px}.mobile-coach-toggle{padding:6px 8px;font-size:.6rem}.meal-deck-controls .restart-control{padding:6px 7px;font-size:.58rem;letter-spacing:.04em}}";
@@ -35,6 +53,9 @@
   const mobileCoachTightStyle = document.createElement("style");
   mobileCoachTightStyle.textContent = "@media(max-width:719px){.meal-deck-controls{width:auto}}@media(max-width:420px){.meal-deck-controls .coach-controls{gap:2px}.mobile-coach-toggle{padding:5px;font-size:.55rem;letter-spacing:.02em}.meal-deck-controls .restart-control{padding:5px;font-size:.55rem}}";
   document.head.append(mobileCoachTightStyle);
+  const mobilePlanStyle = document.createElement("style");
+  mobilePlanStyle.textContent = ".mobile-plan-toggle,.mobile-plan-drawer{display:none}@media(max-width:719px){.mobile-plan-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,253,247,.82);border-radius:999px;background:rgba(57,45,35,.72);color:#fffdf8;padding:7px 10px;font:inherit;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}.mobile-plan-drawer:not([hidden]){position:absolute;z-index:5;inset:58px 12px auto;display:block;max-height:calc(100dvh - 82px);overflow:auto;padding:16px;border:1px solid rgba(255,253,247,.72);border-radius:18px;background:#fffdf7;color:#392d23;box-shadow:0 18px 48px rgba(16,10,7,.45)}.mobile-plan-drawer-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px}.mobile-plan-drawer-header .eyebrow{margin:0}.mobile-plan-close{border:0;background:transparent;color:#614633;padding:6px;font:inherit;font-size:.76rem;font-weight:800;cursor:pointer}.mobile-plan-drawer .plan-top-actions{display:grid;grid-template-columns:1fr;gap:8px;width:100%;overflow:visible}.mobile-plan-drawer .plan-top-scope{margin:8px 0 0}.mobile-plan-drawer .plan-top-action{width:100%;min-height:44px;box-sizing:border-box;font-size:.82rem}.daily-meal-card{padding-top:76px!important}.meal-deck-help{display:none!important}}@media(max-width:420px){.mobile-plan-toggle{padding:5px;font-size:.55rem;letter-spacing:.02em}}";
+  document.head.append(mobilePlanStyle);
   const mealInteractionStyle = document.createElement("style");
   mealInteractionStyle.textContent = ".restaurant-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(57,45,35,.54);overflow:auto}.restaurant-overlay .restaurant-dialog{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border-radius:22px;background:#fff9ed;color:#392d23;box-shadow:0 20px 60px rgba(57,45,35,.35)}.restaurant-overlay .actions{justify-content:flex-start}.restaurant-overlay video{width:100%;max-width:620px;border-radius:14px;background:#392d23}.swipe-hint{margin:0 0 14px;color:#6d5948;font-size:.86rem}@media(max-width:600px){.restaurant-overlay{align-items:end;padding:0}.restaurant-overlay .restaurant-dialog{max-height:92dvh;border-radius:22px 22px 0 0}.swipe-hint{font-size:.8rem}}";
   document.head.append(mealInteractionStyle);
@@ -51,10 +72,10 @@
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
   const readState = () => { try { return JSON.parse(localStorage.getItem(storageKey)); } catch { return null; } };
-  state = { mealImages: {}, chat: [], ...(readState() || { profile: null, activity: "rest", meals: {} }) };
+  state = { mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 0, chat: [], ...(readState() || { profile: null, activity: "rest", meals: {} }) };
   const todayKey = (date = new Date()) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
   if (state.profile && state.planDate !== todayKey()) {
-    state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
+    state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
     save();
   }
   const choiceButtons = (items, attribute) => items.map(([label, value], index) => '<button ' + attribute + '="' + esc(value) + '" aria-keyshortcuts="' + (index + 1) + '"><kbd class="shortcut-key">' + (index + 1) + '</kbd>' + esc(label) + '</button>').join("");
@@ -150,6 +171,7 @@
     ,"Ask about a meal, a healthy swap or today’s training.": "Pregunta sobre un àpat, una alternativa saludable o l’entrenament d’avui."
     ,"General wellbeing guidance, not medical advice.": "Orientació general de benestar, no assessorament mèdic."
     ,"Ask your Coach…": "Pregunta al teu Coach…"
+    ,"Ask your Coach...": "Pregunta al teu Coach…"
     ,"Ask": "Pregunta"
     ,"Thinking…": "Pensant…"
     ,"Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.": "Els missatges s'envien a OpenAI per generar una resposta. Quota Vita només conserva aquesta conversa en aquest dispositiu."
@@ -172,22 +194,85 @@
       if (catalan[text]) node.nodeValue = node.nodeValue.replace(text, catalan[text]);
     }
   };
-  const coachControls = (includeConversation = false) => {
+  const catalanMealText = {
+    "Breakfast": "Esmorzar", "Lunch": "Dinar", "Dinner": "Sopar",
+    "Pa amb tomàquet with Greek yogurt, banana and berries": "Pa amb tomàquet amb iogurt grec, plàtan i fruits del bosc",
+    "Escalivada with chickpeas and chicken": "Escalivada amb cigrons i pollastre",
+    "Pa amb tomàquet with egg, fruit and nuts": "Pa amb tomàquet amb ou, fruita i fruits secs",
+    "Start with carbohydrate and protein before the session.": "Comença amb hidrats de carboni i proteïna abans de la sessió.",
+    "Your main recovery meal.": "El teu àpat principal de recuperació.",
+    "Steady energy and fibre for tomorrow.": "Energia sostinguda i fibra per a demà.",
+    "Protein, fibre and a satisfying start.": "Proteïna, fibra i un inici saciant.",
+    "Build the plate around protein and plants.": "Construeix el plat al voltant de la proteïna i els vegetals.",
+    "A simple balanced evening meal.": "Un sopar senzill i equilibrat.",
+    "2 slices wholegrain pa de pagès · ripe tomato · 250g Greek yogurt · 1 banana · 100g berries": "2 llesques de pa de pagès integral · tomàquet madur · 250g de iogurt grec · 1 plàtan · 100g de fruits del bosc",
+    "160g chicken · 160g cooked chickpeas · roasted pepper, aubergine and onion · 1 slice pa de pagès · 10g olive oil": "160g de pollastre · 160g de cigrons cuits · pebrot, albergínia i ceba escalivats · 1 llesca de pa de pagès · 10g d’oli d’oliva",
+    "250g cooked lentils · 2 slices wholegrain pa de pagès · salad · ½ avocado": "250g de llenties cuites · 2 llesques de pa de pagès integral · amanida · ½ alvocat",
+    "2 slices wholegrain pa de pagès · ripe tomato · 2 eggs · 1 apple · 15g nuts": "2 llesques de pa de pagès integral · tomàquet madur · 2 ous · 1 poma · 15g de fruits secs",
+    "150g chicken · 160g chickpeas · 250g escalivada · 10g olive oil": "150g de pollastre · 160g de cigrons · 250g d’escalivada · 10g d’oli d’oliva",
+    "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain pa de pagès · salad": "250g de llenties cuites · pastanaga, api i tomàquet · 2 llesques de pa de pagès integral · amanida",
+    "Pa amb tomàquet with egg and fruit": "Pa amb tomàquet amb ou i fruita",
+    "2 slices wholegrain pa de pagès · 2 eggs · tomato · 1 orange · 10g olive oil": "2 llesques de pa de pagès integral · 2 ous · tomàquet · 1 taronja · 10g d’oli d’oliva",
+    "Escalivada with chickpeas": "Escalivada amb cigrons",
+    "160g cooked chickpeas · roasted pepper, aubergine and onion · 10g olive oil": "160g de cigrons cuits · pebrot, albergínia i ceba escalivats · 10g d’oli d’oliva",
+    "160g white fish · 300g potatoes · tomato, garlic and 250g greens": "160g de peix blanc · 300g de patates · tomàquet, all i 250g de verdures verdes",
+    "Greek yogurt with oats, walnuts and pear": "Iogurt grec amb civada, nous i pera",
+    "250g Greek yogurt · 60g oats · 1 pear · 15g walnuts": "250g de iogurt grec · 60g de civada · 1 pera · 15g de nous",
+    "Llenties estofades amb verdures": "Llenties estofades amb verdures",
+    "250g cooked lentils · carrot, celery and tomato · 2 slices wholegrain bread": "250g de llenties cuites · pastanaga, api i tomàquet · 2 llesques de pa integral",
+    "Pollastre a la planxa with escalivada and brown rice": "Pollastre a la planxa amb escalivada i arròs integral",
+    "150g chicken · 80g dry brown rice · 250g escalivada": "150g de pollastre · 80g d’arròs integral en cru · 250g d’escalivada",
+    "Pa amb tomàquet with fresh cheese and fruit": "Pa amb tomàquet amb formatge fresc i fruita",
+    "2 slices wholegrain bread · tomato · 80g fresh cheese · 1 apple · 10g olive oil": "2 llesques de pa integral · tomàquet · 80g de formatge fresc · 1 poma · 10g d’oli d’oliva",
+    "Esqueixada-style cod and white bean salad": "Amanida d’estil esqueixada de bacallà i mongetes blanques",
+    "140g cod · 180g cooked white beans · tomato, pepper and olives": "140g de bacallà · 180g de mongetes blanques cuites · tomàquet, pebrot i olives",
+    "Truita de verdures with roasted sweet potato": "Truita de verdures amb moniato al forn",
+    "3 eggs · spinach and mushrooms · 300g sweet potato · salad": "3 ous · espinacs i bolets · 300g de moniato · amanida",
+    "Apple-cinnamon porridge with yogurt": "Farinetes de poma i canyella amb iogurt",
+    "70g oats · 1 apple · 200g Greek yogurt · cinnamon": "70g de civada · 1 poma · 200g de iogurt grec · canyella",
+    "Arròs integral amb verdures and turkey": "Arròs integral amb verdures i gall dindi",
+    "80g dry brown rice · 150g turkey · 250g seasonal vegetables": "80g d’arròs integral en cru · 150g de gall dindi · 250g de verdures de temporada",
+    "Bacallà al forn with potatoes and green beans": "Bacallà al forn amb patates i mongetes verdes",
+    "160g cod · 300g potatoes · 250g green beans · 10g olive oil": "160g de bacallà · 300g de patates · 250g de mongetes verdes · 10g d’oli d’oliva",
+    "Yogurt bowl with berries and almonds": "Bol de iogurt amb fruits del bosc i ametlles",
+    "250g Greek yogurt · 50g oats · 100g berries · 15g almonds": "250g de iogurt grec · 50g de civada · 100g de fruits del bosc · 15g d’ametlles",
+    "Mongetes amb verdures and chicken": "Mongetes amb verdures i pollastre",
+    "180g cooked white beans · 150g chicken · tomato, spinach and onion": "180g de mongetes blanques cuites · 150g de pollastre · tomàquet, espinacs i ceba",
+    "Cigrons amb espinacs i pa amb tomàquet": "Cigrons amb espinacs i pa amb tomàquet",
+    "250g cooked chickpeas · spinach and tomato · 2 slices wholegrain bread": "250g de cigrons cuits · espinacs i tomàquet · 2 llesques de pa integral",
+    "Vegetable omelette and pa amb tomàquet": "Truita de verdures i pa amb tomàquet",
+    "3 eggs · spinach and mushrooms · 2 slices wholegrain bread · tomato": "3 ous · espinacs i bolets · 2 llesques de pa integral · tomàquet",
+    "Salmó with potato and leafy salad": "Salmó amb patata i amanida de fulla verda",
+    "140g salmon · 300g potatoes · large leafy salad · 10g olive oil": "140g de salmó · 300g de patates · amanida gran de fulla verda · 10g d’oli d’oliva",
+    "Pasta integral amb llenties and tomato": "Pasta integral amb llenties i tomàquet",
+    "250g cooked lentils · 80g dry wholegrain pasta · tomato sauce and vegetables": "250g de llenties cuites · 80g de pasta integral en cru · salsa de tomàquet i verdures",
+    "Oats with banana, yogurt and hazelnuts": "Civada amb plàtan, iogurt i avellanes",
+    "60g oats · 200g Greek yogurt · 1 banana · 15g hazelnuts": "60g de civada · 200g de iogurt grec · 1 plàtan · 15g d’avellanes",
+    "Amanida mediterrània de tonyina i mongetes": "Amanida mediterrània de tonyina i mongetes",
+    "1 tuna can · 180g cooked white beans · tomato, cucumber and olives": "1 llauna de tonyina · 180g de mongetes blanques cuites · tomàquet, cogombre i olives",
+    "Crema de verdures with tofu and pa de pagès": "Crema de verdures amb tofu i pa de pagès",
+    "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil": "180g de tofu · crema de verdures · 2 llesques de pa integral · 10g d’oli d’oliva"
+  };
+  const localiseMealText = (text) => language === "ca" ? (catalanMealText[text] || text) : text;
+  const localiseMeal = (meal) => ({ ...meal, slot: localiseMealText(meal.slot), title: localiseMealText(meal.title), portions: localiseMealText(meal.portions), hint: localiseMealText(meal.hint) });
+  const coachControls = (includeConversation = false, topActions = "", includeMobilePlanToggle = false) => {
     const restartLabel = language === "ca" ? "Comença de nou" : "Start over";
     const compactRestartLabel = language === "ca" ? "Reinicia" : "Reset";
     const restartTitle = language === "ca" ? "Manté el perfil desat i torna a preguntar el moviment d’avui" : "Keeps the saved profile and asks only about today’s movement";
-    return '<div class="coach-controls" data-language-control><span><button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button></span>' + (includeConversation ? '<button class="mobile-coach-toggle" id="mobile-coach-toggle" type="button" aria-controls="mobile-coach-drawer" aria-expanded="' + mobileCoachOpen + '">Conversation</button>' : "") + '<button class="restart-control" type="button" data-global-restart title="' + restartTitle + '" aria-label="' + restartLabel + '"><span class="restart-control-full">' + restartLabel + '</span><span class="restart-control-short" aria-hidden="true">' + compactRestartLabel + "</span></button></div>";
+    return '<div class="coach-controls' + (topActions ? ' coach-controls--daily' : '') + '" data-language-control><span><button type="button" data-language="en">EN</button> · <button type="button" data-language="ca">CA</button></span>' + (includeConversation ? '<button class="mobile-coach-toggle" id="mobile-coach-toggle" type="button" aria-controls="mobile-coach-drawer" aria-expanded="' + mobileCoachOpen + '">Conversation</button>' : "") + (includeMobilePlanToggle ? '<button class="mobile-plan-toggle" id="mobile-plan-toggle" type="button" aria-controls="mobile-plan-drawer" aria-expanded="' + mobilePlanOpen + '">Plan</button>' : "") + topActions + '<button class="restart-control" type="button" data-global-restart title="' + restartTitle + '" aria-label="' + restartLabel + '"><span class="restart-control-full">' + restartLabel + '</span><span class="restart-control-short" aria-hidden="true">' + compactRestartLabel + "</span></button></div>";
   };
   const resetCoach = () => {
     mobileCoachOpen = false;
+    mobilePlanOpen = false;
     if (state.profile) {
       failedMealImages.clear();
-      state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
+      failedWeeklyMealImages.clear();
+      state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
       save();
       return training();
     }
     localStorage.removeItem(storageKey);
-    state = { profile: null, activity: "rest", meals: {}, mealImages: {} };
+    state = { profile: null, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 0 };
     welcome();
   };
   document.addEventListener("click", (event) => {
@@ -241,7 +326,62 @@
 
   function currentPlan() {
     const target = dailyTarget(state.profile, state.activity);
-    return { target, meals: mealPlan(target, state.activity) };
+    const fallbackMeals = mealPlan(target, state.activity);
+    const menuKey = dailyMenuKey();
+    const generatedMeals = state.dailyMeals?.key === menuKey ? state.dailyMeals.meals : null;
+    const meals = fallbackMeals.map((fallback, index) => localiseMeal({ ...fallback, ...(generatedMeals?.[index] || {}), id: fallback.id, slot: generatedMeals?.[index]?.slot || fallback.slot, calories: fallback.calories, proteinG: fallback.proteinG, carbohydrateG: fallback.carbohydrateG, fatG: fallback.fatG }));
+    return { target, meals };
+  }
+
+  function dailyMenuKey() {
+    const profile = state.profile || {};
+    return [state.planDate, state.activity, state.menuNonce || 0, language, profile.activity, profile.goal].join("|");
+  }
+
+  function normaliseGeneratedDailyMeals(value) {
+    const slots = ["Breakfast", "Lunch", "Dinner"];
+    if (!Array.isArray(value) || value.length !== slots.length) return null;
+    const meals = value.map((meal, index) => {
+      const title = String(meal?.title || "").trim().slice(0, 140);
+      const portions = String(meal?.portions || "").trim().slice(0, 280);
+      const hint = String(meal?.hint || "").trim().slice(0, 180);
+      const catalanName = String(meal?.catalanName || "").trim().slice(0, 120);
+      if (!title || !portions || !hint) return null;
+      return { slot: slots[index], title, portions, hint, catalanName, milkshakeEligible: Boolean(meal?.milkshakeEligible) };
+    });
+    return meals.every(Boolean) ? meals : null;
+  }
+
+  async function loadGeneratedDailyMeals(target) {
+    const menuKey = dailyMenuKey();
+    if (state.dailyMeals?.key === menuKey || pendingDailyMealPlans.has(menuKey) || failedDailyMealPlans.has(menuKey)) return;
+    pendingDailyMealPlans.add(menuKey);
+    try {
+      const response = await fetch("/api/daily-meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activity: state.activity,
+          goal: state.profile?.goal,
+          usualActivity: state.profile?.activity,
+          target,
+          language,
+          variationSeed: state.menuNonce || 0
+        })
+      });
+      const data = await response.json();
+      const meals = normaliseGeneratedDailyMeals(data?.meals);
+      if (!response.ok || !meals) throw new Error(data?.error || "A varied meal plan is unavailable.");
+      if (dailyMenuKey() !== menuKey) return;
+      state.dailyMeals = { key: menuKey, meals };
+      state.mealImages = {};
+      save();
+      dashboard();
+    } catch {
+      if (dailyMenuKey() === menuKey) failedDailyMealPlans.add(menuKey);
+    } finally {
+      pendingDailyMealPlans.delete(menuKey);
+    }
   }
 
   function welcome() {
@@ -278,7 +418,7 @@
       answers[question.key] = question.choices ? value : Number(value);
       index += 1;
       if (index < questions.length) return render();
-      state = { profile: answers, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {} };
+      state = { profile: answers, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 1 };
       save();
       training();
     };
@@ -296,7 +436,7 @@
       : "Your profile is saved on this device. Your meals and quantities will adapt to today’s movement.";
     root.innerHTML = coachShell("Are you going to train today?", savedProfileLead, '<div class="bubble coach">What does today’s movement look like?<span class="meta">Choose one reply. I will adapt your calories, carbohydrates and meal quantities.</span></div><div class="composer"><span class="composer-label">Choose one reply</span><p class="keyboard-hint">Press 1, 2, 3, 4 or 5 on your keyboard to choose.</p><div class="quick-replies">' + choiceButtons(choices, "data-choice") + '</div></div><button class="button quiet" id="back">Back</button>');
     root.querySelector("#back").onclick = profile;
-    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { failedMealImages.clear(); state.activity = button.dataset.choice; state.needsTraining = false; state.meals = {}; state.mealImages = {}; save(); dashboard(); });
+    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { failedMealImages.clear(); failedWeeklyMealImages.clear(); failedDailyMealPlans.clear(); state.activity = button.dataset.choice; state.needsTraining = false; state.meals = {}; state.mealImages = {}; state.weeklyMealImages = {}; state.dailyMeals = null; state.menuNonce = (state.menuNonce || 0) + 1; save(); dashboard(); });
   }
 
   function totals(plan) {
@@ -330,11 +470,14 @@
   }
 
   function liveCoachMarkup(placement) {
+    const ask = language === "ca" ? "Pregunta" : "Ask";
+    const askLabel = language === "ca" ? "Pregunta al teu Coach…" : "Ask your Coach…";
     const messages = Array.isArray(state.chat) ? state.chat.slice(-8) : [];
     const thread = messages.length
       ? messages.map((message) => '<div class="bubble ' + (message.role === "user" ? "user" : "coach") + '">' + esc(message.text) + "</div>").join("")
       : '<div class="bubble coach">Ask about a meal, a healthy swap or today’s training.<span class="meta">General wellbeing guidance, not medical advice.</span></div>';
-    return '<section class="live-coach" aria-label="Talk to your Coach"><p class="eyebrow">Talk to your Coach</p><div class="live-coach-thread" data-live-coach-thread="' + placement + '" aria-live="polite">' + thread + '</div><form class="composer chat-input" data-live-coach-form="' + placement + '"><input maxlength="1400" placeholder="Ask your Coach…" aria-label="Ask your Coach" required><button class="button" type="submit">Ask</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
+    const controls = placement === "desktop" ? coachControls(false, planTopActions()) : "";
+    return '<section class="live-coach" aria-label="Talk to your Coach"><div class="live-coach-heading"><p class="eyebrow">Talk to your Coach</p>' + controls + '</div><div class="live-coach-thread" data-live-coach-thread="' + placement + '" aria-live="polite">' + thread + '</div><form class="composer chat-input" data-live-coach-form="' + placement + '"><input maxlength="1400" placeholder="' + esc(askLabel) + '" aria-label="' + esc(askLabel) + '" required><button class="button" type="submit">' + ask + '</button></form><p class="meta">Messages are sent to OpenAI to generate a reply. Quota Vita keeps this conversation only on this device.</p></section>';
   }
 
   async function askLiveCoach(message, placement) {
@@ -368,6 +511,56 @@
     }
   }
 
+  function planTopActions() {
+    const daily = language === "ca" ? "DIARI" : "DAILY";
+    const weekly = language === "ca" ? "SETMANAL" : "WEEKLY";
+    const labels = language === "ca"
+      ? { actions: "Accions del pla", check: "Revisió", pdf: "PDF diari", basket: "Cistella", weekly: "Pla setmanal", training: "Entrenament", compact: state.compactPlanView ? "Vista completa" : "Vista compacta" }
+      : { actions: "Plan actions", check: "Daily check", pdf: "Daily PDF", basket: "Daily basket", weekly: "Weekly plan", training: "Training", compact: state.compactPlanView ? "Full cards" : "Compact cards" };
+    return '<div class="plan-top-actions" aria-label="' + labels.actions + '"><span class="plan-top-scope">' + daily + '</span><button class="plan-top-action primary" type="button" data-dashboard-action="daily-check">' + labels.check + '</button><button class="plan-top-action" type="button" data-dashboard-action="meal-pdf">' + labels.pdf + '</button><button class="plan-top-action" type="button" data-dashboard-action="basket">' + labels.basket + '</button><span class="plan-top-scope">' + weekly + '</span><button class="plan-top-action" type="button" data-dashboard-action="week-plan">' + labels.weekly + '</button><button class="plan-top-action" type="button" data-dashboard-action="change-training">' + labels.training + '</button><button class="plan-top-action" type="button" data-dashboard-action="compact-view" aria-pressed="' + Boolean(state.compactPlanView) + '">' + labels.compact + '</button></div>';
+  }
+
+  function detailToggleMarkup(detailKey, collapsed) {
+    const label = language === "ca" ? (collapsed ? "+ Detalls" : "− Amaga els detalls") : (collapsed ? "+ Details" : "− Hide details");
+    return '<button class="card-detail-toggle" type="button" data-detail-toggle="' + esc(detailKey) + '" aria-controls="' + esc(detailKey) + '-details" aria-expanded="' + String(!collapsed) + '">' + label + '</button>';
+  }
+
+  function bindDetailToggles() {
+    root.querySelectorAll("[data-detail-toggle]").forEach((button) => {
+      button.onclick = () => {
+        const card = button.closest("[data-detail-card]");
+        if (!card) return;
+        const collapsed = card.classList.toggle("is-collapsed");
+        const detailKey = button.dataset.detailToggle;
+        if (collapsed) expandedPlanDetails.delete(detailKey); else expandedPlanDetails.add(detailKey);
+        button.setAttribute("aria-expanded", String(!collapsed));
+        button.textContent = language === "ca" ? (collapsed ? "+ Detalls" : "− Amaga els detalls") : (collapsed ? "+ Details" : "− Hide details");
+      };
+    });
+  }
+
+  function toggleCompactPlanView(render) {
+    state.compactPlanView = !state.compactPlanView;
+    expandedPlanDetails.clear();
+    save();
+    render();
+  }
+
+  function bindDashboardActions() {
+    root.querySelectorAll("[data-dashboard-action]").forEach((button) => {
+      const actions = {
+        "daily-check": dailyCheck,
+        "meal-pdf": () => printPdf("plan"),
+        basket,
+        "week-plan": weeklyPlan,
+        "change-training": training,
+        "start-over": resetCoach,
+        "compact-view": () => toggleCompactPlanView(dashboard)
+      };
+      button.onclick = actions[button.dataset.dashboardAction];
+    });
+  }
+
   function dashboard() {
     const plan = currentPlan();
     const eaten = totals(plan);
@@ -375,13 +568,13 @@
     mealDeckIndex = Math.min(mealDeckIndex, plan.meals.length - 1);
     const remaining = '<div class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></div>';
     const mobileCoach = '<aside class="mobile-coach-drawer" id="mobile-coach-drawer"' + (mobileCoachOpen ? "" : " hidden") + '><div class="mobile-coach-drawer-header"><p class="eyebrow">Conversation</p><button class="mobile-coach-close" id="mobile-coach-close" type="button">Reduce</button></div>' + liveCoachMarkup("mobile") + "</aside>";
-    root.innerHTML = '<section class="coach-workspace daily-plan-workspace"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls(true) + '</div>' + mobileCoach + '<div class="daily-meal-overview">' + remaining + liveCoachMarkup("desktop") + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up"><div class="actions"><button class="button" id="daily-check">Daily check</button><button class="button quiet" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
-    root.querySelector("#daily-check").onclick = dailyCheck;
-    root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
-    root.querySelector("#basket").onclick = basket;
-    root.querySelector("#week-plan").onclick = weeklyPlan;
-    root.querySelector("#change-training").onclick = training;
-    root.querySelector("#start-over").onclick = resetCoach;
+    const mobilePlan = window.matchMedia("(max-width: 719px)").matches
+      ? '<aside class="mobile-plan-drawer" id="mobile-plan-drawer"' + (mobilePlanOpen ? "" : " hidden") + '><div class="mobile-plan-drawer-header"><p class="eyebrow">' + (language === "ca" ? "Opcions del pla" : "Plan options") + '</p><button class="mobile-plan-close" id="mobile-plan-close" type="button">' + (language === "ca" ? "Tanca" : "Close") + '</button></div>' + planTopActions() + "</aside>"
+      : "";
+    const milkshakeMeal = plan.meals.find((meal) => meal.milkshakeEligible)?.id || "lunch";
+    root.innerHTML = '<section class="coach-workspace daily-plan-workspace' + (state.compactPlanView ? ' compact-plan-view' : '') + '"><section class="daily-meal-deck" aria-label="Daily meals" tabindex="0"><div class="meal-deck-controls"><p class="meal-deck-position" aria-live="polite"></p>' + coachControls(true, "", true) + '</div>' + mobileCoach + mobilePlan + '<div class="daily-meal-overview">' + remaining + liveCoachMarkup("desktop") + '</div><div class="daily-meal-track">' + plan.meals.map((meal) => '<div class="daily-meal-card"><div class="daily-meal-content">' + mealCard(meal, meal.id === milkshakeMeal) + '</div></div>').join("") + '</div><p class="meal-deck-help">Swipe right to eat it · swipe left to skip it</p></section><section class="daily-plan-follow-up"><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</section></section>';
+    bindDashboardActions();
+    bindDetailToggles();
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
     root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.confirmMeal, "eaten"); dashboard(); });
     root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.skipMeal, "skipped"); dashboard(); });
@@ -397,8 +590,19 @@
     };
     root.querySelector("#mobile-coach-toggle")?.addEventListener("click", () => setMobileCoachOpen(!mobileCoachOpen));
     root.querySelector("#mobile-coach-close")?.addEventListener("click", () => setMobileCoachOpen(false));
+    const mobilePlanDrawer = root.querySelector("#mobile-plan-drawer");
+    const setMobilePlanOpen = (open) => {
+      if (!mobilePlanDrawer) return;
+      mobilePlanOpen = open;
+      mobilePlanDrawer.hidden = !open;
+      root.querySelector("#mobile-plan-toggle")?.setAttribute("aria-expanded", String(open));
+      if (open) setMobileCoachOpen(false);
+    };
+    root.querySelector("#mobile-plan-toggle")?.addEventListener("click", () => setMobilePlanOpen(!mobilePlanOpen));
+    root.querySelector("#mobile-plan-close")?.addEventListener("click", () => setMobilePlanOpen(false));
     enableMealSwipe(plan);
     loadMealImages(plan);
+    void loadGeneratedDailyMeals(plan.target);
   }
 
   function enableMealSwipe(plan) {
@@ -408,6 +612,8 @@
     const position = root.querySelector(".meal-deck-position");
     if (!deck || !track || !position) return;
     let pointer;
+    let touch;
+    let lastCommittedSwipeAt = 0;
     const renderPosition = () => { position.textContent = "Meal " + (mealDeckIndex + 1) + " of " + plan.meals.length; };
     const moveTo = (nextIndex, immediate = false) => {
       mealDeckIndex = Math.max(0, Math.min(plan.meals.length - 1, nextIndex));
@@ -416,13 +622,30 @@
       renderPosition();
       if (immediate) requestAnimationFrame(() => { track.style.transition = ""; });
     };
-    const releasePointer = () => { if (pointer?.id !== undefined && deck.hasPointerCapture(pointer.id)) deck.releasePointerCapture(pointer.id); pointer = null; };
+    const releasePointer = () => {
+      if (pointer?.id !== undefined && deck.hasPointerCapture?.(pointer.id)) {
+        try { deck.releasePointerCapture(pointer.id); } catch { /* Safari may already have released it. */ }
+      }
+      pointer = null;
+    };
+    const completeSwipe = (offset, verticalOffset = 0) => {
+      const threshold = Math.max(42, deck.clientWidth * .12);
+      if (Math.abs(offset) < threshold || Math.abs(offset) <= Math.abs(verticalOffset)) return false;
+      if (Date.now() - lastCommittedSwipeAt < 400) return true;
+      const activeMeal = plan.meals[mealDeckIndex];
+      if (!activeMeal) return false;
+      lastCommittedSwipeAt = Date.now();
+      recordMeal(activeMeal.id, offset > 0 ? "eaten" : "skipped");
+      mealDeckIndex = Math.min(mealDeckIndex + 1, plan.meals.length - 1);
+      dashboard();
+      return true;
+    };
     moveTo(mealDeckIndex, true);
     deck.addEventListener("pointerdown", (event) => {
       if (deck.classList.contains("conversation-open")) return;
       if (event.target.closest("button, input, label, a")) return;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
-      deck.setPointerCapture(event.pointerId);
+      try { deck.setPointerCapture(event.pointerId); } catch { /* Touch fallback below handles browsers without pointer capture. */ }
     });
     deck.addEventListener("pointermove", (event) => {
       if (!pointer || event.pointerId !== pointer.id) return;
@@ -437,18 +660,27 @@
     deck.addEventListener("pointerup", (event) => {
       if (!pointer || event.pointerId !== pointer.id) return;
       const offset = event.clientX - pointer.x;
-      const threshold = Math.max(64, deck.clientWidth * .22);
-      const activeMeal = plan.meals[mealDeckIndex];
+      const verticalOffset = event.clientY - pointer.y;
       const wasDragging = pointer.dragging;
       releasePointer();
-      if (wasDragging && Math.abs(offset) >= threshold && activeMeal) {
-        recordMeal(activeMeal.id, offset > 0 ? "eaten" : "skipped");
-        mealDeckIndex = Math.min(mealDeckIndex + 1, plan.meals.length - 1);
-        return dashboard();
-      }
+      if (wasDragging && completeSwipe(offset, verticalOffset)) return;
       moveTo(mealDeckIndex);
     });
     deck.addEventListener("pointercancel", () => { releasePointer(); moveTo(mealDeckIndex); });
+    deck.addEventListener("touchstart", (event) => {
+      if (deck.classList.contains("conversation-open") || event.target.closest("button, input, label, a")) return;
+      const start = event.changedTouches[0];
+      if (start) touch = { id: start.identifier, x: start.clientX, y: start.clientY };
+    }, { passive: true });
+    deck.addEventListener("touchend", (event) => {
+      if (!touch) return;
+      const end = [...event.changedTouches].find((item) => item.identifier === touch.id);
+      if (!end) return;
+      const start = touch;
+      touch = null;
+      if (!completeSwipe(end.clientX - start.x, end.clientY - start.y)) moveTo(mealDeckIndex);
+    }, { passive: true });
+    deck.addEventListener("touchcancel", () => { touch = null; moveTo(mealDeckIndex); }, { passive: true });
     deck.addEventListener("keydown", (event) => {
       if (event.key === "ArrowRight") { event.preventDefault(); moveTo(mealDeckIndex + 1); }
       if (event.key === "ArrowLeft") { event.preventDefault(); moveTo(mealDeckIndex - 1); }
@@ -499,7 +731,16 @@
     dailyCheck();
   }
 
-  function mealCard(meal) {
+  const quotaVitaMilkshakeMl = (proteinG) => Math.max(100, Math.ceil((Number(proteinG) / 24) * 10) * 10);
+  const milkshakeOptionMarkup = (meal) => {
+    const millilitres = quotaVitaMilkshakeMl(meal.proteinG);
+    const text = language === "ca"
+      ? "Substitueix la proteïna · " + millilitres + " ml · 24 g/100 ml"
+      : "Protein swap · " + millilitres + " ml · 24 g/100 ml";
+    return '<p class="milkshake-option"><strong>Quota Vita Milkshake</strong><span class="milkshake-detail">' + text + '</span></p>';
+  };
+
+  function mealCard(meal, showMilkshakeOption = meal.id === "lunch") {
     const saved = state.meals[meal.id];
     const status = saved?.status;
     const label = status === "restaurant" ? "Restaurant meal logged" : status === "eaten" ? "Logged" : status === "skipped" ? "Skipped" : "Planned";
@@ -512,7 +753,9 @@
       : '<div class="actions"><button class="button" data-confirm-meal="' + esc(meal.id) + '">I’ll eat this</button><button class="button quiet" data-restaurant-meal="' + esc(meal.id) + '">Restaurant meal</button><button class="button quiet" data-skip-meal="' + esc(meal.id) + '">Skip for now</button></div>';
     const catalanDish = meal.catalanName ? '<p class="meta"><strong>Catalan dish:</strong> ' + esc(meal.catalanName) + '</p>' : "";
     const macroSummary = '<span class="meta">' + meal.calories + " kcal<br><strong>" + meal.proteinG + 'g <span>protein</span></strong><br><span>' + meal.carbohydrateG + 'g <span>carbohydrates</span> · ' + meal.fatG + 'g <span>fat</span></span></span>';
-    return '<article class="meal ' + (status || "") + '" data-meal-card="' + esc(meal.id) + '">' + image + '<span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div>' + macroSummary + "</div>" + catalanDish + '<p>' + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + actions + "</article>";
+    const detailKey = "daily-" + meal.id;
+    const collapsed = Boolean(state.compactPlanView) && !expandedPlanDetails.has(detailKey);
+    return '<article class="meal ' + (status || "") + (collapsed ? ' is-collapsed' : '') + '" data-meal-card="' + esc(meal.id) + '" data-detail-card="' + esc(detailKey) + '"><div class="meal-visual">' + image + '</div><span class="meal-status">' + label + '</span><div class="meal-header"><div><p class="eyebrow">' + esc(meal.slot) + "</p><h3>" + esc(meal.title) + '</h3></div>' + macroSummary + "</div>" + detailToggleMarkup(detailKey, collapsed) + '<div class="meal-details" id="' + esc(detailKey) + '-details">' + catalanDish + '<p>' + esc(meal.portions) + '</p><p class="meta">' + esc(meal.hint) + '</p>' + (showMilkshakeOption ? milkshakeOptionMarkup(meal) : "") + actions + "</div></article>";
   }
 
   function loadMealImages(plan) {
@@ -598,14 +841,105 @@
       [["Breakfast", "Vegetable omelette and pa amb tomàquet", "3 eggs · spinach and mushrooms · 2 slices wholegrain bread · tomato", "Truita de verdures amb pa amb tomàquet"], ["Lunch", "Salmó with potato and leafy salad", "140g salmon · 300g potatoes · large leafy salad · 10g olive oil"], ["Dinner", "Pasta integral amb llenties and tomato", "250g cooked lentils · 80g dry wholegrain pasta · tomato sauce and vegetables"]],
       [["Breakfast", "Oats with banana, yogurt and hazelnuts", "60g oats · 200g Greek yogurt · 1 banana · 15g hazelnuts"], ["Lunch", "Amanida mediterrània de tonyina i mongetes", "1 tuna can · 180g cooked white beans · tomato, cucumber and olives"], ["Dinner", "Crema de verdures with tofu and pa de pagès", "180g tofu · vegetable soup · 2 slices wholegrain bread · 10g olive oil", "Crema de verdures amb pa de pagès"]]
     ][dayIndex];
-    return mealPlan(target, activity).map((meal, index) => ({ ...meal, title: menus[index][1], portions: menus[index][2], catalanName: menus[index][3] }));
+    return mealPlan(target, activity).map((meal, index) => localiseMeal({ ...meal, title: menus[index][1], portions: menus[index][2], catalanName: menus[index][3] }));
+  }
+
+  function weeklyPlanShell(title, lead, content, topActions = "") {
+    return '<section class="coach-workspace weekly-plan-workspace' + (state.compactPlanView ? ' compact-plan-view' : '') + '">' + coachControls(false, topActions) + '<header class="weekly-plan-heading"><p class="eyebrow">Your Coach</p><h2>' + esc(title) + '</h2><p class="lead">' + esc(lead) + '</p></header><section class="chat chat-page weekly-plan-page" aria-live="polite">' + content + '</section></section>';
+  }
+
+  function weeklyPlanTopActions() {
+    const labels = language === "ca"
+      ? { actions: "Accions del pla setmanal", scope: "SETMANAL", approve: "Crea la cistella", pdf: "PDF setmanal", email: "Correu", back: "Pla diari", compact: state.compactPlanView ? "Vista completa" : "Vista compacta" }
+      : { actions: "Weekly plan actions", scope: "WEEKLY", approve: "Create basket", pdf: "Weekly PDF", email: "Email", back: "Daily plan", compact: state.compactPlanView ? "Full cards" : "Compact cards" };
+    return '<div class="plan-top-actions" aria-label="' + labels.actions + '"><span class="plan-top-scope">' + labels.scope + '</span><button class="plan-top-action primary" type="button" id="top-approve-week">' + labels.approve + '</button><button class="plan-top-action" type="button" id="top-weekly-pdf">' + labels.pdf + '</button><button class="plan-top-action" type="button" id="top-weekly-email">' + labels.email + '</button><button class="plan-top-action" type="button" id="top-back-daily">' + labels.back + '</button><button class="plan-top-action" type="button" id="top-compact-plan" aria-pressed="' + Boolean(state.compactPlanView) + '">' + labels.compact + '</button></div>';
+  }
+
+  function weeklyDayCard(entry, milkshakeOptions) {
+    const detailKey = "weekly-" + entry.id;
+    const collapsed = Boolean(state.compactPlanView) && !expandedPlanDetails.has(detailKey);
+    const details = '<p><strong>' + entry.target.calories + ' kcal</strong> · ' + entry.target.proteinG + 'g protein</p>' + entry.meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + (meal.catalanName ? '<strong>Catalan dish:</strong> ' + esc(meal.catalanName) + '<br>' : '') + esc(meal.portions) + '</span></p>' + (milkshakeOptions.has(entry.id + ":" + meal.id) ? milkshakeOptionMarkup(meal) : "")).join("");
+    return '<article class="week-day' + (collapsed ? ' is-collapsed' : '') + '" data-detail-card="' + esc(detailKey) + '"><div class="weekly-card-visual">' + weeklyMealImageMarkup(entry) + '</div><h3>' + esc(entry.day) + ' · ' + esc(activityLabels[entry.activity]) + '</h3>' + detailToggleMarkup(detailKey, collapsed) + '<div class="week-day-details" id="' + esc(detailKey) + '-details">' + details + '</div></article>';
+  }
+
+  function weeklyPlanEntries() {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const activities = weeklyActivities();
+    return days.map((day, index) => {
+      const target = dailyTarget(state.profile, activities[index]);
+      const meals = variedMeals(target, activities[index], index);
+      return { id: "day-" + index, day, index, activity: activities[index], target, meals };
+    });
+  }
+
+  function weeklyMilkshakeOptionKeys(entries) {
+    return new Set(entries.filter((_, index) => [0, 2, 4, 6].includes(index)).map((entry) => entry.id + ":lunch"));
+  }
+
+  function weeklyMealImageKey(entry) {
+    return [state.planDate, state.profile?.activity, entry.id, entry.activity, entry.meals.map((meal) => meal.title).join("/")].join("|");
+  }
+
+  function weeklyMealImageUrl(entry) {
+    const saved = state.weeklyMealImages?.[entry.id];
+    if (!saved) return "";
+    if (typeof saved === "string") return saved;
+    return saved.key === weeklyMealImageKey(entry) ? saved.url : "";
+  }
+
+  function weeklyMealImageMarkup(entry) {
+    const imageUrl = weeklyMealImageUrl(entry);
+    if (imageUrl) return '<img class="meal-image weekly-meal-image" src="' + esc(imageUrl) + '" alt="' + esc(entry.day + " meal ideas") + '">';
+    const imageKey = weeklyMealImageKey(entry);
+    return '<div class="meal-image weekly-meal-image meal-image-placeholder" data-weekly-meal-image-placeholder="' + esc(entry.id) + '" data-weekly-meal-image-key="' + esc(imageKey) + '" role="status"><span>' + (failedWeeklyMealImages.has(imageKey) ? "Meal image is unavailable right now." : "Creating your meal image…") + '</span></div>';
+  }
+
+  function updateWeeklyMealImagePlaceholder(entry, imageUrl) {
+    root.querySelectorAll('[data-weekly-meal-image-placeholder="' + entry.id + '"]').forEach((placeholder) => {
+      if (placeholder.dataset.weeklyMealImageKey !== weeklyMealImageKey(entry)) return;
+      if (!imageUrl) { placeholder.textContent = "Meal image is unavailable right now."; return; }
+      const image = document.createElement("img");
+      image.className = "meal-image weekly-meal-image";
+      image.src = imageUrl;
+      image.alt = entry.day + " meal ideas";
+      placeholder.replaceWith(image);
+    });
+  }
+
+  async function loadWeeklyMealImage(entry) {
+    const imageKey = weeklyMealImageKey(entry);
+    if (weeklyMealImageUrl(entry) || pendingWeeklyMealImages.has(imageKey) || failedWeeklyMealImages.has(imageKey)) return;
+    pendingWeeklyMealImages.add(imageKey);
+    try {
+      const title = entry.meals.map((meal) => meal.title).join(", ");
+      const response = await fetch("/api/meal-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Meal-image generation is unavailable.");
+      const current = weeklyPlanEntries().find((item) => item.id === entry.id);
+      if (!current || weeklyMealImageKey(current) !== imageKey) return;
+      state.weeklyMealImages = { ...(state.weeklyMealImages || {}), [entry.id]: { key: imageKey, url: data.imageUrl } };
+      save();
+      updateWeeklyMealImagePlaceholder(entry, data.imageUrl);
+    } catch {
+      const current = weeklyPlanEntries().find((item) => item.id === entry.id);
+      if (current && weeklyMealImageKey(current) === imageKey) {
+        failedWeeklyMealImages.add(imageKey);
+        updateWeeklyMealImagePlaceholder(entry);
+      }
+    } finally {
+      pendingWeeklyMealImages.delete(imageKey);
+    }
   }
 
   function weeklyPlan() {
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(); const activityExplanation = { sedentary: "mostly sitting, with gentle movement built in", light: "light activity (1–2 activity days/week)", moderate: "regular training (3–4 training days/week)", high: "frequent training (5+ training days/week)" }[state.profile.activity];
-    const images = ["https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80"];
-    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><img class="meal-image" src="' + images[index] + '" alt="' + day + ' meal ideas"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p>' + meals.map((meal) => '<p><strong>' + meal.slot + ': ' + esc(meal.title) + '</strong><br><span class="meta">' + (meal.catalanName ? '<strong>Catalan dish:</strong> ' + esc(meal.catalanName) + '<br>' : '') + esc(meal.portions) + '</span></p>').join("") + '</article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="weekly-pdf">Download weekly plan PDF</button><button class="button quiet" id="weekly-email">Send by email</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
-    root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#weekly-pdf").onclick = () => printWeekly("plan"); root.querySelector("#weekly-email").onclick = () => emailWeekly("plan"); root.querySelector("#back").onclick = dashboard;
+    const activityExplanation = { sedentary: "mostly sitting, with gentle movement built in", light: "light activity (1–2 activity days/week)", moderate: "regular training (3–4 training days/week)", high: "frequent training (5+ training days/week)" }[state.profile.activity];
+    const entries = weeklyPlanEntries();
+    const milkshakeOptions = weeklyMilkshakeOptionKeys(entries);
+    const cards = entries.map((entry) => weeklyDayCard(entry, milkshakeOptions)).join("");
+    root.innerHTML = weeklyPlanShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + cards + '</div></div>', weeklyPlanTopActions());
+    root.querySelector("#top-approve-week").onclick = weeklyBasket; root.querySelector("#top-weekly-pdf").onclick = () => printWeekly("plan"); root.querySelector("#top-weekly-email").onclick = () => emailWeekly("plan"); root.querySelector("#top-back-daily").onclick = dashboard; root.querySelector("#top-compact-plan").onclick = () => toggleCompactPlanView(weeklyPlan);
+    bindDetailToggles();
+    entries.forEach((entry) => { void loadWeeklyMealImage(entry); });
   }
 
   function weeklyBasketItems() {

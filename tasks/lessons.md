@@ -16,3 +16,15 @@
 - When email delivery is part of a Shopify workflow, implement the actual server-side Flow handoff and consent record; do not leave a mail-app redirect in its place.
 - Do not substitute a generic Shopify Flow workaround when an existing Quota Vita xat workflow is available; identify and use its exact trigger contract first.
 - Do not force desktop users into a mobile-style full-screen gesture deck; give desktop a visible, click-first layout and reserve swipe actions for touch devices.
+- Treat a desktop screenshot as a viewport requirement: validate the actual canvas at compact and wide widths rather than relying on a fixed desktop max-width or fixed image height.
+- A desktop-only panel needs an explicit mobile replacement; hiding it in one stylesheet is not enough when later styles can reintroduce it. Test the touch layout after every responsive override.
+- When a pricing source is only context for the estimate, show it once at the section level rather than repeating it beside every basket row.
+- A gesture that works only through one browser event path is not sufficient for phone users; validate it with touch events and keep the fallback independent of pointer capture.
+- When a primary screen has actions from more than one planning scope, group them by scope in the visual hierarchy instead of presenting one undifferentiated button row.
+- When a user asks for controls to match the compact top navigation, move the controls into that navigation rather than preserving a large action panel elsewhere on the screen.
+- Never put a full desktop action bar into a mobile swipe header; use a contained drawer and ensure fixed gesture guidance cannot overlap the card’s primary action.
+- Localising only static DOM labels leaves data-driven content in the source language; meal copy must be translated before it is rendered.
+- A deterministic fallback menu is not a sufficient primary experience when daily variety is promised; cache a generated plan per selected day while retaining the fallback only for service failures.
+- When a product substitution has a declared nutrient density, calculate and show the exact serving amount rather than treating it as generic product placement.
+- Image-generation verification must cover the request lifecycle and the rendered card, not merely the success response from the image endpoint.
+- An uploaded image is not a successful photo-analysis flow until the downstream analysis response is verified and any unavailable provider state is explained clearly.
