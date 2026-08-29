@@ -1292,3 +1292,67 @@ body.modal-open { overflow: hidden; }
 }
 
 .view--coach .live-coach > .eyebrow { display: none; }
+
+/* ------------------------------------------------------------------ shop */
+/* The protein swap and the basket are where buying intent is highest, so the
+   checkout sits inside them rather than in a separate store page. */
+
+.shop-offer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s2);
+  align-items: center;
+  width: 100%;
+  margin-top: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--accent-soft);
+}
+
+.shop-line {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.button.shop-buy {
+  padding: var(--s1) var(--s3);
+  font-size: 0.84rem;
+  text-decoration: none;
+}
+
+.shop-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s3);
+  align-items: baseline;
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius-sm);
+  background: rgba(224, 169, 75, 0.14);
+}
+
+.shop-block h2 {
+  width: 100%;
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 1.05rem;
+}
+
+.shop-block p {
+  flex: 1 1 220px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.shop-block .shop-offer {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--s3);
+}

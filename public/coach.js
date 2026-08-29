@@ -24,6 +24,86 @@
     state = { ...state, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
     save();
   }
+  // ── Measurement ─────────────────────────────────────────────────────────
+  // A random, non-identifying id. It carries no email, no profile and no
+  // nutrition data, so activation, return and basket conversion can be counted
+  // without a login and without touching anything the consent gate governs.
+  const sessionId = (() => {
+    const key = "quota-vita-coach-session";
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = (window.crypto?.randomUUID?.() || String(Math.random()).slice(2) + Date.now().toString(36));
+      localStorage.setItem(key, id);
+    }
+    return id;
+  })();
+
+  function track(name, props = {}) {
+    const payload = JSON.stringify({ name, sessionId, language, props });
+    try {
+      if (navigator.sendBeacon) navigator.sendBeacon("/api/events", new Blob([payload], { type: "application/json" }));
+      else void fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, keepalive: true });
+    } catch {
+      // Measurement never blocks the Coach.
+    }
+  }
+
+  (() => {
+    const key = "quota-vita-coach-last-seen";
+    const previous = localStorage.getItem(key);
+    const today = todayKey();
+    track("coach_opened", { returning: Boolean(previous), has_profile: Boolean(state.profile) });
+    if (previous && previous !== today) {
+      track("returned_day_two", { days_since: Math.round((Date.parse(today) - Date.parse(previous)) / 86400000) });
+    }
+    localStorage.setItem(key, today);
+  })();
+
+  // ── The shop ────────────────────────────────────────────────────────────
+  // The protein swap on a meal card is an offer. The server decides which tub
+  // it maps to and builds the attributed cart link; the client only asks.
+  const shopOfferRequests = new Map();
+
+  function shopOffer(millilitres) {
+    const key = millilitres + ":" + language;
+    if (!shopOfferRequests.has(key)) {
+      shopOfferRequests.set(key, fetch("/api/shop?millilitres=" + encodeURIComponent(millilitres) + "&language=" + encodeURIComponent(language))
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body) => body?.offer || null)
+        .catch(() => null));
+    }
+    return shopOfferRequests.get(key);
+  }
+
+  function shopOfferMarkup(offer) {
+    const coverage = language === "ca"
+      ? offer.product.label + " · " + offer.coverageDays + " dies · " + formatEur(offer.product.priceEurHint)
+      : offer.product.label + " · " + offer.coverageDays + " days · " + formatEur(offer.product.priceEurHint);
+    const perDay = language === "ca"
+      ? formatEur(offer.costPerDayEurHint) + " al dia"
+      : formatEur(offer.costPerDayEurHint) + " a day";
+    return '<span class="shop-offer"><a class="button shop-buy" href="' + esc(offer.cartUrl) + '" target="_blank" rel="noopener" data-shop-buy="' + esc(offer.product.sku) + '">'
+      + esc(T("Buy the protein", "Compra la proteïna")) + '</a><span class="shop-line">' + esc(coverage) + ' · ' + esc(perDay) + "</span></span>";
+  }
+
+  function fillShopOffers() {
+    root.querySelectorAll("[data-shop-ml]:not([data-shop-filled])").forEach((node) => {
+      node.dataset.shopFilled = "1";
+      const millilitres = Number(node.dataset.shopMl);
+      if (!Number.isFinite(millilitres) || millilitres <= 0) return;
+      void shopOffer(millilitres).then((offer) => {
+        if (!offer || !node.isConnected) return;
+        node.insertAdjacentHTML("beforeend", shopOfferMarkup(offer));
+        track("shop_offer_shown", { sku: offer.product.sku, millilitres });
+      });
+    });
+  }
+
+  root.addEventListener("click", (event) => {
+    const link = event.target.closest?.("[data-shop-buy]");
+    if (link) track("shop_checkout_opened", { sku: link.dataset.shopBuy });
+  });
+
   const choiceButtons = (items, attribute) => items.map(([label, value], index) => '<button ' + attribute + '="' + esc(value) + '" aria-keyshortcuts="' + (index + 1) + '"><kbd class="shortcut-key">' + (index + 1) + '</kbd>' + esc(label) + '</button>').join("");
   const stepper = (step, total) => '<div class="stepper" role="group" aria-label="Setup progress"><span class="stepper-label">' + (language === "ca" ? "Pas " + step + " de " + total : "Step " + step + " of " + total) + '</span><span class="stepper-track"><span class="stepper-fill" style="width:' + Math.round((step / total) * 100) + '%"></span></span></div>';
   const note = (text, isError = false) => '<p class="status' + (isError ? " error" : "") + '">' + esc(text) + "</p>";
@@ -269,6 +349,7 @@
     root.innerHTML = html;
     menuOpen = false;
     renderChrome();
+    fillShopOffers();
     if (changed) window.scrollTo({ top: 0, behavior: "auto" });
   }
 
@@ -501,6 +582,7 @@
       if (index < questions.length) return render();
       state = { ...state, profile: answers, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
       save();
+      track("onboarding_completed", { goal: String(answers.goal || ""), activity: String(answers.activity || "") });
       training();
     };
     render();
@@ -544,7 +626,22 @@
   }
 
   function methodology() {
-    return '<details class="method"><summary>Where the meal ideas come from</summary><ul><li><strong>Meal ideas:</strong> Quota Vita’s practical meal templates are built from familiar whole foods, balanced-plate patterns and the general macro target calculated below. They are not recipes supplied by FatSecret, LogMeal, a restaurant or a dietitian.</li><li><strong>Catalan meals:</strong> Named Catalan dishes and their core ingredients are checked against Cala’s verified knowledge before being prioritised in the Coach. Portion sizes remain general-wellbeing templates, not traditional recipe instructions.</li><li><strong>Energy:</strong> a Mifflin-St Jeor resting-energy estimate uses age, height, weight and sex; your selected usual activity, goal and today’s activity then make transparent fixed adjustments.</li><li><strong>Macros:</strong> protein is a general-wellbeing heuristic of 1.2-1.6g/kg; fat is set at 28% of energy; carbohydrates make up the remaining energy. Fibre aims for 25g/day (30g for the male option in this prototype).</li><li><strong>Food and photo data:</strong> FatSecret is only used for food lookup when enabled; LogMeal is only used for a restaurant-photo estimate after explicit consent. Neither is the source of the core calorie calculation.</li></ul><p class="meta">Sources: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">EFSA Dietary Reference Values</a>. Estimates can be materially wrong for an individual. Seek a qualified clinician for medical conditions, pregnancy, eating-disorder history, kidney disease or diabetes.</p></details>';
+    const item = (label, body) => "<li><strong>" + label + ":</strong> " + body + "</li>";
+    const items = language === "ca"
+      ? item("Idees d’àpats", "Les plantilles d’àpats pràctiques de Quota Vita es construeixen amb aliments integrals coneguts, patrons de plat equilibrat i l’objectiu general de macronutrients calculat més avall. No són receptes proporcionades per FatSecret, LogMeal, un restaurant o una dietista.")
+        + item("Àpats catalans", "Els plats catalans amb nom i els seus ingredients principals es contrasten amb el coneixement verificat de Cala abans de prioritzar-los al Coach. Les mides de les racions continuen sent plantilles de benestar general, no instruccions de recepta tradicional.")
+        + item("Energia", "Una estimació d’energia en repòs de Mifflin-St Jeor fa servir l’edat, l’alçada, el pes i el sexe; l’activitat habitual que has triat, l’objectiu i l’activitat d’avui hi apliquen després ajustos fixos i transparents.")
+        + item("Macronutrients", "La proteïna segueix una heurística de benestar general d’1,2 a 1,6 g/kg; el greix se situa al 28 % de l’energia; els carbohidrats completen l’energia restant. La fibra té un objectiu de 25 g al dia (30 g per a l’opció masculina en aquest prototip).")
+        + item("Dades d’aliments i fotos", "FatSecret només es fa servir per cercar aliments quan està activat; LogMeal només es fa servir per estimar una foto de restaurant després d’un consentiment explícit. Cap dels dos és la font del càlcul principal de calories.")
+      : item("Meal ideas", "Quota Vita’s practical meal templates are built from familiar whole foods, balanced-plate patterns and the general macro target calculated below. They are not recipes supplied by FatSecret, LogMeal, a restaurant or a dietitian.")
+        + item("Catalan meals", "Named Catalan dishes and their core ingredients are checked against Cala’s verified knowledge before being prioritised in the Coach. Portion sizes remain general-wellbeing templates, not traditional recipe instructions.")
+        + item("Energy", "a Mifflin-St Jeor resting-energy estimate uses age, height, weight and sex; your selected usual activity, goal and today’s activity then make transparent fixed adjustments.")
+        + item("Macros", "protein is a general-wellbeing heuristic of 1.2-1.6g/kg; fat is set at 28% of energy; carbohydrates make up the remaining energy. Fibre aims for 25g/day (30g for the male option in this prototype).")
+        + item("Food and photo data", "FatSecret is only used for food lookup when enabled; LogMeal is only used for a restaurant-photo estimate after explicit consent. Neither is the source of the core calorie calculation.");
+    const sources = language === "ca"
+      ? 'Fonts: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">valors dietètics de referència de l’EFSA</a>. Les estimacions poden ser molt inexactes per a una persona concreta. Consulta un professional sanitari qualificat en cas de malaltia, embaràs, antecedents de trastorn de la conducta alimentària, malaltia renal o diabetis.'
+      : 'Sources: <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin et al. (1990)</a>; <a href="https://multimedia.efsa.europa.eu/drvs/index.htm" target="_blank" rel="noopener">EFSA Dietary Reference Values</a>. Estimates can be materially wrong for an individual. Seek a qualified clinician for medical conditions, pregnancy, eating-disorder history, kidney disease or diabetes.';
+    return '<details class="method"><summary>' + esc(T("Where the meal ideas come from", "D’on surten les idees d’àpats")) + "</summary><ul>" + items + '</ul><p class="meta">' + sources + "</p></details>";
   }
 
   function basketItems(plan) {
@@ -562,7 +659,7 @@
       ? "<ul>" + basketItems(plan).map(([amount, name]) => "<li><strong>" + amount + (typeof amount === "number" && amount !== 1 ? "g" : "") + "</strong> " + esc(localiseFood(name)) + "</li>").join("") + "</ul>"
       : plan.meals.map((meal) => "<section><h2>" + esc(meal.slot) + ": " + esc(meal.title) + "</h2>" + (meal.catalanName ? "<p><strong>Catalan dish:</strong> " + esc(meal.catalanName) + "</p>" : "") + "<p>" + esc(meal.portions) + "</p><p>" + meal.calories + " kcal · " + meal.proteinG + "g protein · " + meal.carbohydrateG + "g carbohydrates · " + meal.fatG + "g fat</p></section>").join("");
     const popup = window.open("", "_blank");
-    if (!popup) return alert("Allow pop-ups to download your PDF.");
+    if (!popup) return alert(T("Allow pop-ups to download your PDF.", "Permet les finestres emergents per baixar el PDF."));
     popup.document.write("<!doctype html><title>" + title + "</title><style>body{max-width:760px;margin:48px auto;color:#183d39;font:16px/1.5 system-ui}h1,h2{font-family:Georgia,serif}h1{font-size:42px}h2{font-size:23px;border-top:1px solid #c9d7c7;padding-top:18px}li{margin:8px 0}.meta{color:#5c756f;font-size:13px;margin-top:32px}@page{margin:18mm}</style><h1>Quota Vita / " + title + "</h1><p>" + esc(activityLabel(state.activity)) + " · " + plan.target.calories + " kcal · " + plan.target.proteinG + "g protein · " + plan.target.carbohydrateG + "g carbohydrates · " + plan.target.fatG + "g fat</p>" + content + '<p class="meta">General wellbeing estimate. Method: Mifflin-St Jeor energy estimate plus transparent activity and goal adjustments. EFSA DRVs inform macro and fibre context. Not medical advice.</p>');
     popup.document.close();
     setTimeout(() => popup.print(), 250);
@@ -694,6 +791,7 @@
         + '<aside class="today-aside">' + liveCoachMarkup("desktop") + "</aside></div>",
       "view--today"
     ));
+    track("targets_shown", { calories: plan.target.calories, protein_g: plan.target.proteinG, activity: String(state.activity || "") });
     bindTodayHandlers(plan);
     loadMealImages(plan);
     void loadGeneratedDailyMeals(plan.target);
@@ -787,6 +885,7 @@
     } else if (previous.pointsAwarded) details.pointsAwarded = true;
     state.meals[id] = { ...previous, ...details, status };
     save();
+    track("meal_logged", { status, meal: id });
   }
 
   function dailyCheck() {
@@ -837,7 +936,7 @@
     const text = language === "ca"
       ? "Substitueix la proteïna · " + millilitres + " ml · 24 g/100 ml"
       : "Protein swap · " + millilitres + " ml · 24 g/100 ml";
-    return '<p class="milkshake"><strong>Quota Vita Milkshake</strong><span>' + text + '</span></p>';
+    return '<p class="milkshake" data-shop-ml="' + millilitres + '"><strong>Quota Vita Milkshake</strong><span>' + text + '</span></p>';
   };
 
   function mealCard(meal, showMilkshakeOption = meal.id === "lunch") {
@@ -918,18 +1017,42 @@
   }
 
   function weeklySetup() {
-    mount("week", coachShell("Let’s plan your week", "First, tell your Coach what you want from this week.", '<div class="bubble coach">What are your goals for the week?<span class="meta">For example: feel more energetic, lose fat steadily, prepare for a 10 km run, or build strength.</span></div><form class="composer chat-input" id="weekly-goal-form"><input id="weekly-goal" placeholder="Write your goal for this week" required><button class="button" type="submit">Continue</button></form><button class="button quiet" id="back">Back to daily plan</button>'));
+    const saved = state.weekly || {};
+    mount("week", coachShell(
+      T("Let’s plan your week", "Planifiquem la teva setmana"),
+      T("First, tell your Coach what you want from this week.", "Primer, digues al teu Coach què vols d’aquesta setmana."),
+      '<div class="bubble coach">' + esc(T("What are your goals for the week?", "Quins són els teus objectius per a la setmana?")) + '<span class="meta">' + esc(T("For example: feel more energetic, lose fat steadily, prepare for a 10 km run, or build strength.", "Per exemple: tenir més energia, perdre greix de manera constant, preparar una cursa de 10 km o guanyar força.")) + "</span></div>"
+      + '<form class="composer chat-input" id="weekly-goal-form"><input id="weekly-goal" enterkeyhint="next" placeholder="' + esc(T("Write your goal for this week", "Escriu el teu objectiu per a aquesta setmana")) + '" value="' + esc(saved.goal || "") + '" required><button class="button" type="submit">' + esc(T("Continue", "Continua")) + "</button></form>"
+      + '<div class="actions"><button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + "</button></div>"
+    ));
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#weekly-goal-form").onsubmit = (event) => { event.preventDefault(); weeklyTraining(root.querySelector("#weekly-goal").value.trim()); };
   }
 
   function weeklyTraining(weeklyGoal) {
-    mount("week", coachShell("Your training week", "Tell me how many strength and running days you plan.", '<div class="bubble coach">How will you train this week?<span class="meta">For example: two strength days and one running day. The remaining days are treated as recovery or light movement.</span></div><form class="composer" id="weekly-training-form"><label class="field">Strength days <select id="strength-days">' + [0, 1, 2, 3, 4, 5, 6, 7].map((n) => '<option value="' + n + '"' + (n === 2 ? " selected" : "") + '>' + n + '</option>').join("") + '</select></label><label class="field">Running days <select id="run-days">' + [0, 1, 2, 3, 4, 5, 6, 7].map((n) => '<option value="' + n + '"' + (n === 1 ? " selected" : "") + '>' + n + '</option>').join("") + '</select></label><div class="actions"><button class="button" type="submit">Create my seven-day meal plan</button></div></form><button class="button quiet" id="back">Back</button>'));
+    const saved = state.weekly || {};
+    const dayOptions = (selected) => [0, 1, 2, 3, 4, 5, 6, 7].map((count) => '<option value="' + count + '"' + (count === selected ? " selected" : "") + ">" + count + "</option>").join("");
+    mount("week", coachShell(
+      T("Your training week", "La teva setmana d’entrenament"),
+      T("Tell me how many strength and running days you plan.", "Digues quants dies de força i de córrer tens previstos."),
+      '<div class="bubble coach">' + esc(T("How will you train this week?", "Com entrenaràs aquesta setmana?")) + '<span class="meta">' + esc(T("For example: two strength days and one running day. The remaining days are treated as recovery or light movement.", "Per exemple: dos dies de força i un de córrer. La resta de dies es tracten com a recuperació o moviment suau.")) + "</span></div>"
+      + '<form class="composer" id="weekly-training-form"><div class="field-row"><label class="field">' + esc(T("Strength days", "Dies de força")) + '<select id="strength-days">' + dayOptions(Number.isFinite(Number(saved.strength)) && saved.strength !== undefined ? Number(saved.strength) : 2) + '</select></label><label class="field">' + esc(T("Running days", "Dies de córrer")) + '<select id="run-days">' + dayOptions(Number.isFinite(Number(saved.run)) && saved.run !== undefined ? Number(saved.run) : 1) + '</select></label></div><div class="actions"><button class="button" type="submit">' + esc(T("Create my seven-day meal plan", "Crea el meu pla d’àpats de set dies")) + "</button></div></form>"
+      + '<div class="actions"><button class="button quiet" type="button" id="back">' + esc(T("Back", "Enrere")) + "</button></div>"
+    ));
     root.querySelector("#back").onclick = weeklySetup;
     root.querySelector("#weekly-training-form").onsubmit = (event) => {
-      event.preventDefault(); const strength = Number(root.querySelector("#strength-days").value); const run = Number(root.querySelector("#run-days").value);
-      if (strength + run > 7) return alert("Strength and running days cannot add up to more than seven.");
-      state.weekly = { goal: weeklyGoal, strength, run }; save(); weeklyPlan();
+      event.preventDefault();
+      const strength = Number(root.querySelector("#strength-days").value);
+      const run = Number(root.querySelector("#run-days").value);
+      const feedback = root.querySelector("#weekly-training-feedback");
+      if (strength + run > 7) {
+        const message = note(T("Strength and running days cannot add up to more than seven.", "Els dies de força i de córrer no poden sumar més de set."), true);
+        if (feedback) feedback.innerHTML = message; else root.querySelector("#weekly-training-form").insertAdjacentHTML("beforeend", '<div id="weekly-training-feedback">' + message + "</div>");
+        return;
+      }
+      state.weekly = { goal: weeklyGoal, strength, run };
+      save();
+      weeklyPlan();
     };
   }
 
@@ -1073,6 +1196,24 @@
     return baseItems.map(([amount, name]) => [name, amount < 20 ? amount : Math.round(amount * scale / 10) * 10]);
   }
 
+  /**
+   * The millilitres of milkshake this plan's protein swap actually asks for.
+   * The basket offer is sized from the real plan, not from a round number.
+   */
+  function dailySwapMillilitres() {
+    const meals = currentPlan().meals;
+    const meal = meals.find((entry) => entry.milkshakeEligible) || meals.find((entry) => entry.id === "lunch") || meals[0];
+    return meal ? quotaVitaMilkshakeMl(meal.proteinG) : 0;
+  }
+
+  function shopBlockMarkup() {
+    const millilitres = dailySwapMillilitres();
+    if (!millilitres) return "";
+    return '<section class="shop-block" data-shop-ml="' + millilitres + '"><h2>' + esc(T("Cover the protein swap", "Cobreix el canvi de proteïna"))
+      + "</h2><p>" + esc(T("Your plan swaps one protein for a Quota Vita Milkshake. This is the tub that covers it.", "El teu pla canvia una proteïna per un Milkshake de Quota Vita. Aquest és el pot que ho cobreix."))
+      + "</p></section>";
+  }
+
   function formatEur(value) {
     return new Intl.NumberFormat(language === "ca" ? "ca-ES" : "en-GB", { style: "currency", currency: "EUR" }).format(Number(value));
   }
@@ -1134,8 +1275,10 @@
       basketSwitcher("weekly")
         + '<div class="card"><ul class="basket">' + totals.map(([name, amount]) => "<li><strong>" + (amount < 20 ? amount : amount + "g") + "</strong> " + esc(localiseFood(name)) + "</li>").join("")
         + '</ul><section id="weekly-cost-estimate" aria-live="polite">' + note(T("Checking the latest price estimate…", "Comprovant l’estimació de preu més recent…")) + "</section>"
+        + shopBlockMarkup()
         + '<div class="actions"><button class="button" type="button" id="weekly-basket-pdf" disabled>' + esc(T("Download basket PDF", "Baixa el PDF de la cistella")) + '</button><button class="button quiet" type="button" id="weekly-basket-email" disabled>' + esc(T("Send by email", "Envia per correu")) + '</button><button class="button quiet" type="button" id="back">' + esc(T("Back to the week", "Torna a la setmana")) + "</button></div></div>"
     ));
+    track("basket_created", { scope: "weekly", items: totals.length });
     root.querySelector("#weekly-basket-pdf").onclick = () => printWeekly("basket");
     root.querySelector("#weekly-basket-email").onclick = () => emailWeekly("basket");
     root.querySelector("#back").onclick = weeklyPlan;
@@ -1155,7 +1298,7 @@
   function printWeekly(kind) {
     const title = kind === "basket" ? "Weekly shopping basket" : "Seven-day meal plan";
     const popup = window.open("", "_blank");
-    if (!popup) return alert("Allow pop-ups to download your PDF.");
+    if (!popup) return alert(T("Allow pop-ups to download your PDF.", "Permet les finestres emergents per baixar el PDF."));
     const text = weeklyText(kind).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
     popup.document.write("<!doctype html><title>" + title + "</title><style>body{max-width:760px;margin:48px auto;color:#392d23;font:16px/1.5 system-ui}h1{font:42px Georgia,serif}@page{margin:18mm}</style><h1>Quota Vita / " + title + "</h1><p>" + text + "</p><p>General wellbeing guidance only. Not medical advice.</p>");
     popup.document.close(); setTimeout(() => popup.print(), 250);
@@ -1322,8 +1465,10 @@
       T("Quantities are for one person and this specific plan.", "Les quantitats són per a una persona i aquest pla concret."),
       basketSwitcher("daily")
         + '<div class="card"><ul class="basket">' + items.map(([amount, name]) => "<li><strong>" + amount + (typeof amount === "number" && amount !== 1 ? "g" : "") + "</strong> " + esc(localiseFood(name)) + "</li>").join("")
-        + '</ul><div class="actions"><button class="button" type="button" id="basket-pdf">' + esc(T("Download basket PDF", "Baixa el PDF de la cistella")) + '</button><button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + '</button><button class="button quiet" type="button" id="clear">' + esc(T("Delete this device plan", "Esborra el pla d’aquest dispositiu")) + "</button></div></div>"
+        + '</ul>' + shopBlockMarkup()
+        + '<div class="actions"><button class="button" type="button" id="basket-pdf">' + esc(T("Download basket PDF", "Baixa el PDF de la cistella")) + '</button><button class="button quiet" type="button" id="back">' + esc(T("Back to today", "Torna a avui")) + '</button><button class="button quiet" type="button" id="clear">' + esc(T("Delete this device plan", "Esborra el pla d’aquest dispositiu")) + "</button></div></div>"
     ));
+    track("basket_created", { scope: "daily", items: items.length });
     root.querySelector("#basket-pdf").onclick = () => printPdf("basket");
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#clear").onclick = resetCoach;
