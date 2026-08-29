@@ -1,8 +1,11 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-
 /* Quota Vita Nutrition Coach — design system
-   Warm dark shell, cream cards, terracotta accent.
-   One stylesheet. No CSS is injected from JavaScript. */
+   Warm cream ground, terracotta accent, one editorial serif for display.
+   One stylesheet. No CSS is injected from JavaScript.
+
+   Fonts are loaded from <link> in the document head, not with @import here.
+   An @import inside a stylesheet cannot begin downloading until the stylesheet
+   itself has arrived, so it puts the whole typeface behind a second round trip
+   on the critical path. See head() in server/http.js. */
 
 /* ---------------------------------------------------------------- tokens */
 
@@ -31,14 +34,29 @@
   --line: rgba(43, 35, 32, 0.12);
   --line-strong: rgba(43, 35, 32, 0.26);
 
+  /* Text that sits on a brand-filled surface. Hard-coded #fff worked only
+     because the palette was light-only; the dark theme brightens the terracotta
+     to stay visible on a dark ground, and white on that brighter fill falls
+     below contrast. This token is the one place that decision is made. */
+  --on-brand: #ffffff;
+  --wash: rgba(43, 35, 32, 0.08);
+  --topbar-bg: rgba(253, 250, 243, 0.92);
+  --sheet-bg: rgba(255, 255, 255, 0.96);
+  --scrim: rgba(43, 35, 32, 0.55);
+
   --radius-xs: 4px;
   --radius-sm: 10px;
   --radius-md: 18px;
   --radius-lg: 26px;
   --radius-pill: 999px;
 
-  --shadow-1: 0 1px 2px rgba(43, 35, 32, 0.06), 0 4px 12px rgba(43, 35, 32, 0.05);
-  --shadow-2: 0 2px 6px rgba(43, 35, 32, 0.07), 0 16px 34px rgba(43, 35, 32, 0.09);
+  /* Structure comes from a hairline first and a shadow second. The previous
+     shadow-2 spread 34px of soft brown under every card, which made everything
+     hover a centimetre off the page and nothing look placed. */
+  --ring: inset 0 0 0 1px rgba(43, 35, 32, 0.07);
+  --shadow-1: 0 1px 1px rgba(43, 35, 32, 0.04), 0 2px 6px rgba(43, 35, 32, 0.05);
+  --shadow-2: 0 1px 2px rgba(43, 35, 32, 0.05), 0 6px 16px rgba(43, 35, 32, 0.07);
+  --shadow-3: 0 2px 4px rgba(43, 35, 32, 0.06), 0 12px 28px rgba(43, 35, 32, 0.10);
 
   --s1: 4px;
   --s2: 8px;
@@ -50,7 +68,25 @@
   --s8: 64px;
 
   --body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --display: var(--body);
+  /* The display face is the single largest reason the Coach did or did not look
+     like a product someone paid for. Setting --display to the UI sans meant
+     every headline was Inter at 48px: correct, legible, and indistinguishable
+     from an unstyled prototype. Fraunces is a warm optical-size serif — it
+     belongs to food and to the Mediterranean, and it gives the page a voice at
+     exactly the sizes where Inter has none. */
+  --display: Fraunces, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+
+  /* A type scale with real distance between steps. The old page ran a 3rem
+     headline straight into 0.86rem body text with nothing in between, which
+     reads as a template rather than a hierarchy. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: clamp(2rem, 4.4vw, 2.6rem);
+  --text-4xl: clamp(2.4rem, 6vw, 3.4rem);
 
   --topbar-h: 60px;
   --tabbar-h: 64px;
@@ -73,7 +109,61 @@
   --line-on-shell: var(--line);
 }
 
+/* ------------------------------------------------------------ dark theme */
 
+/* Only the tokens are redefined. Every rule below this block is written once
+   and inherits the palette, so a component cannot be light-only by accident.
+   The Coach is used at breakfast and at 11pm; one of those was punishing. */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand: #dd8a6e;
+    --brand-strong: #efa88e;
+    --brand-soft: #8c4c37;
+    --brand-tint: #33221b;
+
+    --canvas: #17120f;
+    --canvas-tint: #1d1713;
+    --surface: #221b17;
+    --surface-sunk: #2c231d;
+
+    --ink: #f5ede5;
+    --ink-soft: #b9aa9d;
+    --ink-faint: #8c7c70;
+
+    --amber: #f0b45f;
+    --sage: #74c39a;
+    --plum: #d98aa6;
+
+    --line: rgba(245, 237, 229, 0.13);
+    --line-strong: rgba(245, 237, 229, 0.28);
+
+    /* Near-black rather than white: the dark terracotta fill is brightened for
+       this theme, and white on it does not clear the contrast floor. */
+    --on-brand: #1c1310;
+    --wash: rgba(245, 237, 229, 0.09);
+    --topbar-bg: rgba(23, 18, 15, 0.9);
+    --sheet-bg: rgba(34, 27, 23, 0.97);
+    --scrim: rgba(9, 6, 5, 0.68);
+
+    --ring: inset 0 0 0 1px rgba(245, 237, 229, 0.06);
+    --shadow-1: 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.28);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.34), 0 6px 16px rgba(0, 0, 0, 0.34);
+    --shadow-3: 0 2px 4px rgba(0, 0, 0, 0.38), 0 12px 28px rgba(0, 0, 0, 0.44);
+  }
+
+  /* The two warm washes behind the page are all but invisible on a dark
+     ground at their light-theme opacity. */
+  .main {
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(221, 138, 110, 0.13), transparent 62%),
+      radial-gradient(90% 55% at 100% 100%, rgba(240, 180, 95, 0.09), transparent 60%);
+  }
+
+  /* Photographs are lit for a cream page; on a dark one they glare. */
+  .meal-photo img,
+  .week-card img { filter: brightness(0.9) saturate(0.96); }
+}
 
 /* ------------------------------------------------------------------ base */
 
@@ -93,10 +183,16 @@ body {
 h1, h2, h3, h4 {
   margin: 0;
   font-family: var(--display);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1.08;
+  /* Fraunces is an optical-size variable face: at display sizes it wants the
+     higher optical axis and a touch less weight than a UI sans would. */
+  font-optical-sizing: auto;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.06;
+  text-wrap: balance;
 }
+
+h3, h4 { font-weight: 600; letter-spacing: -0.005em; line-height: 1.2; }
 
 p { margin: 0 0 var(--s3); }
 p:last-child { margin-bottom: 0; }
@@ -161,16 +257,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
   max-width: var(--measure);
 }
 
+/* The old head ran to 3.1rem, and on a phone that pushed the first meal —
+   the thing anyone opened the Coach to see — below the fold, behind an eyebrow,
+   a headline and a lead. The title still sets the tone; it no longer owns the
+   first screen. */
 .view-head h1,
 .view-head h2 {
-  font-size: clamp(2rem, 5.4vw, 3.1rem);
+  font-size: var(--text-3xl);
   margin: 0 0 var(--s2);
 }
 
 .view-lead {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 1rem;
+  font-size: var(--text-base);
+  text-wrap: pretty;
 }
 
 .eyebrow {
@@ -197,7 +298,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(253, 250, 243, 0.92);
+  background: var(--topbar-bg);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
   padding-top: env(safe-area-inset-top);
@@ -237,7 +338,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   flex: 0 0 auto;
   border-radius: var(--radius-pill);
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-family: var(--body);
   font-size: 0.72rem;
   font-weight: 800;
@@ -272,7 +373,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   }
 
   .topnav-link:hover { color: var(--ink); background: var(--surface-sunk); }
-  .topnav-link.is-active { background: var(--brand); color: #fff; }
+  .topnav-link.is-active { background: var(--brand); color: var(--on-brand); }
 }
 
 .topbar-actions {
@@ -388,7 +489,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   justify-content: space-around;
   gap: var(--s1);
   padding: var(--s1) var(--s2) calc(var(--s1) + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--sheet-bg);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);
 }
@@ -433,7 +534,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   border: 1px solid var(--brand);
   border-radius: var(--radius-pill);
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-size: 0.94rem;
   font-weight: 700;
   line-height: 1.2;
@@ -508,7 +609,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 
 .chip--logged { background: rgba(47, 107, 79, 0.13); color: var(--sage); }
 .chip--restaurant { background: var(--brand-tint); color: var(--brand-strong); }
-.chip--skipped { background: rgba(43, 35, 32, 0.08); color: var(--ink-soft); }
+.chip--skipped { background: var(--wash); color: var(--ink-soft); }
 .chip--live { background: rgba(232, 163, 61, 0.2); color: #8a6413; }
 
 .status {
@@ -595,11 +696,11 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
 .bubble.user {
   margin-left: auto;
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   border-bottom-right-radius: var(--radius-xs);
 }
 
-.bubble.user .meta { color: rgba(255, 255, 255, 0.82); }
+.bubble.user .meta { color: color-mix(in srgb, var(--on-brand) 82%, transparent); }
 .bubble.coach { border-bottom-left-radius: var(--radius-xs); }
 
 .bubble.coach-intro {
@@ -719,7 +820,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   padding: 0 var(--s3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--surface);
   font-weight: 500;
 }
 
@@ -779,6 +880,48 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-2);
+  transition: padding 0.2s ease, gap 0.2s ease, border-radius 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ---------------------------------------------------------- stuck summary */
+
+/* At rest this card is the day in full. Stuck to the top of a phone screen it
+   was 330px of opaque white sitting over the meal list, slicing meal titles in
+   half as they scrolled underneath — the single worst thing on the page. Stuck,
+   it now collapses to one line: the number, the macros, nothing else. */
+
+.target.is-stuck {
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-3);
+}
+
+.target.is-stuck .target-figure b { font-size: var(--text-xl); }
+.target.is-stuck .target-label,
+.target.is-stuck .target-foot,
+.target.is-stuck .chip { display: none; }
+.target.is-stuck .macro-row-label { display: none; }
+.target.is-stuck .macro-target { display: none; }
+.target.is-stuck .bar { height: 4px; }
+
+.target.is-stuck .target-macros {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.target.is-stuck .macro-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+  font-size: var(--text-xs);
+}
+
+@media (min-width: 900px) {
+  .target.is-stuck { grid-template-columns: minmax(120px, auto) minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target { transition: none; }
 }
 
 .target-head {
@@ -848,26 +991,43 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   font-size: 0.82rem;
 }
 
-.macro-row span:first-child { color: var(--ink-soft); font-weight: 700; }
-.macro-row b { font-variant-numeric: tabular-nums; }
+.macro-row-label { color: var(--ink-soft); font-weight: 700; }
+.macro-row b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.macro-row .macro-eaten { font-weight: 800; }
+.macro-row .macro-target { color: var(--ink-faint); font-weight: 600; }
+
+/* Reaching a macro is the good outcome; overshooting it is information, not a
+   failure, so it warms rather than alarms. Colour is never the only signal —
+   the pair of numbers beside the bar says the same thing. */
+.macro-row.is-met .macro-eaten { color: var(--sage); }
+.macro-row.is-over .macro-eaten { color: var(--amber); }
 
 .bar {
   height: 7px;
   border-radius: var(--radius-pill);
-  background: var(--card-sunk);
+  background: var(--surface-sunk);
+  box-shadow: var(--ring);
   overflow: hidden;
 }
 
 .bar i {
   display: block;
   height: 100%;
+  min-width: 0;
   border-radius: var(--radius-pill);
   background: var(--brand);
-  transition: width 0.35s ease;
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s ease;
 }
 
 .bar--carbs i { background: var(--amber); }
-.bar--fat i { background: var(--ink-soft); }
+.bar--fat i { background: var(--ink-faint); }
+
+.macro-row.is-met .bar i { background: var(--sage); }
+.macro-row.is-over .bar i { background: var(--amber); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar i { transition: none; }
+}
 
 .target-foot {
   display: flex;
@@ -1229,7 +1389,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   cursor: pointer;
 }
 
-.segmented button.is-active { background: var(--brand); color: #fff; }
+.segmented button.is-active { background: var(--brand); color: var(--on-brand); }
 
 /* ------------------------------------------------------------ methodology */
 
@@ -1263,7 +1423,7 @@ a.menu-item { box-sizing: border-box; text-decoration: none; line-height: 28px; 
   display: grid;
   place-items: center;
   padding: var(--s4);
-  background: rgba(43, 35, 32, 0.55);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   overflow-y: auto;
 }
@@ -1325,7 +1485,7 @@ body.modal-open { overflow: hidden; }
 
 @media print {
   .topbar, .tabbar, .actions, .method, .modal { display: none !important; }
-  body { background: #fff; color: #000; }
+  body { background: var(--surface); color: #000; }
   .card, .meal-card, .week-day { box-shadow: none; border: 1px solid #ccc; }
 }
 
@@ -1589,7 +1749,7 @@ body.modal-open { overflow: hidden; }
   flex: 0 0 auto;
   border: 2px solid var(--line-strong);
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-brand);
   font-size: 0.8rem;
   font-weight: 800;
 }
@@ -1664,7 +1824,7 @@ body.modal-open { overflow: hidden; }
   z-index: 80;
   display: grid;
   place-items: center;
-  background: rgba(43, 35, 32, 0.42);
+  background: var(--scrim);
   backdrop-filter: blur(3px);
   pointer-events: none;
   animation: fade-in 0.2s ease both;
@@ -1805,7 +1965,7 @@ body.modal-open { overflow: hidden; }
 }
 
 .tomorrow-choice:hover { border-color: var(--brand); background: var(--brand-tint); }
-.tomorrow-choice.is-active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.tomorrow-choice.is-active { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 
 /* ---------------------------------------------------------------- extras */
 
@@ -1867,6 +2027,9 @@ body.modal-open { overflow: hidden; }
 .steps span { color: var(--ink-soft); font-size: 0.92rem; }
 
 .week-day.is-today { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-tint), var(--shadow-1); }
-.chip--today { background: var(--brand); color: #fff; margin-left: var(--s2); vertical-align: middle; }
+.chip--today { background: var(--brand); color: var(--on-brand); margin-left: var(--s2); vertical-align: middle; }
 .week-day-use { align-self: flex-start; margin-bottom: var(--s1); }
 .privacy-links { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+.logged-toggle:not(:empty) { display: flex; justify-content: center; margin: 0 0 var(--s4); }
+.show-logged { width: 100%; max-width: 420px; }

@@ -1238,23 +1238,75 @@
       fatG: Math.max(0, plan.target.fatG - eaten.fatG)
     };
     const logged = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status)).length;
-    const percent = (value, target) => (target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0);
-    const row = (label, value, target, modifier) => '<div class="macro-row"><span>' + esc(label) + '</span><div class="bar ' + modifier + '"><i style="width:' + percent(target - value, target) + '%"></i></div><b>' + value + "g</b></div>";
+    const percent = (value, target) => (target > 0 ? Math.max(0, Math.min(100, Math.round((value / target) * 100))) : 0);
+
+    /**
+     * Eaten against target, not the remainder.
+     *
+     * The bar used to fill by what was left, under a heading that said "still to
+     * eat", beside a number that was also what was left. Three different framings
+     * of the same quantity, so a full bar could mean either finished or untouched
+     * depending on which one you read. It now says `46 / 122 g`: the bar fills as
+     * you eat, and the pair of numbers removes the question.
+     */
+    const row = (label, eatenValue, target, modifier) => {
+      const filled = percent(eatenValue, target);
+      const over = target > 0 && eatenValue > target * 1.05;
+      const met = !over && target > 0 && eatenValue >= target * 0.9;
+      const tone = over ? " is-over" : met ? " is-met" : "";
+      return '<div class="macro-row' + tone + '">'
+        + '<span class="macro-row-label">' + esc(label) + "</span>"
+        + '<div class="bar ' + modifier + '" role="img" aria-label="' + esc(label + " " + Math.round(eatenValue) + " of " + target + " g") + '">'
+        + '<i style="width:' + filled + '%"></i></div>'
+        + '<b><span class="macro-eaten">' + Math.round(eatenValue) + "</span>" + '<span class="macro-target">/' + target + "g</span></b>"
+        + "</div>";
+    };
+
     return '<section class="target" id="target-panel">'
       + '<div class="target-head"><div><span class="target-label">' + esc(T("Still to eat", "Encara per menjar")) + '</span><div class="target-figure"><b>' + left.calories.toLocaleString(language === "ca" ? "ca-ES" : "en-GB") + "</b><span>kcal</span></div></div>"
       + '<span class="chip">' + esc(activityLabel(state.activity)) + "</span></div>"
       + '<div class="target-macros">'
-      + row(T("Protein", "Proteïna"), left.proteinG, plan.target.proteinG, "bar--protein")
-      + row(T("Carbs", "Carbohidrats"), left.carbohydrateG, plan.target.carbohydrateG, "bar--carbs")
-      + row(T("Fat", "Greixos"), left.fatG, plan.target.fatG, "bar--fat")
+      + row(T("Protein", "Proteïna"), eaten.proteinG, plan.target.proteinG, "bar--protein")
+      + row(T("Carbs", "Carbohidrats"), eaten.carbohydrateG, plan.target.carbohydrateG, "bar--carbs")
+      + row(T("Fat", "Greixos"), eaten.fatG, plan.target.fatG, "bar--fat")
       + "</div>"
       + '<div class="target-foot"><p class="meta">' + logged + " " + esc(T("of", "de")) + " " + plan.meals.length + " " + esc(T("meals logged today", "àpats registrats avui")) + '</p><button class="link-button" type="button" data-menu-action="daily-check">' + esc(T("Daily check", "Revisió del dia")) + "</button></div>"
       + "</section>";
   }
 
+  /**
+   * The summary card is sticky, and at full height it covered most of a phone
+   * screen — meal titles were sliced in half behind it while you scrolled. It
+   * now shrinks to a single line the moment it leaves its resting place.
+   *
+   * The observer watches for the card's top edge passing under the top bar: a
+   * sticky element stops being fully visible at exactly the point it sticks.
+   */
+  let stuckObserver = null;
+
+  function watchTargetPanel() {
+    stuckObserver?.disconnect();
+    const panel = root.querySelector("#target-panel");
+    if (!panel || !("IntersectionObserver" in window)) return;
+
+    const topbar = document.querySelector(".topbar")?.offsetHeight ?? 60;
+    stuckObserver = new IntersectionObserver(
+      ([entry]) => panel.classList.toggle("is-stuck", entry.intersectionRatio < 1),
+      { threshold: [1], rootMargin: `-${topbar + 2}px 0px 0px 0px` },
+    );
+    stuckObserver.observe(panel);
+  }
+
   function updateTargetPanel(plan) {
     const panel = root.querySelector("#target-panel");
-    if (panel) { panel.outerHTML = targetPanelMarkup(plan); translate(); }
+    if (!panel) return;
+    const wasStuck = panel.classList.contains("is-stuck");
+    panel.outerHTML = targetPanelMarkup(plan);
+    // outerHTML replaces the node, so the observer was left watching a detached
+    // element and the card would expand mid-scroll on the next meal logged.
+    if (wasStuck) root.querySelector("#target-panel")?.classList.add("is-stuck");
+    translate();
+    watchTargetPanel();
   }
 
   /** Shown when the honest calculation lands under the safe floor. */
@@ -1355,19 +1407,37 @@
         + questStripMarkup()
         + dayCompleteMarkup(plan)
         + '<ul class="meal-list" id="meal-list">' + mealListMarkup(plan) + "</ul>"
+        + '<div class="logged-toggle" id="logged-toggle">' + loggedToggleMarkup(plan) + "</div>"
         + storageNoticeMarkup() + methodology() + "</div>"
         + '<aside class="today-aside">' + liveCoachMarkup("desktop") + "</aside></div>",
       "view--today"
     ));
     track("targets_shown", { calories: plan.target.calories, protein_g: plan.target.proteinG, activity: String(state.activity || "") });
     bindTodayHandlers(plan);
+    watchTargetPanel();
     loadMealImages(plan);
     void loadGeneratedDailyMeals(plan.target);
   }
 
+  /* Once a meal has been eaten it stops being a decision, so its card leaves the
+     list and Today shows only what is still open. Nothing is lost: the toggle
+     below the list brings the whole day back. */
+  let showLoggedMeals = false;
+  const isConsumed = (id) => ["eaten", "restaurant"].includes(state.meals[id]?.status);
+
   function mealListMarkup(plan) {
     const milkshakeMeal = plan.meals.find((meal) => meal.milkshakeEligible)?.id || "lunch";
-    return plan.meals.map((meal) => "<li>" + mealCard(meal, meal.id === milkshakeMeal) + "</li>").join("");
+    const visible = showLoggedMeals ? plan.meals : plan.meals.filter((meal) => !isConsumed(meal.id));
+    return visible.map((meal) => "<li>" + mealCard(meal, meal.id === milkshakeMeal) + "</li>").join("");
+  }
+
+  function loggedToggleMarkup(plan) {
+    const hidden = plan.meals.filter((meal) => isConsumed(meal.id)).length;
+    if (!hidden) return "";
+    const label = showLoggedMeals
+      ? T("Hide the meals I logged", "Amaga els àpats registrats")
+      : T("Show today’s dishes", "Mostra’m els plats d’avui") + " (" + hidden + ")";
+    return '<button class="button quiet show-logged" type="button" data-toggle-logged aria-expanded="' + showLoggedMeals + '">' + esc(label) + "</button>";
   }
 
   function refreshMealList() {
@@ -1375,8 +1445,11 @@
     const list = root.querySelector("#meal-list");
     if (!list) return dashboard();
     list.innerHTML = mealListMarkup(plan);
+    const toggle = root.querySelector("#logged-toggle");
+    if (toggle) toggle.innerHTML = loggedToggleMarkup(plan);
     root.querySelector(".loading-chip")?.remove();
     bindTodayHandlers(plan);
+    watchTargetPanel();
     updateTargetPanel(plan);
     translate();
     fillShopOffers();
@@ -1391,15 +1464,21 @@
     // which only a full render can add.
     const allDecided = plan.meals.every((meal) => state.meals[meal.id]?.status);
     if (allDecided && !root.querySelector(".day-done")) return dashboard();
+    if (!showLoggedMeals && isConsumed(id)) return refreshMealList();
     const milkshakeMeal = plan.meals.find((meal) => meal.milkshakeEligible)?.id || "lunch";
     card.outerHTML = mealCard(plan.meals.find((meal) => meal.id === id), id === milkshakeMeal);
     bindTodayHandlers(plan);
+    watchTargetPanel();
     updateTargetPanel(plan);
     translate();
     fillShopOffers();
   }
 
   function bindTodayHandlers(plan) {
+    root.querySelector("[data-toggle-logged]")?.addEventListener("click", () => {
+      showLoggedMeals = !showLoggedMeals;
+      refreshMealList();
+    });
     root.querySelectorAll("[data-quest-go]").forEach((button) => button.onclick = () => {
       const destination = button.dataset.questGo;
       if (destination === "check") return dailyCheck();
@@ -2553,10 +2632,89 @@
     completeQuest("basket");
   }
 
+  // ── Installing ──────────────────────────────────────────────────────────
+  // The Coach is used standing in a supermarket aisle and again at a restaurant
+  // table. Both are moments you reach for an icon, not a bookmark — and the
+  // basement of a supermarket is also where the signal goes, which is the other
+  // half of what the service worker is for.
+
+  const installDismissKey = "quota-vita-coach-install-dismissed";
+  let installPrompt = null;
+
+  function registerWorker() {
+    if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
+    // Registration is deferred to idle: it competes with the first plan render
+    // for the same connection, and the plan is what the person came for.
+    const start = () => navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
+      // An unregistered worker costs offline support and nothing else.
+    });
+    if ("requestIdleCallback" in window) requestIdleCallback(start, { timeout: 4000 });
+    else setTimeout(start, 2500);
+  }
+
+  /**
+   * Not on the first visit. Asking someone to install a thing they have used for
+   * ninety seconds is how install prompts got their reputation; this waits until
+   * there is a plan and some progress worth keeping.
+   */
+  function installOfferIsWelcome() {
+    if (!installPrompt || readLocal(installDismissKey) === "yes") return false;
+    if (matchMedia("(display-mode: standalone)").matches) return false;
+    return Boolean(state.profile) && (game().xp > 0 || (game().streak || 0) > 0);
+  }
+
+  function renderInstallBar() {
+    document.querySelector("#install-bar")?.remove();
+    if (!installOfferIsWelcome()) return;
+
+    const bar = document.createElement("div");
+    bar.id = "install-bar";
+    bar.className = "install-bar";
+    bar.innerHTML = '<div class="install-bar-text"><strong>' + esc(T("Add the Coach to your home screen", "Afegeix el Coach a la pantalla d’inici"))
+      + "</strong><span>" + esc(T("Opens straight to today’s plan, and works in the supermarket without signal.",
+                                  "S’obre directament al pla d’avui i funciona al supermercat sense cobertura.")) + "</span></div>"
+      + '<div class="install-bar-actions"><button class="button button--sm" type="button" data-install="yes">' + esc(T("Add", "Afegeix"))
+      + '</button><button class="icon-button icon-button--sm" type="button" data-install="no" aria-label="' + esc(T("Not now", "Ara no")) + '">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+
+    bar.querySelector('[data-install="no"]').onclick = () => {
+      writeLocal(installDismissKey, "yes");
+      bar.remove();
+      track("install_dismissed");
+    };
+    bar.querySelector('[data-install="yes"]').onclick = async () => {
+      const prompt = installPrompt;
+      installPrompt = null;
+      bar.remove();
+      if (!prompt) return;
+      track("install_prompted");
+      prompt.prompt();
+      const choice = await prompt.userChoice.catch(() => null);
+      if (choice?.outcome === "accepted") track("install_accepted");
+      else writeLocal(installDismissKey, "yes");
+    };
+
+    document.querySelector(".app")?.appendChild(bar);
+  }
+
+  addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    installPrompt = event;
+    renderInstallBar();
+  });
+
+  addEventListener("appinstalled", () => {
+    installPrompt = null;
+    document.querySelector("#install-bar")?.remove();
+    track("install_completed");
+  });
+
   if (state.profile) { syncStreak(); save(); }
   if (!state.profile) welcome();
   else if (state.needsTraining) training();
   else renderFromHash();
+  registerWorker();
+  if (new URLSearchParams(location.search).get("source") === "installed") track("opened_from_home_screen");
   void checkAccountsEnabled();
   void syncAccount();
 })();
