@@ -79,7 +79,7 @@
     "Daily check": "Revisió diària", "Review what you have eaten today and adapt the remaining meals.": "Revisa què has menjat avui i adapta els àpats pendents.",
     "Review the meals still pending": "Revisa els àpats pendents", "meals logged today.": "àpats registrats avui.", "day streak": "dies seguits",
     "Your daily check is complete. Your meals and plan are saved on this device for today.": "La revisió diària està completa. Els àpats i el pla d’avui es desen en aquest dispositiu.",
-    "Complete today’s check (+10)": "Completa la revisió d’avui (+10)", "Back to daily plan": "Torna al pla diari",
+    "Complete today’s check (+10)": "Completa la revisió d’avui (+10)", "Daily check completed · +10": "Revisió diària completada · +10", "Back to daily plan": "Torna al pla diari",
     "Download weekly plan PDF": "Descarrega el PDF del pla setmanal", "Download weekly basket PDF": "Descarrega el PDF de la cistella setmanal",
     "Email via my mail app": "Envia per la meva app de correu", "Email address": "Adreça electrònica",
     "I have what I need. Would you like to keep this plan on this device?": "Ja tinc el que necessito. Vols conservar aquest pla en aquest dispositiu?",
@@ -340,8 +340,8 @@
     root.querySelector("#change-training").onclick = training;
     root.querySelector("#start-over").onclick = resetCoach;
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
-    root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { state.meals[button.dataset.confirmMeal] = { status: "eaten" }; save(); dashboard(); });
-    root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { state.meals[button.dataset.skipMeal] = { status: "skipped" }; save(); dashboard(); });
+    root.querySelectorAll("[data-confirm-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.confirmMeal, "eaten"); dashboard(); });
+    root.querySelectorAll("[data-skip-meal]").forEach((button) => button.onclick = () => { recordMeal(button.dataset.skipMeal, "skipped"); dashboard(); });
     root.querySelectorAll("[data-restaurant-meal]").forEach((button) => { const meal = plan.meals.find((item) => item.id === button.dataset.restaurantMeal); button.onclick = () => restaurant(button.dataset.restaurantMeal, meal, true); });
     root.querySelectorAll("[data-generate-meal]").forEach((button) => button.onclick = () => generateMealImage(button.dataset.generateMeal));
     root.querySelector("#live-coach-form").onsubmit = (event) => { event.preventDefault(); const input = root.querySelector("#live-coach-input"); const message = input.value.trim(); if (message) askLiveCoach(message); };
@@ -359,11 +359,23 @@
         const id = card.dataset.mealCard;
         startX = null;
         card.style.transform = "";
-        if (offset > 80) { state.meals[id] = { status: "eaten" }; save(); dashboard(); }
+        if (offset > 80) { recordMeal(id, "eaten"); dashboard(); }
         if (offset < -80) restaurant(id, plan.meals.find((meal) => meal.id === id), true);
       });
       card.addEventListener("pointercancel", () => { startX = null; card.style.transform = ""; });
     });
+  }
+
+  function recordMeal(id, status, details = {}) {
+    const previous = state.meals[id] || {};
+    const eligible = status === "eaten" || status === "restaurant";
+    if (eligible && !previous.pointsAwarded) {
+      const legacyMealPoints = Object.values(state.meals).filter((meal) => ["eaten", "restaurant"].includes(meal.status)).length * 10;
+      state.totalPoints = Math.max(Number(state.totalPoints) || 0, legacyMealPoints) + 10;
+      details.pointsAwarded = true;
+    } else if (previous.pointsAwarded) details.pointsAwarded = true;
+    state.meals[id] = { ...previous, ...details, status };
+    save();
   }
 
   function dailyCheck() {
@@ -371,10 +383,12 @@
     const completed = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
     const pending = plan.meals.filter((meal) => !["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
     const date = new Intl.DateTimeFormat(language === "ca" ? "ca-ES" : "en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-    const points = completed.length * 10 + (state.dailyCheckDate === todayKey() ? 10 : 0);
-    const content = '<div class="bubble coach"><strong>' + esc(date) + '</strong><span class="meta">' + completed.length + ' of ' + plan.meals.length + ' meals logged today · ' + points + ' points · ' + (state.streak || 0) + ' day streak</span></div>'
+    const completedToday = state.dailyCheckAwardedDate === todayKey();
+    const points = completed.length * 10 + (completedToday ? 10 : 0);
+    const totalPoints = Math.max(Number(state.totalPoints) || 0, completed.length * 10 + (completedToday ? 10 : 0));
+    const content = '<div class="bubble coach"><strong>' + esc(date) + '</strong><span class="meta">' + completed.length + ' of ' + plan.meals.length + ' meals logged today · ' + points + ' points today · ' + totalPoints + ' total points · ' + (state.streak || 0) + ' day streak</span></div>'
       + (pending.length ? '<div class="composer"><span class="composer-label">Review the meals still pending</span><div class="quick-replies">' + pending.map((meal) => '<button data-daily-check="' + meal.id + '">' + esc(meal.slot) + ': ' + esc(meal.title) + '</button>').join("") + '</div></div>' : '<div class="bubble coach">Your daily check is complete. Your meals and plan are saved on this device for today.</div>')
-      + '<div class="actions">' + (pending.length ? "" : '<button class="button" id="complete-check">Complete today’s check (+10)</button>') + '<button class="button quiet" id="back">Back to daily plan</button></div>';
+      + '<div class="actions">' + (pending.length ? "" : completedToday ? '<span class="button quiet">Daily check completed · +10</span>' : '<button class="button" id="complete-check">Complete today’s check (+10)</button>') + '<button class="button quiet" id="back">Back to daily plan</button></div>';
     root.innerHTML = coachShell("Daily check", "Review what you have eaten today and adapt the remaining meals.", content);
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#complete-check")?.addEventListener("click", completeDailyCheck);
@@ -383,11 +397,14 @@
 
   function completeDailyCheck() {
     const today = todayKey();
-    if (state.dailyCheckDate !== today) {
+    if (state.dailyCheckAwardedDate !== today) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       state.streak = state.dailyCheckDate === todayKey(yesterday) ? (state.streak || 0) + 1 : 1;
       state.dailyCheckDate = today;
+      state.dailyCheckAwardedDate = today;
+      const mealPoints = Object.values(state.meals).filter((meal) => ["eaten", "restaurant"].includes(meal.status)).length * 10;
+      state.totalPoints = Math.max(Number(state.totalPoints) || 0, mealPoints) + 10;
       save();
     }
     dailyCheck();
@@ -514,8 +531,8 @@
     const plan = currentPlan(); const meal = plan.meals.find((item) => item.id === id);
     root.innerHTML = coachShell(meal.slot + " check-in", meal.title, `<div class="bubble coach">Did you eat this proposed meal?</div><div class="actions"><button class="button" id="eaten">I ate this proposal</button><button class="button quiet" id="restaurant">I ate at a restaurant</button><button class="button quiet" id="skip">I skipped it</button></div>${message}<button class="button quiet" id="back">Back to plan</button>`);
     root.querySelector("#back").onclick = dashboard;
-    root.querySelector("#eaten").onclick = () => { state.meals[id] = { status: "eaten" }; save(); dashboard(); };
-    root.querySelector("#skip").onclick = () => { state.meals[id] = { status: "skipped" }; save(); dashboard(); };
+    root.querySelector("#eaten").onclick = () => { recordMeal(id, "eaten"); dashboard(); };
+    root.querySelector("#skip").onclick = () => { recordMeal(id, "skipped"); dashboard(); };
     root.querySelector("#restaurant").onclick = () => restaurant(id, meal);
   }
 
@@ -525,7 +542,7 @@
     root.innerHTML = coachShell("Restaurant meal", "Scan the meal, then adapt the rest of today’s plan.", '<div class="bubble coach">Take a clear photo of the plate. On a phone, Take photo opens the rear camera; on desktop, it opens your camera if available.</div><div class="actions"><button class="button" id="open-camera">Take photo</button><label class="button quiet" for="photo">Choose photo</label><input id="photo" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div><div id="camera-area"></div><label class="field"><input id="logmeal-consent" type="checkbox"> I authorise Quota Vita to send this one meal photo to LogMeal for automated analysis. Quota Vita does not store the image.</label><div class="actions"><button class="button" id="scan">Scan meal</button><button class="button quiet" id="manual">Mark as restaurant meal without scanning</button></div><div id="feedback"></div><button class="button quiet" id="back">Back</button>');
     const stopCamera = () => { cameraStream?.getTracks().forEach((track) => track.stop()); cameraStream = null; };
     root.querySelector("#back").onclick = () => { stopCamera(); checkIn(id); };
-    root.querySelector("#manual").onclick = () => { state.meals[id] = { status: "restaurant" }; save(); dashboard(); };
+    root.querySelector("#manual").onclick = () => { recordMeal(id, "restaurant"); dashboard(); };
     root.querySelector("#open-camera").onclick = async () => {
       const area = root.querySelector("#camera-area");
       try {
@@ -557,7 +574,7 @@
         const response = await fetch("/api/meal-photo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64, logmealConsent: true }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
-        state.meals[id] = { status: "restaurant", analysis: "scanned" }; save(); stopCamera();
+        recordMeal(id, "restaurant", { analysis: "scanned" }); stopCamera();
         feedback.innerHTML = note("Meal estimate received. Your remaining plan has been adjusted.");
         setTimeout(dashboard, 900);
       } catch (error) { feedback.innerHTML = note(error.message || "Photo analysis is unavailable.", true); }
@@ -573,7 +590,7 @@
     const stopCamera = () => { cameraStream?.getTracks().forEach((track) => track.stop()); cameraStream = null; };
     const close = () => { stopCamera(); overlay.remove(); };
     overlay.querySelector("#inline-close").onclick = close;
-    overlay.querySelector("#inline-manual").onclick = () => { state.meals[id] = { status: "restaurant" }; save(); close(); dashboard(); };
+    overlay.querySelector("#inline-manual").onclick = () => { recordMeal(id, "restaurant"); close(); dashboard(); };
     overlay.querySelector("#inline-open-camera").onclick = async () => {
       const area = overlay.querySelector("#inline-camera-area");
       try {
@@ -599,7 +616,7 @@
         const imageBase64 = capturedMealImage || await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
         const response = await fetch("/api/meal-photo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64, logmealConsent: true }) });
         const data = await response.json(); if (!response.ok) throw new Error(data.error);
-        state.meals[id] = { status: "restaurant", analysis: "scanned" }; save(); close(); dashboard();
+        recordMeal(id, "restaurant", { analysis: "scanned" }); close(); dashboard();
       } catch (error) { feedback.innerHTML = note(error.message || "Photo analysis is unavailable.", true); }
     };
   }

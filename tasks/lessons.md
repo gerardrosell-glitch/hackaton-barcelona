@@ -12,3 +12,4 @@
 - In a guided chat, bound visible history to the screen’s intended rhythm; preserving all answers can break the composition even when the data is saved.
 - Keep a user in the same primary flow for a contextual action such as restaurant logging; use an overlay rather than replacing the whole screen.
 - In a focused guided flow, the active prompt must lead the screen. Saved history is useful data, but it should not compete with the next action.
+- A gamification action must persist an observable result: show the current reward, the all-time balance, and replace the action once it is complete.

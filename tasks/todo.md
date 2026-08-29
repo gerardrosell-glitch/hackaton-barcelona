@@ -17,6 +17,7 @@
 - [x] Limit onboarding to the current question plus two prior answers so the chat stays centred.
 - [x] Keep restaurant logging inside the daily meal deck and add left/right swipe meal actions.
 - [x] Keep the active onboarding question at the top of the chat; retain prior answers without displaying them.
+- [x] Persist and display daily plus total points, with one clear final-check reward.
 
 ## Review
 
