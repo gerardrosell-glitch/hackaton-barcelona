@@ -228,7 +228,7 @@
     root.innerHTML = coachShell(activityLabels[state.activity] + " daily meal plan.", state.activity === "run" ? "Extra familiar carbohydrates and fluids around your run." : state.activity === "strength" ? "Protein spread across the day, with carbohydrates around training." : "A balanced plan for steady energy, protein and fibre.", '<div class="bubble coach full-card"><div class="day"><aside class="ledger"><span>Still to eat</span><b>' + left.calories.toLocaleString() + '</b><span>kcal remaining</span><hr><span>' + left.proteinG + 'g protein · ' + left.carbohydrateG + 'g carbs remaining</span></aside><section class="meal-list">' + plan.meals.map((meal) => mealCard(meal)).join("") + '</section></div><div class="actions"><button class="button" id="meal-pdf">Download daily plan PDF</button><button class="button quiet" id="basket">Daily shopping basket</button><button class="button quiet" id="week-plan">Create weekly plan</button><button class="button quiet" id="change-training">Change training</button><button class="button quiet" id="start-over">Start over</button></div><p class="privacy">This plan is stored only in this browser.</p>' + methodology() + '</div>');
     root.querySelector("#meal-pdf").onclick = () => printPdf("plan");
     root.querySelector("#basket").onclick = basket;
-    root.querySelector("#week-plan").onclick = weeklySetup;
+    root.querySelector("#week-plan").onclick = weeklyPlan;
     root.querySelector("#change-training").onclick = training;
     root.querySelector("#start-over").onclick = () => { localStorage.removeItem(storageKey); state = { profile: null, activity: "rest", meals: {} }; welcome(); };
     root.querySelectorAll("[data-meal]").forEach((button) => button.onclick = () => checkIn(button.dataset.meal));
@@ -258,23 +258,39 @@
     };
   }
 
-  function weeklyActivities({ strength, run }) {
-    const activities = Array(7).fill("rest"); const strengthSlots = [0, 2, 4, 6, 1, 3, 5]; const runSlots = [1, 3, 5, 0, 2, 4, 6];
-    strengthSlots.slice(0, strength).forEach((slot) => { activities[slot] = "strength"; });
-    let remaining = run; for (const slot of runSlots) { if (remaining && activities[slot] === "rest") { activities[slot] = "run"; remaining -= 1; } }
-    return activities;
+  function weeklyActivities() {
+    const patterns = {
+      sedentary: ["rest", "walk", "rest", "rest", "walk", "rest", "rest"],
+      light: ["walk", "rest", "pilates", "rest", "walk", "rest", "rest"],
+      moderate: ["strength", "rest", "run", "rest", "strength", "walk", "rest"],
+      high: ["strength", "run", "strength", "pilates", "run", "strength", "rest"]
+    };
+    return patterns[state.profile.activity] || patterns.light;
+  }
+
+  function variedMeals(target, activity, dayIndex) {
+    const choices = [
+      [["Breakfast", "Greek yogurt with oats, pear and walnuts"], ["Lunch", "Chicken, chickpea and roasted vegetables"], ["Dinner", "Salmon with potatoes and greens"]],
+      [["Breakfast", "Overnight oats with yogurt, banana and berries"], ["Lunch", "Lentil, quinoa and colourful vegetable bowl"], ["Dinner", "Turkey with sweet potato and salad"]],
+      [["Breakfast", "Wholegrain toast with eggs, tomato and fruit"], ["Lunch", "Tuna, white bean and vegetable salad"], ["Dinner", "Tofu stir-fry with brown rice and broccoli"]],
+      [["Breakfast", "Porridge with apple, cinnamon and Greek yogurt"], ["Lunch", "Chicken wholegrain pasta with vegetables"], ["Dinner", "Baked cod, potatoes and green beans"]],
+      [["Breakfast", "Yogurt bowl with oats, berries and seeds"], ["Lunch", "Turkey, rice and roasted vegetables"], ["Dinner", "Chickpea curry with wholegrain bread"]],
+      [["Breakfast", "Egg omelette with toast and fruit"], ["Lunch", "Salmon, potato and leafy salad bowl"], ["Dinner", "Lentil bolognese with wholegrain pasta"]],
+      [["Breakfast", "Oats with yogurt, banana and peanut butter"], ["Lunch", "Chicken burrito bowl with beans and rice"], ["Dinner", "Vegetable soup with tofu and wholegrain bread"]]
+    ][dayIndex];
+    return mealPlan(target, activity).map((meal, index) => ({ ...meal, title: choices[index][1] }));
   }
 
   function weeklyPlan() {
-    const week = state.weekly; if (!week) return weeklySetup(); const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(week);
-    root.innerHTML = coachShell("Your seven-day meal plan", "Weekly goal: “" + week.goal + "”. Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const dayPlan = { target: dailyTarget(state.profile, activities[index]), meals: mealPlan(dailyTarget(state.profile, activities[index]), activities[index]) }; return '<article class="week-day"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + dayPlan.target.calories + ' kcal</strong> · ' + dayPlan.target.proteinG + 'g protein</p><p>' + dayPlan.meals.map((meal) => '<strong>' + meal.slot + ':</strong> ' + esc(meal.title)).join(" · ") + '</p></article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="adjust-week">Adjust weekly goals</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
-    root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#adjust-week").onclick = weeklySetup; root.querySelector("#back").onclick = dashboard;
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; const activities = weeklyActivities(); const activityExplanation = { sedentary: "mostly sitting, with gentle movement built in", light: "light activity (1–2 activity days/week)", moderate: "regular training (3–4 training days/week)", high: "frequent training (5+ training days/week)" }[state.profile.activity];
+    root.innerHTML = coachShell("Your varied seven-day meal plan", "Built from your first-chat answer: " + activityExplanation + ". Review it before creating your basket.", '<div class="bubble coach full-card"><div class="weekly-grid">' + days.map((day, index) => { const target = dailyTarget(state.profile, activities[index]); const meals = variedMeals(target, activities[index], index); return '<article class="week-day"><h3>' + day + ' · ' + esc(activityLabels[activities[index]]) + '</h3><p><strong>' + target.calories + ' kcal</strong> · ' + target.proteinG + 'g protein</p><p>' + meals.map((meal) => '<strong>' + meal.slot + ':</strong> ' + esc(meal.title)).join(" · ") + '</p></article>'; }).join("") + '</div><div class="actions"><button class="button" id="approve-week">Approve weekly plan and create basket</button><button class="button quiet" id="back">Back to daily plan</button></div></div>');
+    root.querySelector("#approve-week").onclick = weeklyBasket; root.querySelector("#back").onclick = dashboard;
   }
 
   function weeklyBasket() {
-    const activities = weeklyActivities(state.weekly); const totals = new Map();
+    const activities = weeklyActivities(); const totals = new Map();
     activities.forEach((activity) => basketItems({ target: dailyTarget(state.profile, activity) }).forEach(([amount, name]) => totals.set(name, (totals.get(name) || 0) + Number(amount))));
-    root.innerHTML = coachShell("Your approved weekly shopping basket", "Built from your goal and " + state.weekly.strength + " strength day(s) plus " + state.weekly.run + " running day(s).", '<div class="bubble coach full-card"><ul class="basket">' + [...totals.entries()].map(([name, amount]) => '<li><strong>' + (amount === 7 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
+    root.innerHTML = coachShell("Your approved weekly shopping basket", "Built from the training pattern you selected in your first chat.", '<div class="bubble coach full-card"><ul class="basket">' + [...totals.entries()].map(([name, amount]) => '<li><strong>' + (amount === 7 ? amount : amount + "g") + '</strong> ' + esc(name) + '</li>').join("") + '</ul><div class="actions"><button class="button quiet" id="back">Back to weekly plan</button></div></div>');
     root.querySelector("#back").onclick = weeklyPlan;
   }
 
