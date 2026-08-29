@@ -7,7 +7,7 @@
   let capturedMealImage;
   let language = localStorage.getItem("quota-vita-coach-language") || "en";
   const chatStyle = document.createElement("style");
-  chatStyle.textContent = ".chat{max-width:680px;display:grid;gap:13px}.bubble{max-width:82%;padding:14px 16px;border-radius:18px;line-height:1.45}.bubble.coach{justify-self:start;background:#fff;border:1px solid #c9d7c7;border-bottom-left-radius:4px}.bubble.user{justify-self:end;background:#245a4b;color:#fff;border-bottom-right-radius:4px}.bubble .meta{display:block;margin-top:6px}.quick-replies{max-width:620px;display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px}.quick-replies button{border:1px solid #9bbd77;background:#fff;color:#183d39;padding:10px 13px;font:inherit;font-weight:700;cursor:pointer}.chat-input{display:flex;gap:8px;max-width:480px}.chat-input input{min-width:0;flex:1}";
+  chatStyle.textContent = ".coach-workspace{position:relative;isolation:isolate;min-height:680px;overflow:hidden;border-radius:26px;padding:clamp(28px,6vw,74px) clamp(18px,7vw,100px);background:#1d6254;color:#fff}.coach-workspace::before{content:'';position:absolute;inset:0;z-index:-2;background:url('https://cdn.shopify.com/s/files/1/0943/8042/5563/files/qv-projecte-720.mp4?v=1787404053') center/cover}.coach-workspace::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(9,46,39,.88),rgba(20,91,77,.67) 48%,rgba(255,106,70,.62))}.coach-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.coach-workspace .stepper{margin:0 auto 34px;max-width:800px}.coach-workspace .eyebrow,.coach-workspace .lead{color:#fff}.coach-workspace h2{max-width:800px;margin:0 auto 10px;color:#fff;font-size:clamp(2.35rem,5vw,4.8rem);line-height:.98;text-align:center}.coach-workspace>.eyebrow{text-align:center}.coach-workspace>.lead{max-width:630px;margin:0 auto 30px;text-align:center;font-size:1.05rem}.chat{max-width:760px;margin:0 auto;display:grid;gap:14px}.bubble{max-width:80%;padding:15px 18px;border-radius:20px;line-height:1.45;box-shadow:0 12px 30px rgba(4,37,31,.12)}.bubble.coach{justify-self:start;background:rgba(255,255,255,.96);color:#173e36;border:1px solid rgba(255,255,255,.8);border-bottom-left-radius:5px}.bubble.user{justify-self:end;background:#173e36;color:#fff;border-bottom-right-radius:5px}.bubble .meta{display:block;margin-top:6px}.composer{max-width:760px;margin:8px auto 0;padding:14px;border:1px solid rgba(255,255,255,.8);border-radius:26px;background:rgba(255,255,255,.97);box-shadow:0 18px 50px rgba(4,37,31,.26)}.composer-label{display:block;padding:1px 7px 10px;color:#41675f;font-weight:700}.quick-replies{display:flex;flex-wrap:wrap;gap:9px}.quick-replies button{border:1px solid #8fb9ab;border-radius:999px;background:#f6fbf8;color:#173e36;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer}.quick-replies button:hover{background:#dceee6}.chat-input{display:flex;gap:8px}.chat-input input{min-width:0;flex:1;border:0;background:transparent;padding:12px 10px;color:#173e36;font:inherit;font-size:1rem;outline:none}.chat-input .button{border-radius:16px}.chat-cancel{display:block;margin:18px auto 0;background:transparent!important;border-color:rgba(255,255,255,.8)!important;color:#fff!important}.coach-workspace .privacy{margin:20px auto 0;color:#fff;text-align:center}.coach-workspace .actions{justify-content:center}.chat-home-composer{max-width:760px;margin:34px auto;padding:13px 15px 13px 22px;border:1px solid rgba(255,255,255,.82);border-radius:27px;background:rgba(255,255,255,.97);box-shadow:0 18px 50px rgba(4,37,31,.26);display:flex;align-items:center;gap:14px;color:#294f47}.chat-home-composer span{flex:1;color:#55736d;font-weight:700}.chat-home-composer .button{border-radius:16px}@media(max-width:600px){.coach-workspace{min-height:620px;border-radius:0;padding:34px 18px}.coach-workspace h2{font-size:2.5rem;text-align:left}.coach-workspace>.eyebrow,.coach-workspace>.lead{text-align:left}.chat-home-composer{align-items:stretch;flex-direction:column}.chat-home-composer .button{width:100%}.bubble{max-width:92%}.chat-input .button{padding:11px 14px}}";
   document.head.append(chatStyle);
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
@@ -22,6 +22,8 @@
     "Eat for the day you actually have.": "Menja d'acord amb el dia que tens.",
     "Build a daily meal plan around your body, goal and training. Start without an account; your plan is only stored on this device when you choose to save it.": "Crea un pla d'àpats diari segons el teu cos, objectiu i entrenament. Pots començar sense compte; el pla només es desa en aquest dispositiu si ho decideixes.",
     "Build my daily plan": "Crea el meu pla diari",
+    "Build my daily nutrition plan": "Crea el meu pla nutricional diari",
+    "Start": "Comença",
     "General wellbeing guidance only. It does not provide medical advice.": "Orientació només per al benestar general. No ofereix assessorament mèdic.",
     "Your Coach": "El teu coach",
     "Let’s build today’s plan.": "Creem el pla d'avui.",
@@ -41,7 +43,7 @@
     "What would you like to work toward?": "Quin objectiu vols treballar?",
     "This applies only a gentle starting calorie adjustment. It is not a clinical prescription.": "Això només aplica un ajust calòric inicial moderat. No és una prescripció clínica.",
     "Lose fat": "Perdre greix", "Gain muscle": "Guanyar múscul", "Maintain": "Mantenir",
-    "Send": "Envia", "Cancel": "Cancel·la",
+    "Send": "Envia", "Cancel": "Cancel·la", "Choose one reply": "Tria una resposta", "Type your answer…": "Escriu la resposta…", "Cancel and restart": "Cancel·la i torna a començar",
     "I have what I need. Would you like to keep this plan on this device?": "Ja tinc el que necessito. Vols conservar aquest pla en aquest dispositiu?",
     "It stays in this browser and can be deleted with Start over. Nothing is saved to an account.": "Es queda en aquest navegador i es pot eliminar amb «Comença de nou». No es desa en cap compte.",
     "Create and save my plan": "Crea i desa el meu pla", "Create a one-time plan": "Crea un pla puntual",
@@ -117,8 +119,7 @@
   }
 
   function welcome() {
-    root.innerHTML = '<p class="eyebrow">Your daily nutrition coach</p><h1>Eat for the day you actually have.</h1><p class="lead">Build a daily meal plan around your body, goal and training. Start without an account; your plan is only stored on this device when you choose to save it.</p><div class="actions"><button class="button" id="begin">Build my daily plan</button></div><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p>';
-    root.querySelector("#begin").onclick = profile;
+    profile();
   }
 
   function profile() {
@@ -136,13 +137,13 @@
     const render = () => {
       const question = questions[index];
       const input = question.choices
-        ? '<div class="quick-replies">' + question.choices.map(([label, value]) => '<button data-answer="' + esc(value) + '">' + esc(label) + "</button>").join("") + "</div>"
-        : '<div class="chat-input"><input id="chat-answer" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" id="chat-next">Send</button></div>';
-      root.innerHTML = stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build today’s plan.</h2><p class="lead">I will ask one thing at a time. You can restart whenever you want.</p><section class="chat" aria-live="polite">' + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet" id="cancel">Cancel</button>';
+        ? '<div class="composer"><span class="composer-label">Choose one reply</span><div class="quick-replies">' + question.choices.map(([label, value]) => '<button data-answer="' + esc(value) + '">' + esc(label) + "</button>").join("") + "</div></div>"
+        : '<form class="composer chat-input" id="chat-form"><input id="chat-answer" aria-label="' + esc(question.label) + '" placeholder="Type your answer…" type="number" min="' + question.min + '" max="' + question.max + '" step="' + (question.step || 1) + '" value="' + esc(answers[question.key] || "") + '" autofocus><button class="button" type="submit">Send</button></form>';
+      root.innerHTML = '<section class="coach-workspace"><video class="coach-video" autoplay muted loop playsinline aria-hidden="true"><source src="https://cdn.shopify.com/s/files/1/0943/8042/5563/files/qv-projecte-720.mp4?v=1787404053" type="video/mp4"></video>' + stepper(1) + '<p class="eyebrow">Your Coach</p><h2>Let’s build today’s plan.</h2><p class="lead">One question at a time. Your plan adapts to the day you actually have.</p><section class="chat" aria-live="polite">' + history() + `<div class="bubble coach">${esc(question.label)}<span class="meta">${esc(question.hint)}</span></div>` + input + '</section><button class="button quiet chat-cancel" id="cancel">Cancel and restart</button><p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p></section>';
       root.querySelector("#cancel").onclick = welcome;
       root.querySelectorAll("[data-answer]").forEach((button) => button.onclick = () => advance(button.dataset.answer));
-      const next = root.querySelector("#chat-next");
-      if (next) next.onclick = () => advance(root.querySelector("#chat-answer").value);
+      const form = root.querySelector("#chat-form");
+      if (form) form.onsubmit = (event) => { event.preventDefault(); advance(root.querySelector("#chat-answer").value); };
     };
     const advance = (value) => {
       const question = questions[index];
