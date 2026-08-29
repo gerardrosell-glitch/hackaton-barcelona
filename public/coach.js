@@ -104,6 +104,121 @@
     if (link) track("shop_checkout_opened", { sku: link.dataset.shopBuy });
   });
 
+  // ── The account ─────────────────────────────────────────────────────────
+  // Identity comes from Shopify, handed over once through the App Proxy. All of
+  // this is additive: every call can fail, and the local plan is untouched when
+  // it does, so the Coach still works for someone who never signs in.
+  const accountTokenKey = "quota-vita-coach-account";
+  const accountConsentKey = "quota-vita-coach-account-consent";
+  const readLocal = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+  const writeLocal = (key, value) => { try { localStorage.setItem(key, value); } catch { /* private mode */ } };
+
+  (() => {
+    // The token arrives in the fragment, which never reaches a server log.
+    // Take it out of the address bar immediately so it is not shared by copy.
+    const match = /[#&]coach_session=([^&]+)/.exec(location.hash || "");
+    if (!match) return;
+    writeLocal(accountTokenKey, decodeURIComponent(match[1]));
+    history.replaceState(null, "", location.pathname + location.search);
+    track("account_linked");
+  })();
+
+  let accountsEnabled = false;
+  const accountToken = () => readLocal(accountTokenKey);
+  const signedIn = () => Boolean(accountToken());
+  const accountConsented = () => readLocal(accountConsentKey) === "granted";
+
+  /** Can anyone sign in here at all? Answered once, without a token. */
+  async function checkAccountsEnabled() {
+    try {
+      const response = await fetch("/api/account");
+      if (!response.ok) return;
+      accountsEnabled = Boolean((await response.json())?.configured);
+      if (accountsEnabled) renderChrome();
+    } catch {
+      // Leave accounts hidden rather than offering a door that does not open.
+    }
+  }
+
+  async function accountFetch(path, options = {}) {
+    const token = accountToken();
+    if (!token) return null;
+    try {
+      const response = await fetch(path, {
+        ...options,
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token, ...(options.headers || {}) },
+      });
+      if (response.status === 401) {
+        try { localStorage.removeItem(accountTokenKey); } catch { /* private mode */ }
+        return null;
+      }
+      if (!response.ok) return null;
+      return response.status === 204 ? {} : await response.json();
+    } catch {
+      return null;
+    }
+  }
+
+  const profileToServer = () => ({ ...state.profile, consent: true, medicalFlags: [] });
+
+  const profileFromServer = (record) => ({
+    age: Number(record.age),
+    heightCm: Number(record.height_cm),
+    weightKg: Number(record.weight_kg),
+    sex: record.sex || "",
+    activity: record.activity,
+    goal: record.goal,
+  });
+
+  async function pushProfile() {
+    if (!signedIn() || !state.profile || !accountConsented()) return;
+    const saved = await accountFetch("/api/account", { method: "POST", body: JSON.stringify(profileToServer()) });
+    if (saved?.profile) track("account_synced", { kind: "profile" });
+  }
+
+  async function pushMeal(meal, status) {
+    if (!signedIn() || !accountConsented() || !meal) return;
+    const saved = await accountFetch("/api/account", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "meal",
+        name: meal.title,
+        source: status === "restaurant" ? "restaurant_photo" : "manual",
+        calories: meal.calories,
+        proteinG: meal.proteinG,
+        carbohydrateG: meal.carbohydrateG,
+        fatG: meal.fatG,
+      }),
+    });
+    if (saved?.meal) track("account_synced", { kind: "meal" });
+  }
+
+  /**
+   * On load, reconcile the device with the account. A saved profile on the
+   * server wins when this device has none — that is the whole point of an
+   * account. A profile on this device is pushed up when the server has none.
+   */
+  async function syncAccount() {
+    if (!signedIn()) return;
+    const data = await accountFetch("/api/account");
+    if (!data?.signedIn) return;
+    if (data.profile && !state.profile) {
+      state = { ...state, profile: profileFromServer(data.profile), planDate: todayKey(), needsTraining: true, activity: "rest", meals: {} };
+      save();
+      track("account_profile_restored");
+      return training();
+    }
+    if (!data.profile && state.profile) void pushProfile();
+  }
+
+  const accountLinkUrl = () => (window.COACH_CONFIG?.accountLinkUrl || "https://www.quotavita.com/apps/nutrition-coach/link");
+
+  function connectAccount() {
+    writeLocal(accountConsentKey, "granted");
+    track("account_link_started");
+    window.location.href = accountLinkUrl();
+  }
+
   const choiceButtons = (items, attribute) => items.map(([label, value], index) => '<button ' + attribute + '="' + esc(value) + '" aria-keyshortcuts="' + (index + 1) + '"><kbd class="shortcut-key">' + (index + 1) + '</kbd>' + esc(label) + '</button>').join("");
   const stepper = (step, total) => '<div class="stepper" role="group" aria-label="Setup progress"><span class="stepper-label">' + (language === "ca" ? "Pas " + step + " de " + total : "Step " + step + " of " + total) + '</span><span class="stepper-track"><span class="stepper-fill" style="width:' + Math.round((step / total) * 100) + '%"></span></span></div>';
   const note = (text, isError = false) => '<p class="status' + (isError ? " error" : "") + '">' + esc(text) + "</p>";
@@ -283,8 +398,22 @@
   const localiseMeal = (meal) => ({ ...meal, slot: localiseMealText(meal.slot), title: localiseMealText(meal.title), portions: localiseMealText(meal.portions), hint: localiseMealText(meal.hint) });
   const T = (english, catalan) => (language === "ca" ? catalan : english);
 
-  const topbarHost = document.querySelector("#topbar");
-  const tabbarHost = document.querySelector("#tabbar");
+  /* The shell markup is server-rendered, so mount defensively: if a host is
+     missing the app still boots instead of dying on a null innerHTML. */
+  const chromeHost = (id, tag, className, attributes = {}) => {
+    let node = document.querySelector("#" + id);
+    if (!node) {
+      node = document.createElement(tag);
+      node.id = id;
+      node.className = className;
+      Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, value));
+      const app = document.querySelector(".app") || document.body;
+      if (id === "topbar") app.prepend(node); else app.append(node);
+    }
+    return node;
+  };
+  const topbarHost = chromeHost("topbar", "header", "topbar");
+  const tabbarHost = chromeHost("tabbar", "nav", "tabbar", { "aria-label": "Sections", hidden: "" });
   let currentView = "setup";
   let menuOpen = false;
 
@@ -292,14 +421,16 @@
     today: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/>',
     week: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     basket: '<path d="M4 8h16l-1.4 11.1a2 2 0 0 1-2 1.75H7.4a2 2 0 0 1-2-1.75L4 8Z"/><path d="M9 8V6.2a3 3 0 0 1 6 0V8"/>',
-    coach: '<path d="M21 11.5a8 8 0 0 1-8 8H8l-5 2.5V11.5a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/>'
+    coach: '<path d="M21 11.5a8 8 0 0 1-8 8H8l-5 2.5V11.5a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/>',
+    progress: '<path d="M12 3.2 14.6 9l6.4.6-4.8 4.2 1.4 6.2-5.6-3.3-5.6 3.3 1.4-6.2L3 9.6 9.4 9 12 3.2Z"/>'
   };
 
   const navItems = () => [
     { id: "today", label: T("Today", "Avui") },
     { id: "week", label: T("Week", "Setmana") },
     { id: "basket", label: T("Basket", "Cistella") },
-    { id: "coach", label: T("Coach", "Coach") }
+    { id: "coach", label: T("Coach", "Coach") },
+    { id: "progress", label: T("Progress", "Progrés") }
   ];
 
   const svgIcon = (name) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + navIcons[name] + "</svg>";
@@ -307,7 +438,11 @@
   function menuMarkup() {
     const compact = state.compactPlanView ? T("Full cards", "Vista completa") : T("Compact cards", "Vista compacta");
     const group = (title, items) => "<h2>" + esc(title) + "</h2>" + items.map(([action, label, extra = ""]) => '<button class="menu-item' + extra + '" type="button" data-menu-action="' + action + '">' + esc(label) + "</button>").join("");
+    const languageGroup = '<h2>' + esc(T("Language", "Idioma")) + '</h2><div class="menu-lang" data-language-control>'
+      + [["en", "English"], ["ca", "Català"]].map(([code, label]) => '<button class="menu-item' + (language === code ? " is-active" : "") + '" type="button" data-language="' + code + '">' + label + "</button>").join("")
+      + "</div>";
     return '<div class="overflow-menu" id="overflow-menu" role="menu"' + (menuOpen ? "" : " hidden") + ">"
+      + languageGroup
       + group(T("Today", "Avui"), [
         ["daily-check", T("Daily check", "Revisió del dia")],
         ["daily-pdf", T("Download today's plan", "Baixa el pla d’avui")],
@@ -317,6 +452,11 @@
         ["weekly-pdf", T("Download the week", "Baixa la setmana")],
         ["weekly-email", T("Email my week", "Envia’m la setmana")]
       ])
+      + (accountsEnabled || signedIn()
+        ? group(T("Account", "Compte"), [
+          ["account", signedIn() ? T("Your account", "El teu compte") : T("Save my plan to my account", "Desa el meu pla al meu compte")]
+        ])
+        : "")
       + group(T("View", "Vista"), [
         ["compact-view", compact],
         ["start-over", T("Start over", "Comença de nou"), " menu-item--danger"]
@@ -330,7 +470,8 @@
     const topnav = inSetup ? "" : '<nav class="topnav" aria-label="' + esc(T("Sections", "Seccions")) + '">' + items.map((item) => '<button class="topnav-link' + (currentView === item.id ? " is-active" : "") + '" type="button" data-nav="' + item.id + '"' + (currentView === item.id ? ' aria-current="page"' : "") + ">" + esc(item.label) + "</button>").join("") + "</nav>";
     const languages = '<div class="lang" data-language-control>' + [["en", "EN"], ["ca", "CA"]].map(([code, label]) => '<button type="button" data-language="' + code + '" class="' + (language === code ? "is-active" : "") + '" aria-pressed="' + (language === code) + '">' + label + "</button>").join("") + "</div>";
     const menuButton = inSetup ? "" : '<button class="icon-button" id="menu-toggle" type="button" aria-haspopup="true" aria-expanded="' + menuOpen + '" aria-controls="overflow-menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg><span class="sr-only">' + esc(T("More options", "Més opcions")) + "</span></button>";
-    topbarHost.innerHTML = '<div class="topbar-inner"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">QV</span>Quota Vita <em>Coach</em></a>' + topnav + '<div class="topbar-actions">' + languages + menuButton + "</div></div>" + (inSetup ? "" : menuMarkup());
+    const chips = inSetup ? "" : streakChipsMarkup();
+    topbarHost.innerHTML = '<div class="topbar-inner"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">QV</span>Quota Vita <em>Coach</em></a>' + topnav + '<div class="topbar-actions">' + chips + languages + menuButton + "</div></div>" + (inSetup ? "" : menuMarkup());
     tabbarHost.hidden = inSetup;
     tabbarHost.innerHTML = inSetup ? "" : items.map((item) => '<button class="tab' + (currentView === item.id ? " is-active" : "") + '" type="button" data-nav="' + item.id + '"' + (currentView === item.id ? ' aria-current="page"' : "") + ">" + svgIcon(item.id) + '<span class="tab-label">' + esc(item.label) + "</span></button>").join("");
     translate();
@@ -365,7 +506,7 @@
     state = { profile: null, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: 0 };
     welcome();
   };
-  const viewRenderers = () => ({ today: dashboard, week: weeklyPlan, basket: basket, coach: coachPage });
+  const viewRenderers = () => ({ today: dashboard, week: weeklyPlan, basket: basket, coach: coachPage, progress: progressView, account: account });
 
   function showView(name) {
     const render = viewRenderers()[name];
@@ -383,6 +524,7 @@
     "weekly-pdf": () => printWeekly("plan"),
     "weekly-email": () => emailWeekly("plan"),
     "compact-view": () => { state.compactPlanView = !state.compactPlanView; expandedPlanDetails.clear(); save(); rerenderCurrentView(); },
+    "account": account,
     "start-over": resetCoach
   });
 
@@ -583,6 +725,7 @@
       state = { ...state, profile: answers, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
       save();
       track("onboarding_completed", { goal: String(answers.goal || ""), activity: String(answers.activity || "") });
+      void pushProfile();
       training();
     };
     render();
@@ -688,6 +831,7 @@
     const chat = Array.isArray(state.chat) ? state.chat : [];
     state.chat = [...chat, { role: "user", text: message }].slice(-12);
     save();
+    completeQuest("ask");
     renderCoachThreads();
     const forms = [...root.querySelectorAll("[data-live-coach-form]")];
     forms.forEach((form) => {
@@ -875,17 +1019,281 @@
     bindLiveCoach();
     root.querySelector("[data-live-coach-form] input")?.focus({ preventScroll: true });
   }
+  /* ----------------------------------------------------------------------
+     Progress: streaks, XP, daily goal, quests and badges.
+
+     Modelled on Duolingo's loop — a visible streak, a daily XP goal, a small
+     set of quests and immediate feedback on every action. One deliberate
+     difference: nothing here rewards eating less. XP comes from logging,
+     planning and hitting your protein target, never from a calorie deficit,
+     because a nutrition app that gamifies restriction is a nutrition app that
+     hurts people.
+     ---------------------------------------------------------------------- */
+
+  const DAILY_GOAL_XP = 40;
+
+  const LEVELS = [
+    { xp: 0, en: "Getting started", ca: "Comences" },
+    { xp: 60, en: "Consistent", ca: "Constant" },
+    { xp: 180, en: "Balanced plate", ca: "Plat equilibrat" },
+    { xp: 380, en: "Strong week", ca: "Setmana forta" },
+    { xp: 650, en: "Mediterranean pro", ca: "Pro mediterrani" },
+    { xp: 1000, en: "Coach’s regular", ca: "Habitual del Coach" },
+    { xp: 1500, en: "Quota Vita legend", ca: "Llegenda Quota Vita" }
+  ];
+
+  const QUEST_POOL = [
+    { id: "log-all", xp: 15, en: "Log all three meals", ca: "Registra els tres àpats" },
+    { id: "protein", xp: 20, en: "Hit your protein target", ca: "Assoleix el teu objectiu de proteïna" },
+    { id: "check", xp: 15, en: "Complete your daily check", ca: "Completa la revisió del dia" },
+    { id: "ask", xp: 10, en: "Ask your Coach a question", ca: "Fes una pregunta al teu Coach" },
+    { id: "week", xp: 10, en: "Review your seven-day plan", ca: "Revisa el pla de set dies" },
+    { id: "basket", xp: 10, en: "Open your shopping basket", ca: "Obre la teva cistella" }
+  ];
+
+  const BADGES = [
+    { id: "first-plate", icon: "🍽️", en: "First plate", ca: "Primer plat", hint: { en: "Log your first meal", ca: "Registra el teu primer àpat" } },
+    { id: "streak-3", icon: "🔥", en: "Three in a row", ca: "Tres seguits", hint: { en: "A 3-day streak", ca: "Ratxa de 3 dies" } },
+    { id: "streak-7", icon: "⭐", en: "Full week", ca: "Setmana sencera", hint: { en: "A 7-day streak", ca: "Ratxa de 7 dies" } },
+    { id: "streak-30", icon: "🏆", en: "Thirty days", ca: "Trenta dies", hint: { en: "A 30-day streak", ca: "Ratxa de 30 dies" } },
+    { id: "protein-5", icon: "💪", en: "Protein five", ca: "Cinc de proteïna", hint: { en: "Hit protein on 5 days", ca: "Assoleix la proteïna 5 dies" } },
+    { id: "week-planner", icon: "🗓️", en: "Week planner", ca: "Planificador", hint: { en: "Build a weekly basket", ca: "Crea una cistella setmanal" } },
+    { id: "scanner", icon: "📷", en: "Eating out", ca: "Menjar fora", hint: { en: "Log a restaurant meal", ca: "Registra un àpat de restaurant" } },
+    { id: "level-5", icon: "🫒", en: "Mediterranean pro", ca: "Pro mediterrani", hint: { en: "Reach level 5", ca: "Arriba al nivell 5" } }
+  ];
+
+  function game() {
+    if (!state.game) {
+      // Carry the old points/streak counters into the new model rather than resetting anyone.
+      state.game = {
+        xp: Number(state.totalPoints) || 0,
+        streak: Number(state.streak) || 0,
+        lastGoalDay: state.dailyCheckAwardedDate || "",
+        freezes: 1,
+        days: {},
+        badges: [],
+        proteinDays: 0
+      };
+    }
+    if (!state.game.days) state.game.days = {};
+    if (!Array.isArray(state.game.badges)) state.game.badges = [];
+    return state.game;
+  }
+
+  function todayGame() {
+    const key = todayKey();
+    const g = game();
+    if (!g.days[key]) g.days[key] = { xp: 0, quests: {}, goal: false };
+    // Keep only the last 60 days so localStorage cannot grow without bound.
+    const keys = Object.keys(g.days).sort();
+    if (keys.length > 60) keys.slice(0, keys.length - 60).forEach((old) => delete g.days[old]);
+    return g.days[key];
+  }
+
+  function levelFor(xp) {
+    let index = 0;
+    LEVELS.forEach((level, position) => { if (xp >= level.xp) index = position; });
+    const current = LEVELS[index];
+    const next = LEVELS[index + 1];
+    return {
+      number: index + 1,
+      name: language === "ca" ? current.ca : current.en,
+      floor: current.xp,
+      ceiling: next ? next.xp : current.xp,
+      isMax: !next,
+      progress: next ? Math.min(100, Math.round(((xp - current.xp) / (next.xp - current.xp)) * 100)) : 100
+    };
+  }
+
+  function dayOffsetKey(offset) {
+    const date = new Date();
+    date.setDate(date.getDate() - offset);
+    return todayKey(date);
+  }
+
+  /** A day counts towards the streak once its XP goal is met. */
+  function syncStreak() {
+    const g = game();
+    const today = todayKey();
+    if (g.lastGoalDay === today) return;
+    const yesterday = dayOffsetKey(1);
+    if (g.lastGoalDay === yesterday) return;
+    if (!g.lastGoalDay) { g.streak = g.streak || 0; return; }
+    // A missed day: spend a freeze if there is one, otherwise the streak resets.
+    const missedTwo = g.lastGoalDay < dayOffsetKey(2);
+    if (!missedTwo && (g.freezes || 0) > 0 && g.streak > 0) {
+      g.freezes -= 1;
+      g.lastGoalDay = yesterday;
+      g.frozeOn = today;
+      return;
+    }
+    if (g.lastGoalDay < yesterday) g.streak = 0;
+  }
+
+  function awardBadge(id) {
+    const g = game();
+    if (g.badges.includes(id)) return false;
+    g.badges.push(id);
+    const badge = BADGES.find((item) => item.id === id);
+    if (badge) celebrate(badge.icon, T("Badge unlocked", "Insígnia desbloquejada"), language === "ca" ? badge.ca : badge.en);
+    return true;
+  }
+
+  function refreshBadges() {
+    const g = game();
+    if (g.streak >= 3) awardBadge("streak-3");
+    if (g.streak >= 7) awardBadge("streak-7");
+    if (g.streak >= 30) awardBadge("streak-30");
+    if ((g.proteinDays || 0) >= 5) awardBadge("protein-5");
+    if (levelFor(g.xp).number >= 5) awardBadge("level-5");
+  }
+
+  function awardXp(amount, label) {
+    const g = game();
+    const day = todayGame();
+    const beforeLevel = levelFor(g.xp).number;
+    g.xp += amount;
+    day.xp += amount;
+    xpToast(amount, label);
+    if (!day.goal && day.xp >= DAILY_GOAL_XP) {
+      day.goal = true;
+      const today = todayKey();
+      if (g.lastGoalDay !== today) {
+        g.streak = g.lastGoalDay === dayOffsetKey(1) ? (g.streak || 0) + 1 : 1;
+        g.lastGoalDay = today;
+      }
+      celebrate("🔥", T("Daily goal complete", "Objectiu diari assolit"), T("Streak: ", "Ratxa: ") + g.streak + " " + (g.streak === 1 ? T("day", "dia") : T("days", "dies")));
+    }
+    const afterLevel = levelFor(g.xp).number;
+    if (afterLevel > beforeLevel) celebrate("🎉", T("Level up", "Nivell superat"), levelFor(g.xp).name);
+    refreshBadges();
+    save();
+    renderChrome();
+  }
+
+  /** Marks a quest done and pays it out once. */
+  function completeQuest(id) {
+    const day = todayGame();
+    if (day.quests[id]) return;
+    const quest = QUEST_POOL.find((item) => item.id === id);
+    if (!quest) return;
+    day.quests[id] = true;
+    awardXp(quest.xp, language === "ca" ? quest.ca : quest.en);
+  }
+
+  function xpToast(amount, label) {
+    const host = document.querySelector("#toast-host") || (() => {
+      const node = document.createElement("div");
+      node.id = "toast-host";
+      node.className = "toast-host";
+      document.body.append(node);
+      return node;
+    })();
+    const toast = document.createElement("p");
+    toast.className = "toast";
+    toast.innerHTML = '<b>+' + amount + " XP</b>" + (label ? "<span>" + esc(label) + "</span>" : "");
+    host.append(toast);
+    setTimeout(() => toast.remove(), 2600);
+  }
+
+  function celebrate(icon, title, subtitle) {
+    const overlay = document.createElement("div");
+    overlay.className = "celebrate";
+    overlay.innerHTML = '<div class="celebrate-card"><span class="celebrate-icon" aria-hidden="true">' + icon + "</span><strong>" + esc(title) + "</strong><span>" + esc(subtitle) + "</span></div>";
+    document.body.append(overlay);
+    setTimeout(() => overlay.classList.add("is-leaving"), 1500);
+    setTimeout(() => overlay.remove(), 2100);
+  }
+
+  /** Quests are picked per day so they feel fresh but never shuffle mid-day. */
+  function todayQuests() {
+    const seed = [...todayKey()].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+    const rotated = QUEST_POOL.slice(seed % QUEST_POOL.length).concat(QUEST_POOL.slice(0, seed % QUEST_POOL.length));
+    // "Log all three meals" is the core habit, so it is always on the board.
+    const core = QUEST_POOL[0];
+    return [core, ...rotated.filter((quest) => quest.id !== core.id).slice(0, 2)];
+  }
+
+  function checkProteinQuest() {
+    const plan = currentPlan();
+    const eaten = totals(plan);
+    if (eaten.proteinG < plan.target.proteinG) return;
+    const day = todayGame();
+    if (!day.proteinCounted) { day.proteinCounted = true; game().proteinDays = (game().proteinDays || 0) + 1; }
+    completeQuest("protein");
+  }
+
+  function checkMealQuests() {
+    const plan = currentPlan();
+    const logged = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
+    if (logged.length) awardBadge("first-plate");
+    if (logged.length >= plan.meals.length) completeQuest("log-all");
+    checkProteinQuest();
+    save();
+  }
+
+  function streakChipsMarkup() {
+    const g = game();
+    const day = todayGame();
+    const percent = Math.min(100, Math.round((day.xp / DAILY_GOAL_XP) * 100));
+    return '<button class="streak-chips" type="button" data-nav="progress" aria-label="' + esc(T("Your progress", "El teu progrés")) + '">'
+      + '<span class="streak-chip"><span aria-hidden="true">🔥</span>' + (g.streak || 0) + "</span>"
+      + '<span class="streak-chip streak-chip--xp"><span class="xp-ring" style="--p:' + percent + '"></span>' + day.xp + "</span>"
+      + "</button>";
+  }
+
+  function progressView() {
+    const g = game();
+    const day = todayGame();
+    const level = levelFor(g.xp);
+    const percent = Math.min(100, Math.round((day.xp / DAILY_GOAL_XP) * 100));
+    const week = [6, 5, 4, 3, 2, 1, 0].map((offset) => {
+      const key = dayOffsetKey(offset);
+      const done = key === todayKey() ? day.goal : Boolean(g.days?.[key]?.goal);
+      const initials = new Intl.DateTimeFormat(language === "ca" ? "ca-ES" : "en-GB", { weekday: "narrow" }).format(new Date(Date.now() - offset * 86400000)).replace(/\.$/, "");
+      return '<div class="streak-day' + (done ? " is-done" : "") + (offset === 0 ? " is-today" : "") + '"><span>' + esc(initials) + '</span><i aria-hidden="true">' + (done ? "🔥" : "") + "</i></div>";
+    }).join("");
+    const quests = todayQuests().map((quest) => {
+      const done = Boolean(day.quests[quest.id]);
+      return '<li class="quest' + (done ? " is-done" : "") + '"><span class="quest-check" aria-hidden="true">' + (done ? "✓" : "") + '</span><span class="quest-text">' + esc(language === "ca" ? quest.ca : quest.en) + '</span><span class="quest-xp">+' + quest.xp + " XP</span></li>";
+    }).join("");
+    const badges = BADGES.map((badge) => {
+      const earned = g.badges.includes(badge.id);
+      return '<li class="badge' + (earned ? " is-earned" : "") + '"><span class="badge-icon" aria-hidden="true">' + badge.icon + '</span><strong>' + esc(language === "ca" ? badge.ca : badge.en) + "</strong><span>" + esc(language === "ca" ? badge.hint.ca : badge.hint.en) + "</span></li>";
+    }).join("");
+    mount("progress", viewShell(
+      T("Your progress", "El teu progrés"),
+      T("Consistency, not perfection. Points come from logging and planning — never from eating less.", "Constància, no perfecció. Els punts venen de registrar i planificar, mai de menjar menys."),
+      '<div class="stack">'
+      + '<section class="card level-card"><div class="level-head"><div><p class="eyebrow">' + esc(T("Level", "Nivell")) + " " + level.number + '</p><h2 class="level-name">' + esc(level.name) + '</h2></div><span class="level-xp">' + g.xp + " XP</span></div>"
+      + '<div class="bar"><i style="width:' + level.progress + '%"></i></div>'
+      + '<p class="meta">' + esc(level.isMax ? T("Top level reached.", "Has arribat al nivell més alt.") : (level.ceiling - g.xp) + " " + T("XP to the next level", "XP per al nivell següent")) + "</p></section>"
+      + '<section class="card"><div class="goal-head"><p class="eyebrow">' + esc(T("Today’s goal", "Objectiu d’avui")) + '</p><span class="goal-count">' + day.xp + " / " + DAILY_GOAL_XP + " XP</span></div>"
+      + '<div class="bar"><i style="width:' + percent + '%"></i></div>'
+      + '<div class="streak-week">' + week + "</div>"
+      + '<p class="meta">' + esc(T("Streak", "Ratxa")) + ": <strong>" + (g.streak || 0) + "</strong> " + esc(g.streak === 1 ? T("day", "dia") : T("days", "dies")) + " · " + esc(T("Streak freezes left", "Congelacions de ratxa")) + ": " + (g.freezes || 0) + "</p></section>"
+      + '<section class="card"><p class="eyebrow">' + esc(T("Today’s quests", "Missions d’avui")) + '</p><ul class="quest-list">' + quests + "</ul></section>"
+      + '<section class="card"><p class="eyebrow">' + esc(T("Badges", "Insígnies")) + '</p><ul class="badge-grid">' + badges + "</ul></section>"
+      + '<div class="actions on-shell"><button class="button" type="button" data-menu-action="daily-check">' + esc(T("Daily check", "Revisió del dia")) + '</button><button class="button quiet" type="button" data-nav="today">' + esc(T("Back to today", "Torna a avui")) + "</button></div>"
+      + "</div>",
+      "view--progress"
+    ));
+  }
+
   function recordMeal(id, status, details = {}) {
     const previous = state.meals[id] || {};
     const eligible = status === "eaten" || status === "restaurant";
-    if (eligible && !previous.pointsAwarded) {
-      const legacyMealPoints = Object.values(state.meals).filter((meal) => ["eaten", "restaurant"].includes(meal.status)).length * 10;
-      state.totalPoints = Math.max(Number(state.totalPoints) || 0, legacyMealPoints) + 10;
-      details.pointsAwarded = true;
-    } else if (previous.pointsAwarded) details.pointsAwarded = true;
+    if (eligible && !previous.pointsAwarded) details.pointsAwarded = true;
+    else if (previous.pointsAwarded) details.pointsAwarded = true;
     state.meals[id] = { ...previous, ...details, status };
     save();
+    if (eligible && !previous.pointsAwarded) {
+      awardXp(10, T("Meal logged", "Àpat registrat"));
+      if (status === "restaurant") awardBadge("scanner");
+    }
+    checkMealQuests();
     track("meal_logged", { status, meal: id });
+    if (eligible) void pushMeal(currentPlan().meals.find((meal) => meal.id === id), status);
   }
 
   function dailyCheck() {
@@ -894,10 +1302,10 @@
     const pending = plan.meals.filter((meal) => !["eaten", "restaurant"].includes(state.meals[meal.id]?.status));
     const date = new Intl.DateTimeFormat(language === "ca" ? "ca-ES" : "en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
     const completedToday = state.dailyCheckAwardedDate === todayKey();
-    const points = completed.length * 10 + (completedToday ? 10 : 0);
-    const totalPoints = Math.max(Number(state.totalPoints) || 0, points);
+    const points = todayGame().xp;
+    const totalPoints = game().xp;
     const scoreboard = '<div class="card"><p class="eyebrow">' + esc(date) + '</p><div class="scoreboard">'
-      + [[completed.length + " / " + plan.meals.length, T("meals logged", "àpats registrats")], [String(points), T("points today", "punts avui")], [String(totalPoints), T("total points", "punts totals")], [String(state.streak || 0), T("day streak", "dies seguits")]]
+      + [[completed.length + " / " + plan.meals.length, T("meals logged", "àpats registrats")], [String(points) + " XP", T("earned today", "guanyats avui")], [String(totalPoints) + " XP", T("total", "total")], [String(game().streak || 0), T("day streak", "dies seguits")]]
         .map(([value, label]) => '<div class="score"><b>' + esc(value) + "</b><span>" + esc(label) + "</span></div>").join("")
       + "</div></div>";
     const content = scoreboard
@@ -923,9 +1331,8 @@
       state.streak = state.dailyCheckDate === todayKey(yesterday) ? (state.streak || 0) + 1 : 1;
       state.dailyCheckDate = today;
       state.dailyCheckAwardedDate = today;
-      const mealPoints = Object.values(state.meals).filter((meal) => ["eaten", "restaurant"].includes(meal.status)).length * 10;
-      state.totalPoints = Math.max(Number(state.totalPoints) || 0, mealPoints) + 10;
       save();
+      completeQuest("check");
     }
     dailyCheck();
   }
@@ -1186,6 +1593,7 @@
     ));
     root.querySelector("#approve-week").onclick = weeklyBasket;
     root.querySelector("#edit-week").onclick = weeklySetup;
+    completeQuest("week");
     bindDetailToggles();
     entries.forEach((entry) => { void loadWeeklyMealImage(entry); });
   }
@@ -1283,6 +1691,8 @@
     root.querySelector("#weekly-basket-email").onclick = () => emailWeekly("basket");
     root.querySelector("#back").onclick = weeklyPlan;
     bindBasketSwitcher();
+    completeQuest("basket");
+    awardBadge("week-planner");
     loadBasketEstimate(totals);
   }
 
@@ -1457,6 +1867,80 @@
     });
   }
 
+  function account() {
+    const linked = signedIn();
+    const body = linked
+      ? '<div class="card"><p class="account-state" id="account-state">' + esc(T("Checking your account…", "Comprovant el teu compte…")) + "</p>"
+        + "<p>" + esc(T("Your profile and the meals you log are stored in the EU and travel with you to any device where you are signed in.", "El teu perfil i els àpats que registres es desen a la UE i et segueixen a qualsevol dispositiu on hagis iniciat la sessió.")) + "</p>"
+        + '<div class="actions"><button class="button" type="button" id="account-sync">' + esc(T("Sync now", "Sincronitza ara")) + '</button>'
+        + '<button class="button quiet" type="button" id="account-export">' + esc(T("Download my data", "Baixa les meves dades")) + '</button>'
+        + '<button class="button quiet" type="button" id="account-delete">' + esc(T("Delete my saved record", "Esborra el meu registre desat")) + "</button></div>"
+        + '<p class="status" id="account-status" aria-live="polite" hidden></p></div>'
+      : '<div class="card"><p>' + esc(T("Right now this plan exists only in this browser. Clear it, change phone, and it is gone.", "Ara mateix aquest pla només existeix en aquest navegador. Si l’esborres o canvies de telèfon, es perd.")) + "</p>"
+        + "<p>" + esc(T("Sign in with your Quota Vita account and your profile, your logged meals and your streak are kept for you.", "Inicia la sessió amb el teu compte de Quota Vita i el teu perfil, els àpats registrats i la teva ratxa es conserven.")) + "</p>"
+        + '<label class="account-consent"><input type="checkbox" id="account-consent"> <span>' + esc(T("I agree that Quota Vita may store my nutrition profile and the meals I log in order to provide the Coach. I can export or delete it at any time.", "Accepto que Quota Vita desi el meu perfil nutricional i els àpats que registro per oferir el Coach. Puc exportar-ho o esborrar-ho quan vulgui.")) + "</span></label>"
+        + '<div class="actions"><button class="button" type="button" id="account-connect" disabled>' + esc(T("Save my plan to my account", "Desa el meu pla al meu compte")) + '</button>'
+        + '<button class="button quiet" type="button" id="back">' + esc(T("Not now", "Ara no")) + "</button></div></div>";
+
+    mount("account", viewShell(
+      T("Your account", "El teu compte"),
+      T("Keep your plan when you close this browser.", "Conserva el teu pla quan tanquis aquest navegador."),
+      body
+    ));
+
+    const status = (text) => {
+      const node = root.querySelector("#account-status");
+      if (!node) return;
+      node.textContent = text;
+      node.hidden = false;
+    };
+
+    if (linked) {
+      // A token in this browser is not proof the record exists. Ask the server
+      // before telling anyone their plan is safe.
+      void accountFetch("/api/account").then((data) => {
+        const node = root.querySelector("#account-state");
+        if (!node) return;
+        if (data?.signedIn) {
+          node.textContent = data.profile
+            ? T("Your plan is saved to your Quota Vita account.", "El teu pla es desa al teu compte de Quota Vita.")
+            : T("Signed in. Nothing is saved yet — sync to store this plan.", "Sessió iniciada. Encara no hi ha res desat: sincronitza per desar aquest pla.");
+        } else {
+          node.textContent = T("We could not reach your account. Your plan is safe on this device.", "No hem pogut connectar amb el teu compte. El teu pla és segur en aquest dispositiu.");
+        }
+      });
+
+      root.querySelector("#account-sync").onclick = async () => {
+        status(T("Syncing…", "Sincronitzant…"));
+        await pushProfile();
+        status(T("Synced.", "Sincronitzat."));
+      };
+      root.querySelector("#account-export").onclick = async () => {
+        status(T("Preparing your data…", "Preparant les teves dades…"));
+        const data = await accountFetch("/api/account?export=1");
+        if (!data) return status(T("That did not work. Try again in a moment.", "No ha funcionat. Torna-ho a provar d’aquí a un moment."));
+        const popup = window.open("", "_blank");
+        if (!popup) return status(T("Allow pop-ups to see your data.", "Permet les finestres emergents per veure les teves dades."));
+        popup.document.write("<pre>" + esc(JSON.stringify(data, null, 2)) + "</pre>");
+        popup.document.close();
+        status(T("Opened in a new tab.", "Obert en una pestanya nova."));
+      };
+      root.querySelector("#account-delete").onclick = async () => {
+        status(T("Deleting…", "Esborrant…"));
+        const done = await accountFetch("/api/account", { method: "DELETE" });
+        if (!done) return status(T("That did not work. Try again in a moment.", "No ha funcionat. Torna-ho a provar d’aquí a un moment."));
+        try { localStorage.removeItem(accountTokenKey); localStorage.removeItem(accountConsentKey); } catch { /* private mode */ }
+        status(T("Deleted. Your plan stays on this device only.", "Esborrat. El teu pla es queda només en aquest dispositiu."));
+      };
+    } else {
+      const checkbox = root.querySelector("#account-consent");
+      const connect = root.querySelector("#account-connect");
+      checkbox.onchange = () => { connect.disabled = !checkbox.checked; };
+      connect.onclick = connectAccount;
+      root.querySelector("#back").onclick = dashboard;
+    }
+  }
+
   function basket() {
     const plan = currentPlan();
     const items = basketItems(plan);
@@ -1473,7 +1957,11 @@
     root.querySelector("#back").onclick = dashboard;
     root.querySelector("#clear").onclick = resetCoach;
     bindBasketSwitcher();
+    completeQuest("basket");
   }
 
+  if (state.profile) { syncStreak(); save(); }
   if (state.profile) (state.needsTraining ? training() : dashboard()); else welcome();
+  void checkAccountsEnabled();
+  void syncAccount();
 })();

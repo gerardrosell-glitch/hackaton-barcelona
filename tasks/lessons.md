@@ -37,3 +37,26 @@ Two palettes were live at once and every new rule needed `!important` to land.
 
 Rule for myself: when a second style block appears for the same surface, stop and extract the CSS
 into one real stylesheet instead of adding a third. The cost of extracting grows with every patch.
+
+## Sample the brand, never infer it — 2026-08-29
+
+I chose an espresso-dark shell for the Coach on the strength of "warm and
+Mediterranean". The brand is a light one: quotavita.com is white with near-black
+Inter text, and the logotype is `#AC5C44`, which I only learned by downloading
+`logo-horitzontal-quotaVita.png` and counting pixels. The repo even carried
+`public/assets/coach-palette.png` — cream, apricot, sage — which said the same
+thing before I started.
+
+Rule for myself: before choosing any palette, sample the real assets — the live
+site, the logo file, the theme's colour settings. Ten minutes of sampling beats
+a redesign built on a guess.
+
+## A grid track will escape its own padding — 2026-08-29
+
+A card's children rendered 3px wider than the card. The card was `display:grid`,
+and a grid track sizes to its item's min-content unless capped, so a composer
+holding an `<input>` (default `size=20`) plus a button pushed the track past the
+padding box. `min-width:0` on the input does not help; the track is the problem.
+
+Fix: `grid-template-columns: minmax(0, 1fr)` on any single-column grid that holds
+form controls or long text.
