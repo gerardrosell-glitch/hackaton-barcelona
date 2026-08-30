@@ -15,7 +15,7 @@
  * baked in as the homepage.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = `coach-shell-${VERSION}`;
 const ASSETS = `coach-assets-${VERSION}`;
 
@@ -41,6 +41,9 @@ self.addEventListener("activate", (event) => {
 });
 
 const isAsset = (url) => /\.(?:css|js|png|jpe?g|svg|webp|woff2?)$/i.test(url.pathname);
+
+/** The code, as opposed to the pictures and fonts it draws with. */
+const isOwnCode = (url) => /\.(?:css|js)$/i.test(url.pathname);
 
 /** Fresh when there is a network, last-known-good when there is not. */
 async function networkFirst(request, cacheName) {
@@ -83,8 +86,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  /* The app's own script and stylesheet are network-first, not
+     stale-while-revalidate. Stale-while-revalidate answers from disk even when
+     there is a network, so a deploy only reached someone on their *second*
+     load — the first one re-served the old file and merely refreshed the cache
+     behind it. A bug fix that needs two reloads to arrive reads as a bug fix
+     that never shipped. Offline is unaffected: networkFirst still falls back to
+     the cached copy, which is what the supermarket basement needs. */
   if (url.origin === self.location.origin && isAsset(url)) {
-    event.respondWith(staleWhileRevalidate(request, SHELL));
+    event.respondWith(isOwnCode(url) ? networkFirst(request, SHELL) : staleWhileRevalidate(request, SHELL));
     return;
   }
 

@@ -18,7 +18,7 @@ import { SITE, ORGANISATION } from "./site.js";
 import { renderMarkdown, escapeHtml } from "./markdown.js";
 import { negotiate, applyVary } from "./negotiate.js";
 
-export const ASSET_VERSION = "light-only-1";
+export const ASSET_VERSION = "weekly-email-fix-1";
 export const DOCS_URL = `${SITE.origin}/openapi.json`;
 
 /** What a caller should do about each failure. Empty means the message says it. */
