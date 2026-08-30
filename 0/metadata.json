@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.3",
+  "checkpoint_id": "01M18R9JHX3RJCCYPGD63TDVE4",
+  "session_id": "01a04eb5-701a-7d81-bf83-3528ad6e3ae3",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T07:14:12.313501Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "public/coach.js"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-terra",
+  "turn_id": "394c239be495",
+  "checkpoint_transcript_start": 66,
+  "transcript_lines_at_start": 66,
+  "compact_transcript_start": 10,
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T07:14:12.30574Z",
+    "agent_lines": 25,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 25,
+    "total_lines_changed": 25,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
