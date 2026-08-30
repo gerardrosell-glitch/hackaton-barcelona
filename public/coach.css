@@ -1653,6 +1653,12 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 1099px) {
   .topbar-actions > .lang { display: none; }
   .topbar-inner { gap: var(--s2); }
+
+  /* ...except on the landing and during setup, where there is no overflow menu
+     to hide it in. Choosing your language is the first thing a Catalan speaker
+     needs, and on a phone it was nowhere at all. */
+  [data-view="landing"] .topbar-actions > .lang,
+  [data-view="setup"] .topbar-actions > .lang { display: flex; }
 }
 
 .menu-lang { display: grid; }
@@ -2247,8 +2253,8 @@ body.modal-open { overflow: hidden; }
 .menu-choice span { display: contents; }
 
 .menu-choice button {
-  min-width: 44px;
-  min-height: 30px;
+  min-width: 46px;
+  min-height: 36px;
   padding: 0 var(--s3);
   border: 0;
   border-radius: var(--radius-pill);
