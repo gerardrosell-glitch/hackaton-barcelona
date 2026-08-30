@@ -2973,11 +2973,31 @@
         const imageBase64 = capturedMealImage || await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
         const response = await fetch("/api/meal-photo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64, logmealConsent: true }) });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        if (!response.ok) {
+          /* 422 means the photo itself is the problem, and saying so helps.
+             Anything else is our side — a provider being down or a key being
+             wrong — and the operator's wording for that ("needs a valid
+             LogMeal APIUser token in production") is not something to put in
+             front of someone sitting in a restaurant. */
+          const aboutThePhoto = response.status === 422;
+          const failure = new Error(aboutThePhoto
+            ? (data.error || T("That photo could not be read.", "No s’ha pogut llegir la foto."))
+            : T("Photo scanning is unavailable right now — but you can still log this as a restaurant meal.", "Ara mateix l’escaneig de fotos no funciona, però pots registrar l’àpat igualment."));
+          failure.scanningDown = !aboutThePhoto;
+          throw failure;
+        }
         recordMeal(id, "restaurant", { analysis: "scanned" });
         closeAll();
         refreshMealCard(id);
-      } catch (error) { feedback.innerHTML = note(error.message || T("Photo analysis is unavailable.", "L’anàlisi de fotos no està disponible."), true); }
+      } catch (error) {
+        feedback.innerHTML = note(error.message || T("Photo analysis is unavailable.", "L’anàlisi de fotos no està disponible."), true);
+        // When scanning is the thing that failed, the way forward becomes the
+        // obvious button rather than the quiet one beside it.
+        if (error.scanningDown) {
+          overlay.querySelector("#inline-manual")?.classList.remove("quiet");
+          overlay.querySelector("#inline-scan")?.classList.add("quiet");
+        }
+      }
     };
   }
 
