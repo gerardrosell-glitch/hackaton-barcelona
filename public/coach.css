@@ -1673,8 +1673,10 @@ body.modal-open { overflow: hidden; }
 /* On the narrowest phones the mark carries the brand on its own, so the
    wordmark gives its width to the streak, search and menu controls. */
 @media (max-width: 400px) {
-  .brand { font-size: 0; gap: 0; }
-  .brand-mark { font-size: 0.72rem; }
+  /* The logotype stays; "Coach" gives up its width to the streak, search and
+     menu controls. */
+  .brand em { display: none; }
+  .brand { gap: 0; }
   .topbar-inner { padding-inline: var(--s3); gap: var(--s1); }
 }
 
@@ -2664,4 +2666,41 @@ body.modal-open { overflow: hidden; }
   .hero-composer .button { width: 100%; min-height: 50px; }
   .hero-title { font-size: clamp(3rem, 13vw, 4.2rem); }
   .hero { padding-bottom: clamp(24px, 6vw, 40px); }
+}
+
+/* ───────────────────────────────────────────────────────────── brand mark
+
+   The real logotype, in its two official cuts: the terracotta one for the
+   light chrome and the negative one for the photographic landing. Both are
+   trimmed to the artwork and served at 120px tall, which is more than any
+   header asks for.                                                          */
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 21px;
+  flex: 0 0 auto;
+}
+
+.brand-logo--light { display: none; }
+
+/* Over the hero photograph the negative cut takes over. */
+[data-view="landing"] .brand-logo--ink { display: none; }
+[data-view="landing"] .brand-logo--light { display: block; }
+
+/* "Coach" is set beside the logotype, not inside it, so the mark is never
+   redrawn or restyled. */
+.brand em {
+  font-family: var(--display);
+  font-size: 1.02rem;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+[data-view="landing"] .brand em { color: rgba(253, 250, 245, 0.82); }
+
+@media (max-width: 460px) {
+  .brand-logo { height: 19px; }
 }
