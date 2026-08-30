@@ -2468,3 +2468,194 @@ body.modal-open { overflow: hidden; }
 .target, .quest-strip, .meal-card, .week-day, .live-coach, .card {
   border-color: var(--line);
 }
+
+/* ─────────────────────────────────────────────────────────── landing hero
+
+   The one screen where the Awwwards treatment belongs outright: a photograph
+   at full bleed, a headline as large as the viewport allows, and almost
+   nothing else. The daily app has to work in a supermarket; the landing has
+   one job, which is to be worth six questions.                              */
+
+[data-view="landing"] .topbar {
+  position: absolute;
+  inset: 0 0 auto;
+  background: transparent;
+  border-bottom: 0;
+}
+
+[data-view="landing"] .brand { color: #fdfaf5; }
+[data-view="landing"] .brand em { color: rgba(253, 250, 245, 0.72); }
+[data-view="landing"] .lang { border-color: rgba(253, 250, 245, 0.4); }
+[data-view="landing"] .lang button { color: rgba(253, 250, 245, 0.78); }
+[data-view="landing"] .lang button.is-active { background: #fdfaf5; color: #17140f; }
+[data-view="landing"] .main { padding: 0; background: none; }
+
+.view--landing { max-width: none; margin: 0; }
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 100dvh;
+  padding: calc(var(--topbar-h) + var(--s6)) clamp(20px, 5vw, 72px) clamp(28px, 5vw, 64px);
+  overflow: hidden;
+  isolation: isolate;
+  background: #241d18;
+}
+
+.hero-media { position: absolute; inset: 0; z-index: 0; }
+.hero-media img { width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; }
+
+/* Two scrims: one along the bottom for the type, one from the left so the
+   headline has a quiet field on the side the photograph is emptiest. */
+/* Measured, not guessed. The first scrim left the headline at 2.18:1 over the
+   olive-oil bottle — a bright band of the photograph — which fails even the 3:1
+   floor for large text. The gradient is now heaviest exactly where the words
+   are and stays light on the right, so the food is still the picture. */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(18, 13, 9, 0.42) 0%, rgba(18, 13, 9, 0.34) 26%, rgba(18, 13, 9, 0.74) 58%, rgba(18, 13, 9, 0.92) 100%),
+    linear-gradient(100deg, rgba(18, 13, 9, 0.72) 0%, rgba(18, 13, 9, 0.34) 48%, rgba(18, 13, 9, 0.06) 100%);
+}
+
+.hero-body {
+  position: relative;
+  z-index: 2;
+  width: min(660px, 100%);
+  color: #fdfaf5;
+}
+
+.hero-title {
+  margin: 0 0 var(--s4);
+  font-family: var(--display);
+  font-size: clamp(2.9rem, 11vw, 6.2rem);
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  color: #fdfaf5;
+  text-shadow: 0 1px 30px rgba(12, 8, 5, 0.55);
+}
+
+.hero-lead {
+  margin: 0 0 clamp(22px, 4vw, 34px);
+  max-width: 44ch;
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  line-height: 1.5;
+  color: rgba(253, 250, 245, 0.9);
+}
+
+/* The Coach is already talking, and the first answer is given here. */
+.hero-chat {
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid rgba(253, 250, 245, 0.24);
+  border-radius: var(--radius-lg);
+  background: rgba(22, 17, 13, 0.55);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hero-chat { background: rgba(22, 17, 13, 0.86); }
+}
+
+.hero-bubble {
+  margin: 0 0 var(--s3);
+  font-size: clamp(0.98rem, 2.1vw, 1.08rem);
+  line-height: 1.45;
+  color: #fdfaf5;
+}
+
+.hero-composer {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  padding: 5px 5px 5px var(--s4);
+  border: 1px solid rgba(253, 250, 245, 0.34);
+  border-radius: var(--radius-pill);
+  background: rgba(253, 250, 245, 0.1);
+}
+
+.hero-composer:focus-within { border-color: rgba(253, 250, 245, 0.72); }
+
+.hero-composer input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  background: transparent;
+  color: #fdfaf5;
+  font-size: 1.05rem;
+}
+
+.hero-composer input::placeholder { color: rgba(253, 250, 245, 0.62); }
+
+/* The native number stepper put a pair of grey arrows in the middle of the
+   hero. The keyboard still gets a numeric pad from inputmode. */
+.hero-composer input { appearance: textfield; -moz-appearance: textfield; }
+.hero-composer input::-webkit-outer-spin-button,
+.hero-composer input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.hero-composer input:focus { outline: none; }
+.hero-composer .button { flex: 0 0 auto; background: #fdfaf5; border-color: #fdfaf5; color: #17140f; }
+.hero-composer .button:hover { background: #fff; border-color: #fff; }
+
+.hero-note {
+  margin: var(--s3) 0 0;
+  font-size: 0.84rem;
+  color: rgba(253, 250, 245, 0.72);
+}
+
+.hero-secondary {
+  margin-top: var(--s4);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(253, 250, 245, 0.86);
+  font: inherit;
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.hero-secondary:hover { color: #fff; }
+
+.hero-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s4) clamp(20px, 5vw, 72px);
+  background: var(--canvas);
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}
+
+.hero-foot a { color: var(--ink-soft); }
+
+@media (min-width: 900px) {
+  .hero-media img { object-position: 72% 46%; }
+  .hero-body { padding-bottom: var(--s5); }
+}
+
+/* On a phone the question and the button fight for one line — and the Catalan
+   placeholder loses. Stack them: both get the full width and a thumb. */
+@media (max-width: 460px) {
+  .hero-composer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s2);
+    padding: var(--s2);
+    border-radius: var(--radius-lg);
+  }
+
+  .hero-composer input { padding: 0 var(--s3); min-height: 50px; text-align: center; }
+  .hero-composer .button { width: 100%; min-height: 50px; }
+  .hero-title { font-size: clamp(3rem, 13vw, 4.2rem); }
+  .hero { padding-bottom: clamp(24px, 6vw, 40px); }
+}

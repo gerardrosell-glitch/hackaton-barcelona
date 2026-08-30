@@ -784,6 +784,7 @@
   function mount(view, html) {
     const changed = view !== currentView;
     currentView = view;
+    document.documentElement.dataset.view = view;
     if (ROUTES.includes(view) && location.hash.slice(1) !== view) {
       history.replaceState(null, "", "#" + view);
     }
@@ -1119,8 +1120,8 @@
     landing();
   }
 
-  function profile() {
-    const answers = { ...(state.profile || {}) };
+  function profile(seed) {
+    const answers = { ...(state.profile || {}), ...(seed || {}) };
     const questions = [
       { key: "age", label: "How old are you?", hint: "For adults aged 18 to 100.", type: "number", min: 18, max: 100 },
       { key: "heightCm", label: "What is your height in centimetres?", hint: "For example, 175.", type: "number", min: 120, max: 230 },
@@ -1130,7 +1131,9 @@
       { key: "goal", label: "What would you like to work toward?", hint: "Lose fat = a gentle calorie reduction. Gain muscle = a small calorie increase and more protein. Maintain = steady energy and weight. These are general-wellbeing estimates, not clinical advice.", choices: [["Lose fat", "lose"], ["Gain muscle", "gain"], ["Maintain", "maintain"]] }
     ];
     const totalSteps = questions.length + 1;
-    let index = 0;
+    // A seeded answer means that question is already behind us.
+    let index = seed ? questions.findIndex((question) => answers[question.key] === undefined) : 0;
+    if (index < 0) index = questions.length - 1;
     const answerLabel = (question, value) => {
       if (!question.choices) return String(value) + (question.unit ? " " + question.unit : "");
       const choice = question.choices.find(([, choiceValue]) => choiceValue === value);
@@ -1236,22 +1239,51 @@
 
   /* A stranger should be able to see what this produces before handing over
      their body measurements. */
+  /* The landing is the first thing anyone sees and it has one job: make the
+     product feel worth the six questions it is about to ask. So it is a
+     photograph, a headline set as large as the screen allows, one sentence, and
+     the Coach already talking. The first question is answered here rather than
+     behind a button — the conversation starts on the landing instead of being
+     promised by it. */
   function landing() {
-    mount("landing", viewShell(
-      T("Eat for the day you actually have.", "Menja segons el dia que tens de veritat."),
-      T("Your calories, your macros, three meals and the exact shopping list — built around your body, your goal and today’s training.", "Les teves calories, els teus macronutrients, tres àpats i la llista de la compra exacta, segons el teu cos, el teu objectiu i l’entrenament d’avui."),
-      '<div class="landing"><div class="card landing-card"><h2>' + esc(T("How it works", "Com funciona")) + "</h2>" + '<ol class="steps">'
-      + [[T("Six questions", "Sis preguntes"), T("Age, height, weight, usual week and what you are working toward.", "Edat, alçada, pes, setmana habitual i què vols aconseguir.")],
-         [T("Today’s movement", "El moviment d’avui"), T("Rest, a walk, pilates, strength or a run — the plan adapts to it.", "Descans, caminar, pilates, força o córrer: el pla s’hi adapta.")],
-         [T("Your day, planned", "El teu dia, planificat"), T("Three meals with real portions, a shopping basket and a Coach you can ask.", "Tres àpats amb racions reals, una cistella de la compra i un Coach a qui preguntar.")]]
-        .map(([title, body]) => "<li><strong>" + esc(title) + "</strong><span>" + esc(body) + "</span></li>").join("")
-      + '</ol><div class="actions"><button class="button" type="button" id="start-setup">' + esc(T("Build my plan", "Crea el meu pla")) + '</button><button class="button quiet" type="button" id="see-example">' + esc(T("See an example day", "Mira un dia d’exemple")) + "</button></div>"
-      + '<p class="meta">' + esc(T("No account needed. Everything stays in this browser until you choose otherwise.", "No cal compte. Tot es queda en aquest navegador fins que decideixis el contrari.")) + "</p></div></div>"
-      + '<p class="privacy">General wellbeing guidance only. It does not provide medical advice.</p><p class="privacy privacy-links">' + siteLinks() + "</p>",
-      "view--landing"
-    ));
-    root.querySelector("#start-setup").onclick = profile;
+    const opener = T("Hi, I’m your Quota Vita Coach. Six quick questions and today’s plan is yours.",
+                     "Hola, soc el teu Coach de Quota Vita. Sis preguntes ràpides i el pla d’avui és teu.");
+    mount("landing", '<section class="view view--landing">'
+      + '<div class="hero">'
+      + '<picture class="hero-media">'
+      +   '<source media="(max-width: 640px)" srcset="/assets/hero-landing-sm.jpg">'
+      +   '<img src="/assets/hero-landing.jpg" alt="' + esc(T("A Mediterranean lunch laid on a table in daylight", "Un dinar mediterrani parat en una taula amb llum natural")) + '" fetchpriority="high">'
+      + '</picture>'
+      + '<div class="hero-body">'
+      +   '<h1 class="hero-title">' + esc(T("Eat for the day you actually have.", "Menja segons el dia que tens de veritat.")) + "</h1>"
+      +   '<p class="hero-lead">' + esc(T("Your calories, your macros, three meals and the exact shopping list — built around your body, your goal and what you are doing today.", "Les teves calories, els teus macronutrients, tres àpats i la llista de la compra exacta, segons el teu cos, el teu objectiu i el que facis avui.")) + "</p>"
+      +   '<div class="hero-chat">'
+      +     '<p class="hero-bubble">' + esc(opener) + "</p>"
+      +     '<form class="hero-composer" id="landing-form">'
+      +       '<label class="sr-only" for="landing-age">' + esc(T("How old are you?", "Quants anys tens?")) + "</label>"
+      +       '<input id="landing-age" type="number" inputmode="numeric" enterkeyhint="send" min="18" max="100" placeholder="' + esc(T("How old are you?", "Quants anys tens?")) + '" autocomplete="off">'
+      +       '<button class="button" type="submit">' + esc(T("Start", "Comença")) + "</button>"
+      +     "</form>"
+      +     '<p class="hero-note" id="landing-note">' + esc(T("Six questions. No account. Everything stays in this browser.", "Sis preguntes. Sense compte. Tot es queda en aquest navegador.")) + "</p>"
+      +   "</div>"
+      +   '<button class="hero-secondary" type="button" id="see-example">' + esc(T("Or see an example day first", "O mira primer un dia d’exemple")) + "</button>"
+      + "</div></div>"
+      + '<footer class="hero-foot"><span>' + esc(T("General wellbeing guidance only. Not medical advice.", "Orientació de benestar general. No és assessorament mèdic.")) + "</span>" + siteLinks() + "</footer>"
+      + "</section>");
+    const form = root.querySelector("#landing-form");
+    const input = root.querySelector("#landing-age");
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      const age = Number(input.value);
+      if (!Number.isFinite(age) || age < 18 || age > 100) {
+        root.querySelector("#landing-note").textContent = T("That is outside 18–100. How old are you?", "Això queda fora de 18–100. Quants anys tens?");
+        input.focus();
+        return;
+      }
+      profile({ age });
+    };
     root.querySelector("#see-example").onclick = startDemo;
+    requestAnimationFrame(() => input.focus({ preventScroll: true }));
   }
 
   /** A full working day on a sample profile, clearly labelled, one tap to adopt. */
