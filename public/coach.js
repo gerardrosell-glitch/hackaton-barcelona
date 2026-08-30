@@ -2783,6 +2783,31 @@
     loadBasketEstimate(totals);
   }
 
+  /* The week, unflattened. The email lays it out from this structure, and
+     weeklyText() is written on top of it so the two can never drift apart.
+     The basket keeps both shapes: `groups` in aisle order for the layout the
+     screen shows, and the flat `items` the mailer falls back to. */
+  function weeklySections(kind) {
+    if (kind === "basket") {
+      const groups = weeklyBasketSections();
+      const items = groups.flatMap((group) => group.items.map((row) =>
+        ({ amount: row.amount, name: row.name, price: row.price, category: group.title })));
+      const copy = basketEstimateCopy();
+      /* Prices arrive later, from /api/basket-prices. Without them the basket
+         still travels — the email just leaves the total out. */
+      const estimate = weeklyBasketEstimate
+        ? { total: formatEur(weeklyBasketEstimate.total), totalLabel: copy.total, source: copy.source, note: copy.note }
+        : null;
+      return { items, groups, estimate };
+    }
+    return weeklyPlanEntries().map((entry) => ({
+      day: entry.day,
+      activity: activityLabel(entry.activity),
+      meals: entry.meals.map((meal) =>
+        ({ slot: meal.slot, title: meal.title, portions: meal.portions, catalanName: meal.catalanName || "" }))
+    }));
+  }
+
   function weeklyText(kind) {
     const sections = weeklySections(kind);
     if (kind === "basket") {
