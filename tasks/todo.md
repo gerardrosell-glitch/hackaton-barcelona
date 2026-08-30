@@ -663,3 +663,42 @@ labels at 2.6:1 after the accent was demoted, and Kitchen's first attempt
 setting type straight onto bright food photographs. Both fixed.
 
 Proposal published at claude.ai/code/artifact/9dd675e9-268b-4ef7-aaa8-71d445a97d52
+
+## Weekly-basket email crash — 2026-08-30
+
+- [x] Reproduce `Can't find variable: weeklySections` on the send-my-weekly-basket modal.
+- [x] Restore `weeklySections()` on top of the aisle-grouped basket.
+- [x] Verify both kinds, priced and unpriced, in a browser.
+- [x] Deploy and verify on `coach.quotavita.com`.
+
+### Review
+
+Commit 4d1f0b7 regrouped the basket into shop aisles and rewrote `weeklyText()`
+to read `groups` and `estimate` off a structured week, but `weeklySections()` —
+the function that builds that structure — went out with the old flat-list
+version. Both call sites survived, so submitting the email modal threw
+`ReferenceError: weeklySections is not defined`, surfacing under the field as
+"Can't find variable: weeklySections". Downloading the basket PDF was broken the
+same way. The whole weekly-basket email path had been dead on production since
+that commit.
+
+The function is rebuilt on the basket the screen already draws: `groups` in
+aisle order for the layout, flat `items` as the mailer's fallback, and the
+estimate only once `/api/basket-prices` has answered. The plan side reads
+`weeklyPlanEntries()`, so the emailed week is the week on the screen rather than
+a second computation of it. One file, 25 lines added, nothing else touched.
+
+Verified in a browser with `fetch` stubbed at `/api/shopify-email`, so no
+customer mail was sent and no Shopify record written: basket with prices, basket
+without prices, and the seven-day plan all build a valid payload, and the
+confirmation state renders. The payload shapes were checked against
+`validSections()` in `xatquotavita/api/coach-email.js` so they survive
+validation instead of silently falling back to the plain text.
+
+Production deployment `dpl_prrF1962Pdc4bAh62GgQ7aig8R8V` is ready and aliased to
+`coach.quotavita.com`. The live `coach.js` is byte-identical to the fixed source,
+and the eleven public URLs still answer 200. The release was cut from the working
+tree, which was byte-identical to live apart from this fix — deploying the git
+tree instead would have dropped the uncommitted `/about`, `/llms.txt`,
+`/openapi.json`, `/agents.md`, `/sitemap.xml` and `/robots.txt` routes that are
+live but never committed. 78 project tests pass.
