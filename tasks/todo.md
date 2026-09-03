@@ -13,11 +13,43 @@
 - [ ] Verify on a physical iPhone and Android handset, where the microphone permission and the
       installed speech voices are real. Catalan synthesis is not present on every device; the
       controller falls back to a Spanish voice, which needs a listen before release.
-- [ ] Deploy to `coach.quotavita.com` and confirm `/api/voice` answers with the live key. Check
-      specifically that `api/voice.js` and `server/openapi.js` still resolve
-      `../public/voice-commands.js` inside the deployed function: the shared grammar lives in
-      `public/` because only that directory is reachable by the browser, and it is the one import
-      that crosses from a function into the static tree.
+- [ ] Deploy to `coach.quotavita.com`. This has to run from a machine linked to the Vercel
+      project: `.vercel/` is gitignored, so a fresh clone has no `orgId`/`projectId`, and the
+      project is not wired to GitHub — there has never been a GitHub deployment on this repo, so
+      merging to `main` ships nothing on its own.
+
+      ```sh
+      git fetch origin && git checkout claude/coac-quotavita-voice-control-o5uqxr
+      npm test                       # 28 tests
+      npx vercel@latest deploy --prod
+      ```
+
+- [ ] After the deploy, three things to confirm, in this order.
+
+      1. **The cross-tree import survived bundling.** `api/voice.js` and `server/openapi.js` both
+         import `../public/voice-commands.js` — the shared grammar lives in `public/` because that
+         is the only directory the browser can reach, and it is the one import crossing from a
+         function into the static tree. If Vercel's tracer dropped it, both routes 500 at cold
+         start. One call proves both:
+
+         ```sh
+         curl -s https://coach.quotavita.com/openapi.json | grep -c interpretSpokenCommand   # expect 1
+         curl -s -X POST https://coach.quotavita.com/api/voice \
+           -H 'Content-Type: application/json' \
+           -d '{"transcript":"what should I eat before a long run","language":"en"}'
+         ```
+
+         The second should return `{"say": "...", "actions": [...]}`. A `503
+         service_not_configured` means `OPENAI_API_KEY` is missing from the Vercel environment,
+         not that the import failed.
+
+      2. **Direct commands work with no key at all.** They never reach the server, so
+         `coach.quotavita.com` → microphone → "open my basket" should navigate even in aeroplane
+         mode once the service worker has the shell.
+
+      3. **A real handset.** The microphone permission prompt, and the speech voices, only exist
+         on a real device. Catalan synthesis is not installed on every phone; the controller falls
+         back to a Spanish voice, which needs a listen before this is called done.
 - [ ] Run the new Catalan copy through Softcatalà. The corrector was unreachable from the build
       environment (the egress policy refuses `softcatala.org`), so the spoken Catalan shipped on a
       manual pass only: tractament de tu throughout, `proteïna` with the dieresi, no *sóc*, *tenir
