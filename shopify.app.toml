@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "5f89bb5b2fc1745a4e41d09f6d1abbd4"
-name = "nutrtition"
+name = "Quota Vita Nutrition Coach"
 application_url = "https://project-kx8dj.vercel.app"
 embedded = false
 
