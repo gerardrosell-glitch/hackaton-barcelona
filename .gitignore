@@ -7,3 +7,6 @@ coverage/
 .vercel/
 .vercel
 .env*
+
+# Carries the client ID and deployment URL. Copy from shopify.app.toml.example.
+shopify.app.toml
