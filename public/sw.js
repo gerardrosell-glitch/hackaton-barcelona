@@ -98,6 +98,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  /* The Coach's own Catalan voice: fixed sentences rendered ahead of time, and
+     the manifest that names them. Both are immutable — a sentence that changes
+     gets a new filename — so disk first, and they stay available offline, which
+     is where the direct voice commands are most useful. */
+  if (url.origin === self.location.origin && url.pathname.startsWith("/audio/")) {
+    event.respondWith(staleWhileRevalidate(request, ASSETS));
+    return;
+  }
+
   // Generated meal photography, which is immutable once produced and is the
   // heaviest thing on the page.
   if (/(^|\.)fal\.media$/.test(url.hostname)) {

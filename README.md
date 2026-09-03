@@ -43,6 +43,27 @@ aloud in a supermarket basement.
 Without `OPENAI_API_KEY` the direct commands still work; only spoken questions need the
 model. Browsers with no speech recognition get the same panel with a text field.
 
+### The Catalan voice
+
+Most phones ship no Catalan `speechSynthesis` voice, so the browser reads the Coach's Catalan
+in a Spanish one. Every sentence the Coach says without consulting a live number is a fixed
+set — thirty-six of them — so they are rendered once by **Matxa**, the Barcelona Supercomputing
+Center's Catalan synthesiser from Projecte Aina, and shipped as static audio:
+
+```sh
+HF_TOKEN=hf_… npm run voice:ca          # render what is missing into public/audio/ca/
+npm run voice:ca -- --check             # list what is missing, no token needed
+```
+
+`spokenPhrases()` in `public/voice-commands.js` is the single list; the script renders it and
+the player looks a sentence up in the result by its own text. Commit the output — the files are
+static assets, and `sw.js` caches them so Catalan stays in a Catalan voice offline.
+
+This is a build step, never a request. No audio and no personal data leaves a device: the input
+is the app's own copy, and the output is a file. The six sentences that carry live numbers —
+the remaining macros, the basket, a match count — still use the device's voice, and so does
+everything if the audio has not been rendered yet. Missing recordings are never fatal.
+
 ## Run verification
 
 ```sh

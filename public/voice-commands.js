@@ -208,6 +208,98 @@ export function normaliseVoiceActions(value) {
 
 const say = (en, ca) => ({ en, ca });
 
+/* ── Everything the Coach says without being told a number ────────────────
+   Gathered here rather than left inline for one reason: a device that has no
+   Catalan voice reads Catalan aloud in Spanish, which is most phones. These
+   sentences never change, so they can be rendered once by a real Catalan voice
+   and shipped as audio. `spokenPhrases()` is what the build script enumerates,
+   and it is produced by the same table the app speaks from, so the recording
+   and the sentence cannot drift apart.
+
+   What is missing from here is anything carrying a live number — the remaining
+   macros, the basket, a match count. Those are composed at the moment they are
+   said and fall back to the device's own voice. */
+
+const REPLIES = {
+  stop: say("Okay, I'll stop listening.", "D'acord, deixo d'escoltar."),
+  languageCa: say("Switching to Catalan.", "Canvio al català."),
+  languageEn: say("Switching to English.", "Canvio a l'anglès."),
+  dailyCheck: say("Opening today's check.", "Obro la revisió del dia."),
+  emailWeek: say("Opening the email form for your week.", "Obro el formulari per enviar-te la setmana."),
+  downloadBasket: say("Opening your basket to print.", "Obro la cistella per imprimir."),
+  downloadPlan: say("Opening today's plan to print.", "Obro el pla d'avui per imprimir."),
+  restartDay: say("Starting today again. Your profile is kept.", "Torno a començar el dia. El teu perfil es manté."),
+  editProfile: say("Opening your details.", "Obro les teves dades."),
+  profileNoted: say("Got it.", "Entesos."),
+  navigate: {
+    today: say("Here's today.", "Aquí tens avui."),
+    week: say("Here's your week.", "Aquí tens la setmana."),
+    basket: say("Here's your basket.", "Aquí tens la cistella."),
+    coach: say("I'm listening.", "T'escolto."),
+    progress: say("Here's your progress.", "Aquí tens el teu progrés."),
+  },
+  training: {
+    run: say("Set to a run. Your plan is rebuilt.", "Avui corres. Refaig el pla."),
+    strength: say("Set to strength. Your plan is rebuilt.", "Avui fas força. Refaig el pla."),
+    pilates: say("Set to pilates. Your plan is rebuilt.", "Avui fas pilates. Refaig el pla."),
+    walk: say("Set to a walk. Your plan is rebuilt.", "Avui camines. Refaig el pla."),
+    rest: say("A rest day it is. Your plan is rebuilt.", "Dia de descans. Refaig el pla."),
+  },
+};
+
+/** The names of the three meals, as they are spoken inside a sentence. */
+const MEAL_LABELS = {
+  breakfast: ["breakfast", "l'esmorzar"],
+  lunch: ["lunch", "el dinar"],
+  dinner: ["dinner", "el sopar"],
+};
+
+const mealReply = (meal, status) => ({
+  eaten: say("Logged " + MEAL_LABELS[meal][0] + ".", "He registrat " + MEAL_LABELS[meal][1] + "."),
+  skipped: say("Noted, you skipped " + MEAL_LABELS[meal][0] + ".", "Apuntat, t'has saltat " + MEAL_LABELS[meal][1] + "."),
+  restaurant: say("Logged " + MEAL_LABELS[meal][0] + " out.", "He registrat " + MEAL_LABELS[meal][1] + " fora."),
+}[status]);
+
+/* Fixed sentences the app composes rather than the grammar — a refusal, a
+   confirmation, an empty search. They are declared here so they are recorded
+   along with the rest; `tests/voice-commands.test.js` checks each one still
+   appears verbatim in `coach.js`, which is what stops the two copies drifting. */
+export const APP_REPLIES = Object.freeze({
+  needsSetup: say("Let's finish your setup first. How old are you?", "Primer acabem la configuració. Quants anys tens?"),
+  profileUpdated: say("Updated. Your targets are recalculated.", "Actualitzat. He recalculat els teus objectius."),
+  targetMet: say("You have met today's target. Nicely done.", "Ja has arribat a l'objectiu d'avui. Molt bé."),
+  oneMatch: say("One match. It's on screen.", "Una coincidència. La tens a la pantalla."),
+  noMatch: say("Nothing matches that.", "No hi ha res que hi coincideixi."),
+  offline: say(
+    "You're offline, so I can only do the direct commands — opening a screen, logging a meal, reading your basket.",
+    "Estàs sense connexió, així que només puc fer les ordres directes: obrir una pantalla, registrar un àpat o llegir la cistella."
+  ),
+  unreachable: say(
+    "I can't reach the Coach for that one. The direct commands still work.",
+    "No puc arribar al Coach per a això. Les ordres directes encara funcionen."
+  ),
+});
+
+/**
+ * Every sentence the Coach can speak without consulting a live number, in the
+ * language asked for. The build script renders exactly this list; the player
+ * looks a sentence up in the result by its own text, so anything not here
+ * simply falls through to the device's synthesiser.
+ */
+export function spokenPhrases(language = "ca") {
+  const code = language === "ca" ? "ca" : "en";
+  const phrases = new Set();
+  const take = (entry) => { const text = entry?.[code]; if (text) phrases.add(text); };
+
+  for (const [key, entry] of Object.entries(REPLIES)) {
+    if (key === "navigate" || key === "training") Object.values(entry).forEach(take);
+    else take(entry);
+  }
+  for (const meal of VOICE_MEALS) for (const status of VOICE_MEAL_STATUSES) take(mealReply(meal, status));
+  Object.values(APP_REPLIES).forEach(take);
+  return [...phrases];
+}
+
 /* ── The offline grammar ─────────────────────────────────────────────────
    Written against the folded transcript, so no rule needs to carry accents
    or apostrophes. Each rule is tried in order and the first hit wins, which
@@ -243,12 +335,12 @@ const ACTIVITY_WORDS = [
 const RULES = [
   // Stop first: it has to work even when the rest of the sentence is noise.
   [/^(?:stop|stop listening|be quiet|quiet|that ?s all|that ?s it|thank you that ?s all|cancel|exit|close|goodbye|bye|para|atura t|atura|prou|ja esta|adeu|tanca|cancel a|gracies ja esta)$/,
-    () => ({ actions: [{ name: "stop", arguments: {} }], say: say("Okay, I'll stop listening.", "D'acord, deixo d'escoltar.") })],
+    () => ({ actions: [{ name: "stop", arguments: {} }], say: REPLIES.stop })],
 
   [/\b(?:speak|switch to|answer in|talk to me in|in)\s+catalan\b|\bparla(?:m)?\s+en\s+catala\b|\ben\s+catala\b/,
-    () => ({ actions: [{ name: "set_language", arguments: { language: "ca" } }], say: say("Switching to Catalan.", "Canvio al català.") })],
+    () => ({ actions: [{ name: "set_language", arguments: { language: "ca" } }], say: REPLIES.languageCa })],
   [/\b(?:speak|switch to|answer in|talk to me in|in)\s+english\b|\bparla(?:m)?\s+en\s+angles\b|\ben\s+angles\b/,
-    () => ({ actions: [{ name: "set_language", arguments: { language: "en" } }], say: say("Switching to English.", "Canvio a l'anglès.") })],
+    () => ({ actions: [{ name: "set_language", arguments: { language: "en" } }], say: REPLIES.languageEn })],
 
   // Reading things out. The whole point of hands-free: cooking, or in a shop.
   [/\b(?:read|read out|whats on|what is on|what do i need to buy|what should i buy)\b.*\b(?:basket|shopping list|list)\b|\b(?:llegeix|llegeix me|digue m)\b.*\b(?:cistella|llista|compra)\b|\bque he de comprar\b/,
@@ -277,17 +369,17 @@ const RULES = [
     (folded) => logMeal(/esmorzat/.test(folded) ? "esmorzar" : /dinat/.test(folded) ? "dinar" : "sopar", "eaten")],
 
   [/\b(?:daily check|close the day|finish (?:the|my) day|end of day|check my day)\b|\b(?:revisio del dia|tanca el dia|acaba el dia|revisa el dia)\b/,
-    () => ({ actions: [{ name: "daily_check", arguments: {} }], say: say("Opening today's check.", "Obro la revisió del dia.") })],
+    () => ({ actions: [{ name: "daily_check", arguments: {} }], say: REPLIES.dailyCheck })],
   [/\b(?:email|send)\b[^.]*\b(?:week|weekly)\b|\b(?:envia m|envia|manda m)\b[^.]*\b(?:setmana|setmanal)\b/,
-    () => ({ actions: [{ name: "email_week", arguments: {} }], say: say("Opening the email form for your week.", "Obro el formulari per enviar-te la setmana.") })],
+    () => ({ actions: [{ name: "email_week", arguments: {} }], say: REPLIES.emailWeek })],
   [/\b(?:download|print|save|pdf)\b[^.]*\b(?:basket|shopping list|cistella|compra)\b|\b(?:baixa|imprimeix|desa)\b[^.]*\b(?:cistella|compra)\b/,
-    () => ({ actions: [{ name: "download", arguments: { kind: "basket" } }], say: say("Opening your basket to print.", "Obro la cistella per imprimir.") })],
+    () => ({ actions: [{ name: "download", arguments: { kind: "basket" } }], say: REPLIES.downloadBasket })],
   [/\b(?:download|print|save|pdf)\b[^.]*\b(?:plan|today|meals?)\b|\b(?:baixa|imprimeix|desa)\b[^.]*\b(?:pla|apats|avui)\b/,
-    () => ({ actions: [{ name: "download", arguments: { kind: "plan" } }], say: say("Opening today's plan to print.", "Obro el pla d'avui per imprimir.") })],
+    () => ({ actions: [{ name: "download", arguments: { kind: "plan" } }], say: REPLIES.downloadPlan })],
   [/\b(?:start over|restart(?: the| my)? day|reset(?: the| my)? day|new day|do today again)\b|\b(?:comenca de nou|reinicia el dia|torna a comencar|refes el dia)\b/,
-    () => ({ actions: [{ name: "restart_day", arguments: {} }], say: say("Starting today again. Your profile is kept.", "Torno a començar el dia. El teu perfil es manté.") })],
+    () => ({ actions: [{ name: "restart_day", arguments: {} }], say: REPLIES.restartDay })],
   [/\b(?:my details|edit (?:my )?(?:profile|details)|change my (?:weight|height|age|goal)|update my (?:weight|height|age|goal))\b|\b(?:les meves dades|edita(?: el)? perfil|canvia el meu (?:pes|objectiu)|actualitza el meu (?:pes|objectiu))\b/,
-    () => ({ actions: [{ name: "edit_profile", arguments: {} }], say: say("Opening your details.", "Obro les teves dades.") })],
+    () => ({ actions: [{ name: "edit_profile", arguments: {} }], say: REPLIES.editProfile })],
 
   [/\b(?:search for|find|look for)\s+(.{2,60})$|\b(?:cerca|busca|troba)\s+(.{2,60})$/,
     (folded, match) => {
@@ -307,17 +399,7 @@ function mealFromWord(word) {
 function logMeal(word, status) {
   const meal = mealFromWord(word);
   if (!meal) return null;
-  const labels = {
-    breakfast: ["breakfast", "l'esmorzar"],
-    lunch: ["lunch", "el dinar"],
-    dinner: ["dinner", "el sopar"],
-  }[meal];
-  const spoken = {
-    eaten: say("Logged " + labels[0] + ".", "He registrat " + labels[1] + "."),
-    skipped: say("Noted, you skipped " + labels[0] + ".", "Apuntat, t'has saltat " + labels[1] + "."),
-    restaurant: say("Logged " + labels[0] + " out.", "He registrat " + labels[1] + " fora."),
-  }[status];
-  return { actions: [{ name: "log_meal", arguments: { meal, status } }], say: spoken };
+  return { actions: [{ name: "log_meal", arguments: { meal, status } }], say: mealReply(meal, status) };
 }
 
 function matchNavigation(folded) {
@@ -325,14 +407,7 @@ function matchNavigation(folded) {
     const withVerb = new RegExp("^" + NAV_VERBS + "\\s+(?:the\\s+|my\\s+|la\\s+|el\\s+|els\\s+|les\\s+|meu\\s+|meva\\s+)?" + pattern + NAV_TAIL + "$");
     const bare = new RegExp("^" + pattern + NAV_TAIL + "$");
     if (withVerb.test(folded) || bare.test(folded)) {
-      const spoken = {
-        today: say("Here's today.", "Aquí tens avui."),
-        week: say("Here's your week.", "Aquí tens la setmana."),
-        basket: say("Here's your basket.", "Aquí tens la cistella."),
-        coach: say("I'm listening.", "T'escolto."),
-        progress: say("Here's your progress.", "Aquí tens el teu progrés."),
-      }[view];
-      return { actions: [{ name: "navigate", arguments: { view } }], say: spoken };
+      return { actions: [{ name: "navigate", arguments: { view } }], say: REPLIES.navigate[view] };
     }
   }
   return null;
@@ -343,14 +418,7 @@ function matchTraining(folded) {
   if (!declares && !/^(?:rest|rest day|descans|dia de descans)$/.test(folded)) return null;
   for (const [activity, pattern] of ACTIVITY_WORDS) {
     if (new RegExp("(?:^|\\s)" + pattern + "(?:\\s|$)").test(folded)) {
-      const spoken = {
-        run: say("Set to a run. Your plan is rebuilt.", "Avui corres. Refaig el pla."),
-        strength: say("Set to strength. Your plan is rebuilt.", "Avui fas força. Refaig el pla."),
-        pilates: say("Set to pilates. Your plan is rebuilt.", "Avui fas pilates. Refaig el pla."),
-        walk: say("Set to a walk. Your plan is rebuilt.", "Avui camines. Refaig el pla."),
-        rest: say("A rest day it is. Your plan is rebuilt.", "Dia de descans. Refaig el pla."),
-      }[activity];
-      return { actions: [{ name: "set_training", arguments: { activity } }], say: spoken };
+      return { actions: [{ name: "set_training", arguments: { activity } }], say: REPLIES.training[activity] };
     }
   }
   return null;
@@ -391,7 +459,7 @@ function matchProfileFacts(folded) {
   if (!Object.keys(args).length) return null;
   return {
     actions: [{ name: "set_profile", arguments: args }],
-    say: say("Got it.", "Entesos."),
+    say: REPLIES.profileNoted,
   };
 }
 

@@ -1,3 +1,47 @@
+# A Catalan voice for the Coach — 2026-09-03
+
+Prompted by BSC-LT's Catalan speech work. Two corrections to the obvious reading of it.
+`catalan-verification-model-pkt-a`, the model in the video, is a *verification* model — it runs
+paired with `-pkt-b` to cross-check transcriptions when labelling training data — so it is not
+something to point a microphone at. And recognition was not the broken half: Chrome and iOS both
+do `ca-ES` dictation already. What is broken is the other direction. Most phones ship no Catalan
+`speechSynthesis` voice, so the Coach reads its Catalan aloud in Spanish.
+
+- [x] Gather every sentence the Coach speaks without a live number into one catalogue.
+- [x] Add `scripts/build-catalan-voice.mjs` to render that catalogue with Matxa (Projecte Aina).
+- [x] Play a rendered sentence when one exists; fall through to the device voice when it does not.
+- [x] Cache `/audio/` in the service worker so Catalan survives offline.
+- [x] Guard the exact-text lookup with tests, including that the app-composed replies still
+      appear verbatim in `coach.js`.
+- [x] Verify playback and the no-recordings fallback in a browser.
+- [ ] Render the real audio: `HF_TOKEN=hf_… npm run voice:ca`, then commit `public/audio/ca/`.
+      This environment cannot reach `huggingface.co`, so the pipeline is written and tested
+      against placeholder audio but no real recording exists yet.
+- [ ] Listen to the thirty-six before committing them. Check the numbers-free sentences read
+      naturally at speed, and that "Refaig el pla" and "T'escolto" are not clipped.
+- [ ] Decide the variety. The script defaults to `central` via `MATXA_VOICE`; Matxa also covers
+      north-western, Balearic and Valencian.
+
+### Review
+
+The decision worth recording is what was *not* built. A live ASR or TTS endpoint would have put
+a customer's voice, or every reply, through `us-east-1` — against the README's own EU-region
+rule and the `fra1` pin in `vercel.json` — added seconds to a loop that needs to feel immediate,
+and made the privacy page's "no audio is recorded, sent or stored" false. Pre-rendering has none
+of those costs: it is a build step whose input is the app's own copy and whose output is a file.
+
+The catalogue is thirty-six sentences because that is genuinely all the Coach says on its own.
+Six more carry live numbers and cannot be pre-rendered; they keep the device voice, as does
+everything until the audio is generated. The lookup is by exact text, which is fast and needs no
+hashing in the browser but fails silently on a one-character edit — so the tests assert the
+grammar's own confirmations are all in the catalogue, and that each app-composed reply still
+appears verbatim in `coach.js`. Breaking one phrase by two characters was confirmed to fail the
+suite before this was called done.
+
+Browser-verified both ways: with recordings present, "ves a la cistella" and "he dinat" played
+files while "què em queda" synthesised its numbers; with `public/audio/` removed entirely,
+everything fell through to the synthesiser with no errors. That second state is how this ships.
+
 # Voice control — 2026-09-03
 
 - [x] Add a shared voice-command grammar with a strict action allow-list and typed arguments.

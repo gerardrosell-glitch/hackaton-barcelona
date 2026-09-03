@@ -96,3 +96,37 @@ after the split, which a copy would have hidden.
 
 Rule for myself: when a second surface needs behaviour that currently lives inside a handler,
 extract it in the same change, and re-read what the original still uses.
+
+## Check what the model is *for*, not just what it is trained on — 2026-09-03
+
+BSC's `catalan-verification-model-pkt-a` is a Catalan speech model from a source worth trusting,
+and the obvious move was to wire it up. It is a *verification* model: it exists to run beside
+`-pkt-b` and cross-check transcriptions while labelling training data. Pointing a user's
+microphone at it would have been using a measuring instrument as a product.
+
+Rule for myself: before adopting a model, read what its card says it is *intended to be used
+together with*. A model card's training data tells you what it knows; its intended-use section
+tells you whether it is the thing you need.
+
+## Ask which half is broken before improving the half that isn't — 2026-09-03
+
+The prompt was Catalan speech recognition, and recognition is the input side, so that is where I
+started. But Chrome and iOS already do `ca-ES` dictation acceptably; what actually fails on a
+real phone is the *output* — there is no Catalan voice installed, so the Coach speaks Catalan
+with a Spanish accent. Improving recognition would have added a us-east-1 round trip, seconds of
+latency and a contradiction of the privacy page, to fix something that was not broken.
+
+Rule for myself: when handed a technology, find the failure it removes before finding the place
+it fits. "More accurate" and "better to use" are different axes, and a voice loop trades the
+first for the second every time.
+
+## A finite set of sentences does not need a runtime service — 2026-09-03
+
+The Coach's Catalan is not open-ended. Thirty-six sentences carry no live number, so they can be
+spoken once by a real Catalan voice and shipped as files: no endpoint, no token in production,
+no latency, no cost, no audio leaving the device, and it works offline. The six sentences that
+do carry numbers keep the device voice. The whole difference between a build step and a
+dependency was noticing that the copy is fixed.
+
+Rule for myself: before integrating a generative service, count the distinct outputs. If the
+count is small and stable, generate them at build time and ship the result.

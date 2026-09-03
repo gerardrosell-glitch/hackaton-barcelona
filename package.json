@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test",
     "db:sql": "cat supabase/migrations/*.sql",
-    "dev": "node scripts/dev.mjs"
+    "dev": "node scripts/dev.mjs",
+    "voice:ca": "node scripts/build-catalan-voice.mjs"
   }
 }

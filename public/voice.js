@@ -22,7 +22,7 @@
  * feature degrades to "type a command" rather than disappearing.
  */
 
-import { matchVoiceCommand, MAX_TRANSCRIPT_LENGTH, VOICE_EXAMPLES } from "./voice-commands.js";
+import { APP_REPLIES, matchVoiceCommand, MAX_TRANSCRIPT_LENGTH, VOICE_EXAMPLES } from "./voice-commands.js";
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const BCP47 = { en: "en-GB", ca: "ca-ES" };
@@ -51,9 +51,7 @@ const COPY = {
     noMic: "No microphone was found. Type a command instead.",
     networkVoice: "The speech service is unreachable. Type a command instead.",
     quiet: "I didn’t hear anything, so I stopped listening. Tap the circle when you’re ready.",
-    offline: "You’re offline, so I can only do the direct commands — opening a screen, logging a meal, reading your basket.",
     notUnderstood: "I didn’t catch that. Try one of the examples below.",
-    unreachable: "I can’t reach the Coach for that one. The direct commands still work.",
     privacy: "Your browser turns speech into text. Only text the Coach doesn’t already understand is sent to be answered, and no audio is stored.",
   },
   ca: {
@@ -74,9 +72,7 @@ const COPY = {
     noMic: "No s’ha trobat cap micròfon. Escriu una ordre.",
     networkVoice: "El servei de veu no respon. Escriu una ordre.",
     quiet: "No he sentit res i he deixat d’escoltar. Toca el cercle quan vulguis.",
-    offline: "Estàs sense connexió, així que només puc fer les ordres directes: obrir una pantalla, registrar un àpat o llegir la cistella.",
     notUnderstood: "No ho he entès. Prova un dels exemples.",
-    unreachable: "No puc arribar al Coach per a això. Les ordres directes encara funcionen.",
     privacy: "El navegador converteix la veu en text. Només s’envia el text que el Coach no entén pel seu compte, i no es desa cap àudio.",
   },
 };
@@ -116,7 +112,8 @@ const PANEL_MARKUP = (copy, canListen) => `
  *   `remember(role, text)` and `track(name, props)`.
  */
 export function createVoiceController(bridge) {
-  const copy = () => COPY[bridge.language() === "ca" ? "ca" : "en"];
+  const langCode = () => (bridge.language() === "ca" ? "ca" : "en");
+  const copy = () => COPY[langCode()];
   const canListen = Boolean(SpeechRecognition);
 
   let panel = null;
@@ -139,6 +136,39 @@ export function createVoiceController(bridge) {
     }
   }
 
+  /* ── Catalan, in a Catalan voice ─────────────────────────────────────────
+     Most phones ship no Catalan voice at all, so `speechSynthesis` reads the
+     Coach's Catalan in Spanish. The sentences that carry no live number are a
+     fixed set, rendered ahead of time by Matxa — the Barcelona Supercomputing
+     Center's Catalan synthesiser — and looked up here by their own text.
+
+     Everything about this is optional. No manifest, a sentence that is not in
+     it, a file that will not play: each falls through to the synthesiser, which
+     is what English uses and what Catalan used before. */
+  let recordings = null;
+  let currentAudio = null;
+
+  function catalanRecordings() {
+    if (recordings) return recordings;
+    recordings = fetch("/audio/ca/manifest.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((manifest) => manifest?.files || {})
+      .catch(() => ({}));
+    return recordings;
+  }
+
+  function playRecording(file) {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio("/audio/ca/" + file);
+      let settled = false;
+      const finish = (error) => { if (settled) return; settled = true; error ? reject(error) : resolve(); };
+      audio.onended = () => { currentAudio = null; finish(); };
+      audio.onerror = () => { currentAudio = null; finish(new Error("audio failed")); };
+      currentAudio = audio;
+      audio.play().catch(finish);
+    });
+  }
+
   function pickVoice(code) {
     const voices = window.speechSynthesis?.getVoices?.() || [];
     const wanted = BCP47[code] || BCP47.en;
@@ -150,11 +180,26 @@ export function createVoiceController(bridge) {
       || null;
   }
 
-  function speak(text) {
+  async function speak(text) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) return;
+    const code = langCode();
+    if (code === "ca") {
+      const file = (await catalanRecordings())[trimmed];
+      if (file) {
+        try {
+          return await playRecording(file);
+        } catch {
+          // The recording is a nicety. Losing it must not lose the answer.
+        }
+      }
+    }
+    return synthesise(trimmed, code);
+  }
+
+  function synthesise(trimmed, code) {
     return new Promise((resolve) => {
-      const trimmed = String(text || "").trim();
-      if (!trimmed || !window.speechSynthesis) return resolve();
-      const code = bridge.language() === "ca" ? "ca" : "en";
+      if (!window.speechSynthesis) return resolve();
       const utterance = new SpeechSynthesisUtterance(trimmed);
       utterance.lang = BCP47[code] || BCP47.en;
       const voice = pickVoice(code);
@@ -255,7 +300,7 @@ export function createVoiceController(bridge) {
     let reply = local;
     if (!local) {
       if (!navigator.onLine) {
-        reply = { actions: [], say: copy().offline };
+        reply = { actions: [], say: APP_REPLIES.offline[langCode()] };
       } else {
         try {
           const remote = await interpretRemotely(said);
@@ -263,7 +308,7 @@ export function createVoiceController(bridge) {
           bridge.track("voice_command", { source: "model" });
         } catch (error) {
           console.error("Voice interpretation failed", error);
-          reply = { actions: [], say: copy().unreachable };
+          reply = { actions: [], say: APP_REPLIES.unreachable[langCode()] };
         }
       }
     } else {
@@ -289,7 +334,7 @@ export function createVoiceController(bridge) {
 
   function listen() {
     if (!canListen || closing) return;
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     stopRecognition();
 
     recognition = new SpeechRecognition();
@@ -337,6 +382,12 @@ export function createVoiceController(bridge) {
     }
   }
 
+  /** Silences whichever of the two is talking. */
+  function stopSpeaking() {
+    window.speechSynthesis?.cancel();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  }
+
   function stopRecognition() {
     if (!recognition) return;
     const current = recognition;
@@ -353,9 +404,7 @@ export function createVoiceController(bridge) {
       stopRecognition();
       return setMode("idle");
     }
-    if (mode === "speaking") {
-      window.speechSynthesis?.cancel();
-    }
+    if (mode === "speaking") stopSpeaking();
     if (!canListen) return panel?.querySelector("#voice-typed-input")?.focus();
     handsFree = true;
     silentTurns = 0;
@@ -366,7 +415,7 @@ export function createVoiceController(bridge) {
     closing = true;
     handsFree = false;
     stopRecognition();
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     panel?.remove();
     panel = null;
     document.body.classList.remove("modal-open");
@@ -410,6 +459,7 @@ export function createVoiceController(bridge) {
     document.addEventListener("keydown", onKeydown);
 
     primeSpeech();
+    if (langCode() === "ca") void catalanRecordings();
     // Chrome fills the voice list asynchronously; without this the first
     // sentence of a session is read by the wrong-language default voice.
     if (window.speechSynthesis && !window.speechSynthesis.getVoices().length) {
