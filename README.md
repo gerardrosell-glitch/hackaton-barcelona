@@ -8,6 +8,7 @@ A Shopify Theme App Extension starter for the Quota Vita Nutrition Coach. The st
 - A client-side, working MVP interface for onboarding, daily food logging, restaurant-photo selection, activity adjustments, and a gap-aware shopping list.
 - A dependency-free nutrition-target service with tests.
 - A secure App Proxy request-verification helper for the backend integration.
+- Hands-free voice control: a shared command grammar with an offline matcher, a lazily loaded browser controller, and a model-backed interpreter for everything the grammar cannot place.
 
 ## Shopify setup
 
@@ -19,6 +20,28 @@ A Shopify Theme App Extension starter for the Quota Vita Nutrition Coach. The st
 6. Add a consent/deletion flow and a GDPR-compliant food data provider before collecting real customer data.
 
 The block intentionally works with demonstrator data until an authenticated backend is configured. It never treats photo analysis as a precise nutritional measurement.
+
+## Voice control
+
+The Coach can be driven entirely by speaking to it — a microphone in the top bar, `v` on a
+keyboard, and a panel that listens, acts and reads the answer back.
+
+Three files carry it:
+
+| File | Role |
+| --- | --- |
+| `public/voice-commands.js` | The action catalogue, the validator, and an English/Catalan phrase matcher. Imported by the browser, by `api/voice.js` and by the tests, so the offline path and the model path cannot disagree. |
+| `public/voice.js` | The browser controller: speech recognition, speech synthesis, the panel, and the listen-answer-listen loop. Fetched on demand the first time the microphone is tapped. |
+| `api/voice.js` | Interprets the sentences the grammar does not recognise, against the same catalogue, and returns a spoken reply plus checked actions. Needs `OPENAI_API_KEY`. |
+
+Two rules the code enforces rather than assumes. Every action is an allow-list entry with
+typed arguments — an action the model invents is discarded before anything runs — and nothing
+destructive is in the catalogue, so no misheard sentence can erase a profile. Commands the
+matcher recognises never touch the network, which is what makes the shopping basket readable
+aloud in a supermarket basement.
+
+Without `OPENAI_API_KEY` the direct commands still work; only spoken questions need the
+model. Browsers with no speech recognition get the same panel with a text field.
 
 ## Run verification
 

@@ -1,4 +1,5 @@
 import { sendError, methodNotAllowed } from "../server/http.js";
+import { COACH_GUARDRAILS, replyLanguage } from "../server/coach-guardrails.js";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const MAX_MESSAGES = 12;
@@ -18,7 +19,7 @@ export default async function handler(request, response) {
   if (!process.env.OPENAI_API_KEY) return sendError(response, 503, "service_not_configured", "The live Coach is not configured yet.");
 
   const body = typeof request.body === "string" ? JSON.parse(request.body || "{}") : (request.body ?? {});
-  const language = body.language === "ca" ? "Catalan" : "English";
+  const language = replyLanguage(body.language);
   const messages = Array.isArray(body.messages) ? body.messages.slice(-MAX_MESSAGES) : [];
   // The Responses API types content by who said it: what the user typed is
   // `input_text`, what the model already said is `output_text`. Sending the
@@ -35,13 +36,9 @@ export default async function handler(request, response) {
   if (!input.length) return sendError(response, 400, "invalid_request", "Write a message for your Coach.");
 
   const instructions = [
-    "You are the Quota Vita Coach, a friendly, practical nutrition companion.",
+    COACH_GUARDRAILS[0],
     `Reply in ${language}. Keep it concise (maximum 140 words) and conversational.`,
-    "Give general wellbeing and healthy Catalan Mediterranean food guidance. You may explain the app's meal plan, offer practical swaps, training-fuel ideas, restaurant choices, grocery tips, and habit support.",
-    "Never diagnose, treat, or claim medical certainty. Do not create meal plans for pregnancy, eating disorders, diabetes, kidney disease, allergies, or other medical conditions. For these, acknowledge the limitation and recommend an appropriate qualified clinician.",
-    "Do not tell the user to change prescribed medication. Avoid extreme restriction, unsafe weight-loss advice, or shaming language.",
-    "The app calculates calories and macros separately. Do not invent precise personalised calorie targets; explain that the displayed estimates are general wellbeing guidance.",
-    "Do not ask for or repeat sensitive health information unless the user volunteers it."
+    ...COACH_GUARDRAILS.slice(1)
   ].join(" ");
 
   try {

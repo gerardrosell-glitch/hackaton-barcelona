@@ -60,3 +60,39 @@ padding box. `min-width:0` on the input does not help; the track is the problem.
 
 Fix: `grid-template-columns: minmax(0, 1fr)` on any single-column grid that holds
 form controls or long text.
+
+## A voice action is an allow-list, not an instruction — 2026-09-03
+
+The tempting shape for voice control is to let the model name a function and pass it arguments.
+That makes the model's output an instruction, and a health app then has a microphone wired to
+`deleteEverything`. The shape that survives contact with a noisy kitchen is the opposite: one
+file declares every action that exists and the exact range of every argument, the model
+*proposes*, and a validator between them discards anything it did not recognise — unknown name,
+unknown argument, out-of-range number, missing required field. Erasing data simply is not in
+the catalogue, so no mishearing can reach it.
+
+Rule for myself: before wiring a model to an app's functions, write the catalogue and its
+validator first, and put the destructive operations outside it on purpose.
+
+## Ship the offline half of a voice feature first — 2026-09-03
+
+"Open my basket" going through a language model is a round trip, a key, and a failure mode, for
+a sentence a regular expression settles. Worse, it fails in the one place the basket is most
+needed: a supermarket basement with no signal. Matching the common commands on the device made
+voice work offline, instantly, and with no key configured at all — and it left the model doing
+only what it is actually good at, which is the phrasings nobody anticipated.
+
+Rule for myself: for any natural-language feature, ask which fraction of real inputs is a fixed
+vocabulary, and answer that fraction locally. The model is the long tail, not the front door.
+
+## Extract the function before the second caller, not after — 2026-09-03
+
+Voice needed to set today's training and to read out what was left of the day. Both already
+existed — inside a click handler and inside a markup builder. Copying them would have given the
+microphone its own idea of what "choose today's movement" resets, and the two would have
+diverged on the first change. Pulling `applyTraining` and `remainingToday` out first cost a few
+minutes; it is also how the extraction caught that `targetPanelMarkup` still needed `eaten`
+after the split, which a copy would have hidden.
+
+Rule for myself: when a second surface needs behaviour that currently lives inside a handler,
+extract it in the same change, and re-read what the original still uses.

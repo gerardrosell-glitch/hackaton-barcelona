@@ -1,3 +1,50 @@
+# Voice control — 2026-09-03
+
+- [x] Add a shared voice-command grammar with a strict action allow-list and typed arguments.
+- [x] Match the common English and Catalan commands on the device, with no network call.
+- [x] Add `/api/voice` for the sentences and questions the grammar cannot place.
+- [x] Add a hands-free browser panel: microphone, live transcript, spoken reply, listen again.
+- [x] Reach every screen, meal log, training choice, basket read-out and setup answer by voice.
+- [x] Keep data erasure out of the voice catalogue.
+- [x] Fall back to a text field where the browser has no speech recognition.
+- [x] Cache the voice modules in the service-worker shell so commands work offline.
+- [x] Disclose voice on the privacy page and publish `/api/voice` in the OpenAPI contract.
+- [x] Verify the flow in a real browser at phone and desktop widths.
+- [ ] Verify on a physical iPhone and Android handset, where the microphone permission and the
+      installed speech voices are real. Catalan synthesis is not present on every device; the
+      controller falls back to a Spanish voice, which needs a listen before release.
+- [ ] Deploy to `coach.quotavita.com` and confirm `/api/voice` answers with the live key. Check
+      specifically that `api/voice.js` and `server/openapi.js` still resolve
+      `../public/voice-commands.js` inside the deployed function: the shared grammar lives in
+      `public/` because only that directory is reachable by the browser, and it is the one import
+      that crosses from a function into the static tree.
+- [ ] Run the new Catalan copy through Softcatalà. The corrector was unreachable from the build
+      environment (the egress policy refuses `softcatala.org`), so the spoken Catalan shipped on a
+      manual pass only: tractament de tu throughout, `proteïna` with the dieresi, no *sóc*, *tenir
+      que*, *bueno*, *vale*, *suero* or *tamany*, and no claim that the whey comes from Catalan
+      cheese factories. It still needs the machine check.
+- [ ] Separately: `public/coach.js` line 360 carries a pre-existing "Hola, sóc el teu Coach" in the
+      Catalan dictionary. The brand rule is *soc*, without the diacritic, per IEC 2017. Left
+      untouched here because it is not part of this change.
+
+### Review
+
+Voice is a third way to drive the same app, beside the tab bar and the search panel, and it
+reuses their functions rather than owning copies. `applyTraining` and `remainingToday` were
+extracted for exactly that reason: choosing today's movement and reading what is left of the
+day now have one definition each, used by the screen and by the microphone.
+
+Every sentence is tried against `public/voice-commands.js` on the device first. That file is
+also what `api/voice.js` validates the model's output against, so the offline path and the
+model path cannot drift. Fifteen actions exist; erasing data is deliberately not one of them.
+
+Local browser verification at 390 px and 1280 px: the microphone opens the panel, `v` opens it
+from the keyboard, Escape and "stop" close it, and typed commands drove navigation to the
+basket, a run set for the day, lunch logged, the basket and the remaining macros read aloud,
+and the dinner card read out with its ingredients. With no microphone available the panel
+showed the permission message and stayed usable by typing. `npm test` passes 26 tests, ten of
+them new.
+
 # Nutrition Coach interaction update
 
 - [x] Replace the fixed desktop meal-board width and image height with viewport-aware sizing.

@@ -13,9 +13,10 @@
  */
 
 import { SITE, ORGANISATION } from "./site.js";
+import { VOICE_ACTIONS, MAX_TRANSCRIPT_LENGTH, MAX_VOICE_ACTIONS } from "../public/voice-commands.js";
 
 /** Bumped whenever the shape of a request or a response changes. */
-export const API_VERSION = "1.1.0";
+export const API_VERSION = "1.2.0";
 
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 
@@ -238,6 +239,45 @@ const SCHEMAS = {
     required: ["reply"],
     properties: { reply: { type: "string", description: "The Coach's answer, at most about 140 words." } },
   },
+  VoiceContext: {
+    type: "object",
+    description: "The screen the person is looking at. No name, email or device identifier belongs here.",
+    properties: {
+      view: { type: "string", enum: ["today", "week", "basket", "coach", "progress", "setup"] },
+      hasProfile: { type: "boolean", description: "False before setup is finished; only a few actions can help then." },
+      activity: { type: "string", enum: ["rest", "walk", "pilates", "strength", "run"] },
+      remaining: { type: "object", description: "Calories and macros still to eat today.", additionalProperties: true },
+      meals: {
+        type: "array",
+        maxItems: 3,
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string", enum: ["breakfast", "lunch", "dinner"] },
+            title: { type: "string", maxLength: 140 },
+            status: { type: "string", enum: ["", "eaten", "skipped", "restaurant"] },
+          },
+        },
+      },
+    },
+  },
+  VoiceAction: {
+    type: "object",
+    description: "One thing the Coach should do. Any name outside this list, or any argument outside its range, is discarded before the response is sent.",
+    required: ["name", "arguments"],
+    properties: {
+      name: { type: "string", enum: Object.keys(VOICE_ACTIONS), description: Object.entries(VOICE_ACTIONS).map(([name, definition]) => `${name}: ${definition.description}`).join(" ") },
+      arguments: { type: "object", additionalProperties: true, description: "The checked arguments for this action, already coerced to their declared types." },
+    },
+  },
+  VoiceResponse: {
+    type: "object",
+    required: ["say", "actions"],
+    properties: {
+      say: { type: "string", maxLength: 400, description: "What the Coach should read aloud. Written for a speech synthesiser: no markdown, no lists, no URLs." },
+      actions: { type: "array", maxItems: MAX_VOICE_ACTIONS, items: ref("VoiceAction"), description: "What the app should do. Empty when the sentence was a question rather than a command." },
+    },
+  },
   MealImageResponse: {
     type: "object",
     required: ["imageUrl"],
@@ -410,6 +450,30 @@ const PATHS = {
         "The conversation so far."
       ),
       responses: { 200: jsonResponse("The Coach's reply.", ref("ChatResponse")), ...pick(400, 405, 502, 503) },
+    },
+  },
+  "/api/voice": {
+    post: {
+      operationId: "interpretSpokenCommand",
+      summary: "Turn a spoken sentence into an answer and up to three app actions",
+      description:
+        "Send what a person said out loud, the language they said it in, and what is on their screen. The response carries `say` — the sentence to read back — and `actions`, a checked subset of what the Coach can do. The Coach's own front end matches common commands locally first and only calls this for the rest, so this endpoint answers the phrasings and the questions a fixed grammar cannot. Nothing that erases data is reachable through it.",
+      tags: ["Coach"],
+      security: [],
+      requestBody: jsonBody(
+        {
+          type: "object",
+          required: ["transcript"],
+          properties: {
+            transcript: { type: "string", minLength: 1, maxLength: MAX_TRANSCRIPT_LENGTH, description: "What was said, already transcribed." },
+            language: { type: "string", enum: ["en", "ca"], default: "en" },
+            context: ref("VoiceContext"),
+            history: { type: "array", maxItems: 6, items: ref("ChatMessage"), description: "The recent turns of this spoken conversation." },
+          },
+        },
+        "The sentence and the screen it was said to."
+      ),
+      responses: { 200: jsonResponse("What to say, and what to do.", ref("VoiceResponse")), ...pick(400, 405, 502, 503) },
     },
   },
   "/api/meal-image": {

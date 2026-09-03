@@ -20,7 +20,7 @@ const SHELL = `coach-shell-${VERSION}`;
 const ASSETS = `coach-assets-${VERSION}`;
 
 // Enough to boot and render the last plan from localStorage with no network.
-const SHELL_URLS = ["/", "/coach.css", "/coach.js", "/manifest.webmanifest", "/assets/icon-192.png"];
+const SHELL_URLS = ["/", "/coach.css", "/coach.js", "/voice.js", "/voice-commands.js", "/manifest.webmanifest", "/assets/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {

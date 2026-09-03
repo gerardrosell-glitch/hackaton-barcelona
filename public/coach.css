@@ -2704,3 +2704,166 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 460px) {
   .brand-logo { height: 19px; }
 }
+
+/* ------------------------------------------------------------------ voice */
+/* The hands-free panel. It is a full sheet rather than a corner widget on
+   purpose: the moments this is for — cooking, carrying a basket, mid-set — are
+   moments when the screen is across the room and glanceable is the whole
+   requirement. One large target, one line of state, one line of transcript. */
+
+.voice-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding: var(--s4);
+  background: rgba(43, 35, 32, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.voice-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  width: min(560px, 100%);
+  max-height: min(92dvh, 760px);
+  overflow-y: auto;
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.voice-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.voice-head h2 { margin: 0; font-family: var(--display); font-size: 1.3rem; font-weight: 500; }
+
+.voice-close {
+  min-height: 40px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.voice-close:hover { background: var(--surface-sunk); color: var(--ink); }
+
+.voice-stage { display: grid; justify-items: center; gap: var(--s3); padding: var(--s3) 0 var(--s1); }
+
+.voice-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--on-brand);
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease;
+}
+
+.voice-orb svg { width: 40px; height: 40px; }
+.voice-orb:active { transform: scale(0.96); }
+.voice-orb:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 4px; }
+
+/* The rings are the only moving part, and they only move while the microphone
+   is actually open. A panel that pulses when nothing is listening is a lie. */
+.voice-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--brand-soft);
+  opacity: 0;
+}
+
+[data-voice-mode="listening"] .voice-orb-ring { animation: voice-pulse 1900ms ease-out infinite; }
+[data-voice-mode="listening"] .voice-orb-ring--slow { animation-delay: 650ms; }
+[data-voice-mode="speaking"] .voice-orb { background: var(--sage); }
+[data-voice-mode="thinking"] .voice-orb { background: var(--ink-soft); }
+
+@keyframes voice-pulse {
+  0% { opacity: 0.75; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-orb-ring { animation: none !important; }
+  [data-voice-mode="listening"] .voice-orb { box-shadow: 0 0 0 6px var(--brand-tint); }
+}
+
+.voice-state {
+  margin: 0;
+  min-height: 1.4em;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.voice-transcript { display: grid; gap: var(--s2); max-height: 30dvh; overflow-y: auto; }
+.voice-transcript:empty { display: none; }
+
+.voice-line {
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.voice-line--user { justify-self: end; max-width: 88%; background: var(--brand-tint); color: var(--ink); }
+.voice-line--coach { justify-self: start; max-width: 92%; background: var(--surface-sunk); color: var(--ink); }
+
+.voice-examples-label {
+  margin: 0 0 var(--s2);
+  color: var(--ink-faint);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.voice-examples ul { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+
+.voice-examples button {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.voice-examples button:hover { background: var(--brand-tint); color: var(--ink); }
+
+/* Always present, not a fallback bolted on for unsupported browsers: a command
+   is sometimes easier typed, and a room can be too loud to talk in. */
+.voice-typed { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2); }
+
+.voice-typed input {
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  color: var(--ink);
+}
+
+.voice-privacy { margin: 0; color: var(--ink-faint); font-size: 0.76rem; line-height: 1.5; }
+
+@media (min-width: 700px) {
+  .voice-panel { align-items: center; }
+}

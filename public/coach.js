@@ -1,5 +1,9 @@
 (() => {
   const root = document.querySelector("#coach");
+  /* The version the server stamped on this script's own URL. Any module this
+     file imports later carries the same stamp, so one deploy replaces both
+     rather than pairing new code with a cached copy of its dependency. */
+  const assetVersion = new URLSearchParams((document.currentScript?.src || "").split("?")[1] || "").get("v") || "";
   const storageKey = "quota-vita-coach-v2";
   const activityLabels = { rest: "Rest day", run: "Run", strength: "Strength", pilates: "Pilates", walk: "Walk" };
   let state;
@@ -756,6 +760,229 @@
     document.body.classList.remove("modal-open");
   }
 
+
+  /* ── Voice control ───────────────────────────────────────────────────────
+     The Coach is used with both hands busy: chopping, carrying a shopping
+     basket, halfway through a set. So everything the tab bar and the overflow
+     menu can do, a sentence can do too.
+
+     The controller itself lives in `voice.js` and is fetched the first time the
+     microphone is tapped, because most visits never ask for it. This is the
+     other half of the contract: the small set of app functions voice is allowed
+     to reach, and the sentences the Coach reads back.
+
+     Note what is missing. `deleteEverything` is not here. Erasing a person's
+     profile is a confirmed decision on a screen they can read, and a misheard
+     sentence in a noisy kitchen must never be able to reach it. */
+
+  const voiceReopenKey = "quota-vita-coach-voice-open";
+  let voiceController = null;
+  let voiceLoading = null;
+
+  /** Everything the interpreter needs about the screen, and nothing more. */
+  function voiceContext() {
+    if (!state.profile) return { view: "setup", hasProfile: false };
+    if (state.needsTraining) return { view: "setup", hasProfile: true, activity: state.activity };
+    const plan = currentPlan();
+    return {
+      view: currentView,
+      hasProfile: true,
+      activity: state.activity,
+      remaining: remainingToday(plan),
+      meals: plan.meals.map((meal) => ({ id: meal.id, title: meal.title, status: state.meals[meal.id]?.status || "" }))
+    };
+  }
+
+  /** "a, b and c" — a list a synthesiser reads as a list rather than a table. */
+  function spokenList(items) {
+    const parts = items.filter(Boolean);
+    if (parts.length < 2) return parts.join("");
+    return parts.slice(0, -1).join(", ") + " " + T("and", "i") + " " + parts[parts.length - 1];
+  }
+
+  const spokenGrams = (value) => Math.round(value) + " grams";
+
+  function spokenMeal(meal) {
+    // Middle dots are a typographic separator; read aloud they are silence.
+    const portions = String(meal.portions || "").split("·").map((part) => part.trim()).filter(Boolean);
+    return meal.slot + ": " + meal.title + ". " + portions.join(", ") + ".";
+  }
+
+  function spokenTargets() {
+    const plan = currentPlan();
+    const left = remainingToday(plan);
+    if (left.calories <= 0 && left.proteinG <= 0) {
+      return T("You have met today's target. Nicely done.", "Ja has arribat a l'objectiu d'avui. Molt bé.");
+    }
+    return T(
+      "You have " + Math.round(left.calories) + " calories left, with " + spokenGrams(left.proteinG) + " of protein, "
+        + spokenGrams(left.carbohydrateG) + " of carbohydrate and " + spokenGrams(left.fatG) + " of fat.",
+      "Et queden " + Math.round(left.calories) + " calories, amb " + spokenGrams(left.proteinG) + " de proteïna, "
+        + spokenGrams(left.carbohydrateG) + " de carbohidrats i " + spokenGrams(left.fatG) + " de greix."
+    );
+  }
+
+  function spokenBasket(scope) {
+    const lines = scope === "week"
+      ? weeklyBasketItems().map(([name, amount]) => (amount < 20 ? amount : amount + " g") + " " + localiseFood(name))
+      : basketItems(currentPlan()).map(([amount, name]) => (typeof amount === "number" && amount !== 1 ? amount + " g" : String(amount)) + " " + localiseFood(name));
+    const lead = scope === "week"
+      ? T("Your week needs:", "La setmana necessita:")
+      : T("For today you need:", "Per avui necessites:");
+    return lead + " " + spokenList(lines) + ".";
+  }
+
+  /* Setup by voice. `profile(seed)` already knows how to take part of an answer
+     and jump to the first question still open, so the microphone reuses it
+     rather than owning a second copy of the onboarding order. The next question
+     is read back off the screen it just rendered, which keeps the spoken and
+     the written flow the same sentence, already translated. */
+  function nextSetupQuestion() {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const bubbles = [...root.querySelectorAll(".chat .bubble.coach")];
+        const question = bubbles[bubbles.length - 1];
+        if (!question) return resolve("");
+        // The hint lives in a `.meta` span inside the same bubble. On screen it
+        // is a second line; read aloud with the question it is one long
+        // run-on sentence, so only the question itself is spoken.
+        const spoken = [...question.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent).join(" ");
+        resolve((spoken.trim() || question.textContent).trim());
+      }));
+    });
+  }
+
+  /* Onboarding holds its six answers in a closure and only writes them to
+     `state.profile` on the last question. So a second spoken answer arriving
+     before the sixth would seed `profile()` with nothing but itself and send
+     the person back to question one. This is where the spoken answers wait. */
+  let voiceSetupAnswers = {};
+
+  /** A refusal replaces the confirmation the grammar produced; it never follows it. */
+  const instead = (text) => ({ say: text, instead: true });
+  const needsSetup = () => instead(T("Let's finish your setup first. How old are you?", "Primer acabem la configuració. Quants anys tens?"));
+
+  /**
+   * The allow-list, executed. Each runner returns what the Coach should read
+   * out on top of the confirmation the grammar or the model already produced,
+   * or nothing when the confirmation says it all.
+   */
+  const voiceRunners = {
+    navigate: ({ view }) => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      showView(view);
+      return null;
+    },
+    log_meal: ({ meal, status }) => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      const entry = currentPlan().meals.find((item) => item.id === meal);
+      if (!entry) return null;
+      recordMeal(entry.id, status);
+      refreshMealCard(entry.id);
+      return null;
+    },
+    set_training: ({ activity }) => {
+      if (!state.profile) return needsSetup();
+      applyTraining(activity);
+      return null;
+    },
+    set_profile: async (answers) => {
+      if (!state.profile) {
+        voiceSetupAnswers = { ...voiceSetupAnswers, ...answers };
+        profile(voiceSetupAnswers);
+        if (state.profile) voiceSetupAnswers = {};
+        return nextSetupQuestion();
+      }
+      voiceSetupAnswers = {};
+      state.profile = { ...state.profile, ...answers };
+      save();
+      void pushProfile();
+      rerenderCurrentView();
+      return T("Updated. Your targets are recalculated.", "Actualitzat. He recalculat els teus objectius.");
+    },
+    read_targets: () => (state.profile && !state.needsTraining ? spokenTargets() : needsSetup()),
+    read_meal: ({ meal }) => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      const entry = currentPlan().meals.find((item) => item.id === meal);
+      return entry ? spokenMeal(entry) : null;
+    },
+    read_basket: ({ scope }) => (state.profile && !state.needsTraining ? spokenBasket(scope === "week" ? "week" : "day") : needsSetup()),
+    daily_check: () => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      dailyCheck();
+      return null;
+    },
+    set_language: ({ language: code }) => {
+      if (code === language) return null;
+      localStorage.setItem("quota-vita-coach-language", code);
+      // The language switch reloads, which would take the voice panel with it.
+      // This is the note that survives the reload and reopens it.
+      try { sessionStorage.setItem(voiceReopenKey, "yes"); } catch { /* private mode */ }
+      setTimeout(() => location.reload(), 1400);
+      return null;
+    },
+    email_week: () => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      emailWeekly("plan");
+      return null;
+    },
+    download: ({ kind }) => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      printPdf(kind === "basket" ? "basket" : "plan");
+      return null;
+    },
+    restart_day: () => { restartDay(); return null; },
+    edit_profile: () => {
+      if (!state.profile) return needsSetup();
+      editProfile();
+      return null;
+    },
+    search: ({ query }) => {
+      if (!state.profile || state.needsTraining) return needsSetup();
+      openSearch();
+      const input = document.querySelector("#search-input");
+      if (!input) return null;
+      input.value = query;
+      renderSearchResults(query);
+      const hits = searchHits.length;
+      return hits
+        ? T(hits === 1 ? "One match. It's on screen." : hits + " matches are on screen.",
+            hits === 1 ? "Una coincidència. La tens a la pantalla." : hits + " coincidències a la pantalla.")
+        : T("Nothing matches that.", "No hi ha res que hi coincideixi.");
+    }
+  };
+
+  const voiceBridge = {
+    language: () => language,
+    context: voiceContext,
+    history: () => (Array.isArray(state.chat) ? state.chat.slice(-6) : []),
+    perform: (action) => voiceRunners[action.name]?.(action.arguments || {}) ?? null,
+    remember: (role, text) => {
+      state.chat = [...(Array.isArray(state.chat) ? state.chat : []), { role, text }].slice(-20);
+      save();
+      renderCoachThreads();
+    },
+    track
+  };
+
+  async function openVoice() {
+    if (voiceController) return voiceController.open();
+    if (!voiceLoading) {
+      voiceLoading = import("/voice.js" + (assetVersion ? "?v=" + encodeURIComponent(assetVersion) : ""))
+        .then((module) => module.createVoiceController(voiceBridge))
+        .catch((error) => { voiceLoading = null; throw error; });
+    }
+    try {
+      voiceController = await voiceLoading;
+      voiceController.open();
+    } catch (error) {
+      console.error("Voice control could not load", error);
+      // Offline, and never loaded before. Search is the nearest thing that
+      // works with no network, so the microphone hands over rather than dying.
+      openSearch();
+    }
+  }
+
   function renderChrome() {
     const inSetup = !state.profile || state.needsTraining;
     const items = navItems();
@@ -765,8 +992,9 @@
     const languages = '<div class="lang" data-language-control>' + [["en", "EN"], ["ca", "CA"]].map(([code, label]) => '<button type="button" data-language="' + code + '" class="' + (language === code ? "is-active" : "") + '" aria-pressed="' + (language === code) + '">' + label + "</button>").join("") + "</div>";
     const menuButton = inSetup ? "" : '<button class="icon-button" id="menu-toggle" type="button" aria-haspopup="true" aria-expanded="' + menuOpen + '" aria-controls="overflow-menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg><span class="sr-only">' + esc(T("More options", "Més opcions")) + "</span></button>";
     const chips = inSetup ? "" : streakChipsMarkup();
+    const voiceButton = '<button class="icon-button" id="voice-toggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg><span class="sr-only">' + esc(T("Talk to your Coach", "Parla amb el teu Coach")) + "</span></button>";
     const searchButton = inSetup ? "" : '<button class="icon-button" id="search-toggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span class="sr-only">' + esc(T("Search", "Cerca")) + "</span></button>";
-    topbarHost.innerHTML = '<div class="topbar-inner"><a class="brand" href="/" aria-label="Quota Vita Coach"><img class="brand-logo brand-logo--ink" src="/assets/logo-quota-vita.png" width="578" height="120" alt="Quota Vita"><img class="brand-logo brand-logo--light" src="/assets/logo-quota-vita-light.png" width="621" height="120" alt="" aria-hidden="true"><em>Coach</em></a>' + topnav + '<div class="topbar-actions">' + chips + languages + searchButton + menuButton + "</div></div>" + (inSetup ? "" : menuMarkup());
+    topbarHost.innerHTML = '<div class="topbar-inner"><a class="brand" href="/" aria-label="Quota Vita Coach"><img class="brand-logo brand-logo--ink" src="/assets/logo-quota-vita.png" width="578" height="120" alt="Quota Vita"><img class="brand-logo brand-logo--light" src="/assets/logo-quota-vita-light.png" width="621" height="120" alt="" aria-hidden="true"><em>Coach</em></a>' + topnav + '<div class="topbar-actions">' + chips + languages + voiceButton + searchButton + menuButton + "</div></div>" + (inSetup ? "" : menuMarkup());
     tabbarHost.hidden = inSetup;
     tabbarHost.innerHTML = inSetup ? "" : items.map((item) => (item.href
       ? '<a class="tab tab--shop" href="' + esc(item.href) + '" target="_blank" rel="noopener">' + svgIcon(item.id) + '<span class="tab-label">' + esc(item.label) + "</span></a>"
@@ -894,6 +1122,7 @@
       }
       return;
     }
+    if (event.target.closest("#voice-toggle")) return void openVoice();
     if (event.target.closest("#search-toggle")) return openSearch();
     if (event.target.closest("#menu-toggle")) return setMenuOpen(!menuOpen);
     const menuAction = event.target.closest("[data-menu-action]");
@@ -910,6 +1139,12 @@
       && !event.target.matches("input, textarea, select, [contenteditable='true']")) {
       event.preventDefault();
       return openSearch();
+    }
+    // "v" for voice, on the same terms: not while something is being typed into.
+    if ((event.key === "v" || event.key === "V") && !event.metaKey && !event.ctrlKey && !event.altKey
+      && !event.target.matches("input, textarea, select, [contenteditable='true']")) {
+      event.preventDefault();
+      return void openVoice();
     }
     if (event.key !== "Escape") return;
     if (document.querySelector("#search-panel")) return closeSearch();
@@ -1133,7 +1368,6 @@
     const totalSteps = questions.length + 1;
     // A seeded answer means that question is already behind us.
     let index = seed ? questions.findIndex((question) => answers[question.key] === undefined) : 0;
-    if (index < 0) index = questions.length - 1;
     const answerLabel = (question, value) => {
       if (!question.choices) return String(value) + (question.unit ? " " + question.unit : "");
       const choice = question.choices.find(([, choiceValue]) => choiceValue === value);
@@ -1176,12 +1410,20 @@
       answers[question.key] = question.choices ? value : Number(value);
       index += 1;
       if (index < questions.length) return render();
+      completeSetup();
+    };
+
+    /** The six answers become a profile. Reached by the last click, or by a
+        seed that already carries all six — which is what voice hands in. */
+    function completeSetup() {
       state = { ...state, profile: answers, planDate: todayKey(), needsTraining: true, activity: "rest", meals: {}, mealImages: {}, weeklyMealImages: {}, dailyMeals: null, menuNonce: (state.menuNonce || 0) + 1 };
       save();
       track("onboarding_completed", { goal: String(answers.goal || ""), activity: String(answers.activity || "") });
       void pushProfile();
       training(true);
-    };
+    }
+
+    if (index < 0) return completeSetup();
     render();
   }
 
@@ -1333,7 +1575,25 @@
       "view--setup"
     ));
     root.querySelector("#back").onclick = () => { if (inSetup) return profile(); state.needsTraining = false; dashboard(); };
-    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => { failedMealImages.clear(); failedWeeklyMealImages.clear(); failedDailyMealPlans.clear(); state.activity = button.dataset.choice; state.needsTraining = false; state.meals = {}; state.mealImages = {}; state.weeklyMealImages = {}; state.dailyMeals = null; state.menuNonce = (state.menuNonce || 0) + 1; save(); dashboard(); });
+    root.querySelectorAll("[data-choice]").forEach((button) => button.onclick = () => applyTraining(button.dataset.choice));
+  }
+
+  /* Choosing today's movement rebuilds the target, the three meals, their
+     photographs and the basket. The screen and the microphone both go through
+     here so neither can rebuild a different subset of the day. */
+  function applyTraining(activity) {
+    failedMealImages.clear();
+    failedWeeklyMealImages.clear();
+    failedDailyMealPlans.clear();
+    state.activity = activity;
+    state.needsTraining = false;
+    state.meals = {};
+    state.mealImages = {};
+    state.weeklyMealImages = {};
+    state.dailyMeals = null;
+    state.menuNonce = (state.menuNonce || 0) + 1;
+    save();
+    dashboard();
   }
 
   function totals(plan) {
@@ -1528,14 +1788,20 @@
     });
   }
 
-  function targetPanelMarkup(plan) {
+  /** What is still to eat today. The panel draws it; the Coach reads it aloud. */
+  function remainingToday(plan) {
     const eaten = totals(plan);
-    const left = {
+    return {
       calories: Math.max(0, plan.target.calories - eaten.calories),
       proteinG: Math.max(0, plan.target.proteinG - eaten.proteinG),
       carbohydrateG: Math.max(0, plan.target.carbohydrateG - eaten.carbohydrateG),
       fatG: Math.max(0, plan.target.fatG - eaten.fatG)
     };
+  }
+
+  function targetPanelMarkup(plan) {
+    const eaten = totals(plan);
+    const left = remainingToday(plan);
     const logged = plan.meals.filter((meal) => ["eaten", "restaurant"].includes(state.meals[meal.id]?.status)).length;
     const percent = (value, target) => (target > 0 ? Math.max(0, Math.min(100, Math.round((value / target) * 100))) : 0);
 
@@ -3184,6 +3450,17 @@
     document.querySelector("#install-bar")?.remove();
     track("install_completed");
   });
+
+  /* The language switch reloads the page. If it was made by voice, the panel
+     that made it comes back, in the language it just asked for. */
+  try {
+    if (sessionStorage.getItem(voiceReopenKey) === "yes") {
+      sessionStorage.removeItem(voiceReopenKey);
+      setTimeout(() => void openVoice(), 400);
+    }
+  } catch {
+    // Private mode has no session storage, and no panel to restore.
+  }
 
   if (state.profile) { syncStreak(); save(); }
   if (!state.profile) welcome();
